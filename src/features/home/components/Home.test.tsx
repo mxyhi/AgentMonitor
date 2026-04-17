@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { I18nProvider } from "@/i18n/I18nProvider";
 import { Home } from "./Home";
 
 afterEach(() => {
@@ -29,6 +30,19 @@ const baseProps = {
 };
 
 describe("Home", () => {
+  it("renders usage section in simplified chinese when locale switches", () => {
+    render(
+      <I18nProvider locale="zh-CN">
+        <Home {...baseProps} />
+      </I18nProvider>,
+    );
+
+    expect(screen.getByText("使用情况概览")).toBeTruthy();
+    expect(screen.getByText("工作区")).toBeTruthy();
+    expect(screen.getByText("视图")).toBeTruthy();
+    expect(screen.getByText("还没有使用数据")).toBeTruthy();
+  });
+
   it("renders latest agent runs and lets you open a thread", () => {
     const onSelectThread = vi.fn();
     render(

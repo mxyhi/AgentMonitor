@@ -1,6 +1,8 @@
 import { memo, useMemo } from "react";
 import ImageOff from "lucide-react/dist/esm/icons/image-off";
 import RotateCcw from "lucide-react/dist/esm/icons/rotate-ccw";
+import * as m from "@/i18n/messages";
+import { useAppLocale } from "@/i18n/I18nProvider";
 import { splitPath } from "./GitDiffPanel.utils";
 
 type ImageDiffCardProps = {
@@ -44,6 +46,7 @@ export const ImageDiffCard = memo(function ImageDiffCard({
   showRevert = false,
   onRequestRevert,
 }: ImageDiffCardProps) {
+  const locale = useAppLocale();
   const { name: fileName, dir } = useMemo(() => splitPath(path), [path]);
   const displayDir = dir ? `${dir}/` : "";
   const oldDataUri = useMemo(
@@ -79,7 +82,7 @@ export const ImageDiffCard = memo(function ImageDiffCard({
   const isAdded = status === "A";
   const isDeleted = status === "D";
   const isModified = !isAdded && !isDeleted;
-  const placeholderLabel = "Image preview unavailable.";
+  const placeholderLabel = m.git_image_preview_unavailable({}, { locale });
   const renderPlaceholder = () => (
     <div className="image-diff-placeholder">
       <ImageOff className="image-diff-placeholder-icon" aria-hidden />
@@ -104,8 +107,8 @@ export const ImageDiffCard = memo(function ImageDiffCard({
           <button
             type="button"
             className="diff-viewer-header-action diff-viewer-header-action--discard"
-            title="Discard changes in this file"
-            aria-label="Discard changes in this file"
+            title={m.git_discard_changes_in_file({}, { locale })}
+            aria-label={m.git_discard_changes_in_file({}, { locale })}
             onClick={(event) => {
               event.preventDefault();
               event.stopPropagation();
@@ -123,7 +126,7 @@ export const ImageDiffCard = memo(function ImageDiffCard({
               {oldDataUri ? (
                 <img
                   src={oldDataUri}
-                  alt="Previous version"
+                  alt={m.git_previous_version({}, { locale })}
                   className="image-diff-preview"
                 />
               ) : (
@@ -135,7 +138,7 @@ export const ImageDiffCard = memo(function ImageDiffCard({
               {newDataUri ? (
                 <img
                   src={newDataUri}
-                  alt="Current version"
+                  alt={m.git_current_version({}, { locale })}
                   className="image-diff-preview"
                 />
               ) : (

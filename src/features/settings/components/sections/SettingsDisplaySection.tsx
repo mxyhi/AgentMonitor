@@ -1,5 +1,7 @@
 import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
 import type { AppSettings } from "@/types";
+import * as m from "@/i18n/messages";
+import { useAppLocale } from "@/i18n/I18nProvider";
 import {
   CODE_FONT_SIZE_MAX,
   CODE_FONT_SIZE_MIN,
@@ -69,6 +71,7 @@ export function SettingsDisplaySection({
   onTestNotificationSound,
   onTestSystemNotification,
 }: SettingsDisplaySectionProps) {
+  const locale = useAppLocale();
   const scrollbackUnlimited = appSettings.chatHistoryScrollbackItems === null;
   const [scrollbackDraft, setScrollbackDraft] = useState(() => {
     const value = appSettings.chatHistoryScrollbackItems;
@@ -160,16 +163,37 @@ export function SettingsDisplaySection({
 
   return (
     <SettingsSection
-      title="Display & Sound"
-      subtitle="Tune visuals and audio alerts to your preferences."
+      title={m.display_title({}, { locale })}
+      subtitle={m.display_subtitle({}, { locale })}
     >
-      <div className="settings-subsection-title">Display</div>
+      <div className="settings-subsection-title">
+        {m.display_subsection_display({}, { locale })}
+      </div>
       <div className="settings-subsection-subtitle">
-        Adjust how the window renders backgrounds and effects.
+        {m.display_subsection_display_subtitle({}, { locale })}
+      </div>
+      <div className="settings-field">
+        <label className="settings-field-label" htmlFor="app-language-select">
+          {m.display_language_label({}, { locale })}
+        </label>
+        <select
+          id="app-language-select"
+          className="settings-select"
+          value={appSettings.appLanguage}
+          onChange={(event) =>
+            void onUpdateAppSettings({
+              ...appSettings,
+              appLanguage: event.target.value as AppSettings["appLanguage"],
+            })
+          }
+        >
+          <option value="en">{m.display_language_option_en({}, { locale })}</option>
+          <option value="zh-CN">{m.display_language_option_zh_cn({}, { locale })}</option>
+        </select>
       </div>
       <div className="settings-field">
         <label className="settings-field-label" htmlFor="theme-select">
-          Theme
+          {m.display_theme_label({}, { locale })}
         </label>
         <select
           id="theme-select"
@@ -182,15 +206,15 @@ export function SettingsDisplaySection({
             })
           }
         >
-          <option value="system">System</option>
-          <option value="light">Light</option>
-          <option value="dark">Dark</option>
-          <option value="dim">Dim</option>
+          <option value="system">{m.display_theme_option_system({}, { locale })}</option>
+          <option value="light">{m.display_theme_option_light({}, { locale })}</option>
+          <option value="dark">{m.display_theme_option_dark({}, { locale })}</option>
+          <option value="dim">{m.display_theme_option_dim({}, { locale })}</option>
         </select>
       </div>
       <SettingsToggleRow
-        title="Show remaining Codex limits"
-        subtitle="Display what is left instead of what is used."
+        title={m.display_usage_remaining_title({}, { locale })}
+        subtitle={m.display_usage_remaining_subtitle({}, { locale })}
       >
         <SettingsToggleSwitch
           pressed={appSettings.usageShowRemaining}
@@ -203,8 +227,8 @@ export function SettingsDisplaySection({
         />
       </SettingsToggleRow>
       <SettingsToggleRow
-        title="Show file path in messages"
-        subtitle="Display the parent path next to file links in messages."
+        title={m.display_show_file_path_title({}, { locale })}
+        subtitle={m.display_show_file_path_subtitle({}, { locale })}
       >
         <SettingsToggleSwitch
           pressed={appSettings.showMessageFilePath}
@@ -217,8 +241,8 @@ export function SettingsDisplaySection({
         />
       </SettingsToggleRow>
       <SettingsToggleRow
-        title="Split chat and diff center panes"
-        subtitle="Show chat and diff side by side instead of swapping between them."
+        title={m.display_split_panes_title({}, { locale })}
+        subtitle={m.display_split_panes_subtitle({}, { locale })}
       >
         <SettingsToggleSwitch
           pressed={appSettings.splitChatDiffView}
@@ -231,8 +255,8 @@ export function SettingsDisplaySection({
         />
       </SettingsToggleRow>
       <SettingsToggleRow
-        title="Auto-generate new thread titles"
-        subtitle="Generate a short title from your first message (uses extra tokens)."
+        title={m.display_auto_thread_title({}, { locale })}
+        subtitle={m.display_auto_thread_subtitle({}, { locale })}
       >
         <SettingsToggleSwitch
           pressed={appSettings.threadTitleAutogenerationEnabled}
@@ -245,13 +269,15 @@ export function SettingsDisplaySection({
           }
         />
       </SettingsToggleRow>
-      <div className="settings-subsection-title">Chat</div>
+      <div className="settings-subsection-title">
+        {m.display_subsection_chat({}, { locale })}
+      </div>
       <div className="settings-subsection-subtitle">
-        Control how much conversation history is retained per thread.
+        {m.display_subsection_chat_subtitle({}, { locale })}
       </div>
       <SettingsToggleRow
-        title="Unlimited chat history"
-        subtitle="Keep full thread history in memory (may impact performance)."
+        title={m.display_unlimited_chat_title({}, { locale })}
+        subtitle={m.display_unlimited_chat_subtitle({}, { locale })}
       >
         <SettingsToggleSwitch
           pressed={scrollbackUnlimited}
@@ -261,7 +287,7 @@ export function SettingsDisplaySection({
       </SettingsToggleRow>
       <div className="settings-field">
         <label className="settings-field-label" htmlFor="chat-scrollback-preset">
-          Scrollback preset
+          {m.display_scrollback_preset_label({}, { locale })}
         </label>
         <select
           id="chat-scrollback-preset"
@@ -271,21 +297,22 @@ export function SettingsDisplaySection({
           data-scrollback-control="true"
           disabled={scrollbackUnlimited}
         >
-          <option value="custom">Custom</option>
+          <option value="custom">{m.display_scrollback_preset_custom({}, { locale })}</option>
           {CHAT_SCROLLBACK_PRESETS.map((value) => (
             <option key={value} value={value}>
-              {value === CHAT_SCROLLBACK_DEFAULT ? `${value} (Default)` : value}
+              {value === CHAT_SCROLLBACK_DEFAULT
+                ? m.display_scrollback_preset_default({ value }, { locale })
+                : value}
             </option>
           ))}
         </select>
         <div className="settings-help">
-          Higher values keep more history but may increase memory usage. Use “Sync from
-          server” on a thread to re-fetch older messages.
+          {m.display_scrollback_help({}, { locale })}
         </div>
       </div>
       <div className="settings-field">
         <label className="settings-field-label" htmlFor="chat-scrollback-items">
-          Max items per thread
+          {m.display_scrollback_max_items_label({}, { locale })}
         </label>
         <div className="settings-field-row">
           <input
@@ -326,17 +353,19 @@ export function SettingsDisplaySection({
               });
             }}
           >
-            Reset
+            {m.action_reset({}, { locale })}
           </button>
         </div>
         <div className="settings-help">
-          Range: {CHAT_SCROLLBACK_MIN}–{CHAT_SCROLLBACK_MAX}. Counts messages, tool calls,
-          and other conversation items.
+          {m.display_scrollback_range_help(
+            { min: CHAT_SCROLLBACK_MIN, max: CHAT_SCROLLBACK_MAX },
+            { locale },
+          )}
         </div>
       </div>
       <SettingsToggleRow
-        title="Reduce transparency"
-        subtitle="Use solid surfaces instead of glass."
+        title={m.display_reduce_transparency_title({}, { locale })}
+        subtitle={m.display_reduce_transparency_subtitle({}, { locale })}
       >
         <SettingsToggleSwitch
           pressed={reduceTransparency}
@@ -345,7 +374,9 @@ export function SettingsDisplaySection({
       </SettingsToggleRow>
       <div className="settings-toggle-row settings-scale-row">
         <div>
-          <div className="settings-toggle-title">Interface scale</div>
+          <div className="settings-toggle-title">
+            {m.display_interface_scale_title({}, { locale })}
+          </div>
           <div className="settings-toggle-subtitle" title={scaleShortcutTitle}>
             {scaleShortcutText}
           </div>
@@ -357,7 +388,7 @@ export function SettingsDisplaySection({
             inputMode="decimal"
             className="settings-input settings-input--scale"
             value={scaleDraft}
-            aria-label="Interface scale"
+            aria-label={m.display_interface_scale_aria({}, { locale })}
             onChange={(event) => onSetScaleDraft(event.target.value)}
             onBlur={() => {
               void onCommitScale();
@@ -376,13 +407,13 @@ export function SettingsDisplaySection({
               void onResetScale();
             }}
           >
-            Reset
+            {m.action_reset({}, { locale })}
           </button>
         </div>
       </div>
       <div className="settings-field">
         <label className="settings-field-label" htmlFor="ui-font-family">
-          UI font family
+          {m.display_ui_font_label({}, { locale })}
         </label>
         <div className="settings-field-row">
           <input
@@ -412,16 +443,16 @@ export function SettingsDisplaySection({
               });
             }}
           >
-            Reset
+            {m.action_reset({}, { locale })}
           </button>
         </div>
         <div className="settings-help">
-          Applies to all UI text. Leave empty to use the default system font stack.
+          {m.display_ui_font_help({}, { locale })}
         </div>
       </div>
       <div className="settings-field">
         <label className="settings-field-label" htmlFor="code-font-family">
-          Code font family
+          {m.display_code_font_label({}, { locale })}
         </label>
         <div className="settings-field-row">
           <input
@@ -451,14 +482,14 @@ export function SettingsDisplaySection({
               });
             }}
           >
-            Reset
+            {m.action_reset({}, { locale })}
           </button>
         </div>
-        <div className="settings-help">Applies to git diffs and other mono-spaced readouts.</div>
+        <div className="settings-help">{m.display_code_font_help({}, { locale })}</div>
       </div>
       <div className="settings-field">
         <label className="settings-field-label" htmlFor="code-font-size">
-          Code font size
+          {m.display_code_font_size_label({}, { locale })}
         </label>
         <div className="settings-field-row">
           <input
@@ -484,16 +515,22 @@ export function SettingsDisplaySection({
               void onCommitCodeFontSize(CODE_FONT_SIZE_DEFAULT);
             }}
           >
-            Reset
+            {m.action_reset({}, { locale })}
           </button>
         </div>
-        <div className="settings-help">Adjusts code and diff text size.</div>
+        <div className="settings-help">
+          {m.display_code_font_size_help({}, { locale })}
+        </div>
       </div>
-      <div className="settings-subsection-title">Sounds</div>
-      <div className="settings-subsection-subtitle">Control notification audio alerts.</div>
+      <div className="settings-subsection-title">
+        {m.display_subsection_sounds({}, { locale })}
+      </div>
+      <div className="settings-subsection-subtitle">
+        {m.display_subsection_sounds_subtitle({}, { locale })}
+      </div>
       <SettingsToggleRow
-        title="Notification sounds"
-        subtitle="Play a sound when a long-running agent finishes while the window is unfocused."
+        title={m.display_notification_sounds_title({}, { locale })}
+        subtitle={m.display_notification_sounds_subtitle({}, { locale })}
       >
         <SettingsToggleSwitch
           pressed={appSettings.notificationSoundsEnabled}
@@ -506,8 +543,8 @@ export function SettingsDisplaySection({
         />
       </SettingsToggleRow>
       <SettingsToggleRow
-        title="System notifications"
-        subtitle="Show a system notification when a long-running agent finishes while the window is unfocused."
+        title={m.display_system_notifications_title({}, { locale })}
+        subtitle={m.display_system_notifications_subtitle({}, { locale })}
       >
         <SettingsToggleSwitch
           pressed={appSettings.systemNotificationsEnabled}
@@ -520,8 +557,8 @@ export function SettingsDisplaySection({
         />
       </SettingsToggleRow>
       <SettingsToggleRow
-        title="Sub-agent notifications"
-        subtitle="Include spawned sub-agent threads in system notifications."
+        title={m.display_subagent_notifications_title({}, { locale })}
+        subtitle={m.display_subagent_notifications_subtitle({}, { locale })}
       >
         <SettingsToggleSwitch
           pressed={appSettings.subagentSystemNotificationsEnabled}
@@ -540,14 +577,14 @@ export function SettingsDisplaySection({
           className="ghost settings-button-compact"
           onClick={onTestNotificationSound}
         >
-          Test sound
+          {m.display_test_sound({}, { locale })}
         </button>
         <button
           type="button"
           className="ghost settings-button-compact"
           onClick={onTestSystemNotification}
         >
-          Test notification
+          {m.display_test_notification({}, { locale })}
         </button>
       </div>
     </SettingsSection>

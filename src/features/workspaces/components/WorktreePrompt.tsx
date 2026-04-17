@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { FocusEvent } from "react";
+import * as m from "@/i18n/messages";
+import { useAppLocale } from "@/i18n/I18nProvider";
 import type { BranchInfo } from "../../../types";
 import { ModalShell } from "../../design-system/components/modal/ModalShell";
 import { BranchList } from "../../git/components/BranchList";
@@ -44,6 +46,7 @@ export function WorktreePrompt({
   isBusy = false,
   isSavingScript = false,
 }: WorktreePromptProps) {
+  const locale = useAppLocale();
   const inputRef = useRef<HTMLInputElement | null>(null);
   const branchContainerRef = useRef<HTMLDivElement | null>(null);
   const branchListRef = useRef<HTMLDivElement | null>(null);
@@ -105,26 +108,28 @@ export function WorktreePrompt({
   return (
     <ModalShell
       className="worktree-modal"
-      ariaLabel="New worktree agent"
+      ariaLabel={m.worktree_prompt_title({}, { locale })}
       onBackdropClick={() => {
         if (!isBusy) {
           onCancel();
         }
       }}
     >
-      <div className="ds-modal-title worktree-modal-title">New worktree agent</div>
+      <div className="ds-modal-title worktree-modal-title">
+        {m.worktree_prompt_title({}, { locale })}
+      </div>
       <div className="ds-modal-subtitle worktree-modal-subtitle">
-        Create a worktree under "{workspaceName}".
+        {m.worktree_prompt_subtitle({ value: workspaceName }, { locale })}
       </div>
       <label className="ds-modal-label worktree-modal-label" htmlFor="worktree-name">
-        Name
+        {m.worktree_prompt_name({}, { locale })}
       </label>
       <input
         id="worktree-name"
         ref={inputRef}
         className="ds-modal-input worktree-modal-input"
         value={name}
-        placeholder="(Optional)"
+        placeholder={m.worktree_prompt_name_placeholder({}, { locale })}
         onChange={(event) => onNameChange(event.target.value)}
         onKeyDown={(event) => {
           if (event.key === "Escape") {
@@ -140,7 +145,7 @@ export function WorktreePrompt({
         }}
       />
       <label className="ds-modal-label worktree-modal-label" htmlFor="worktree-branch">
-        Branch name
+        {m.worktree_prompt_branch_name({}, { locale })}
       </label>
       <div
         className="worktree-modal-branch"
@@ -217,7 +222,9 @@ export function WorktreePrompt({
             selectedItemClassName="selected"
             emptyClassName="worktree-modal-branch-empty"
             emptyText={
-              branch.trim().length > 0 ? "No matching branches" : "No branches found"
+              branch.trim().length > 0
+                ? m.worktree_prompt_no_matching_branches({}, { locale })
+                : m.worktree_prompt_no_branches_found({}, { locale })
             }
             onMouseEnter={(index) => {
               setDidNavigateBranches(true);
@@ -237,21 +244,22 @@ export function WorktreePrompt({
           onChange={(event) => onCopyAgentsMdChange(event.target.checked)}
         />
         <label className="worktree-modal-checkbox-label" htmlFor="worktree-copy-agents">
-          Copy <code>AGENTS.md</code> into the worktree
+          {m.worktree_prompt_copy_agents_md({}, { locale })}
         </label>
       </div>
       <div className="ds-modal-divider worktree-modal-divider" />
-      <div className="worktree-modal-section-title">Environment setup script</div>
+      <div className="worktree-modal-section-title">
+        {m.worktree_prompt_setup_script_title({}, { locale })}
+      </div>
       <div className="worktree-modal-hint">
-        Stored on the project (Settings → Environments) and runs once in a dedicated
-        terminal after each new worktree is created.
+        {m.worktree_prompt_setup_script_hint({}, { locale })}
       </div>
       <textarea
         id="worktree-setup-script"
         className="ds-modal-textarea worktree-modal-textarea"
         value={setupScript}
         onChange={(event) => onSetupScriptChange(event.target.value)}
-        placeholder="pnpm install"
+        placeholder={m.worktree_prompt_setup_script_placeholder({}, { locale })}
         rows={4}
         disabled={isBusy || isSavingScript}
       />

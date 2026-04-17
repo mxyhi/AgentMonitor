@@ -1,4 +1,4 @@
-# CodexMonitor Agent Guide
+# AgentMonitor Agent Guide
 
 All docs must be canonical, with no past commentary, only live state.
 
@@ -13,7 +13,7 @@ Detailed navigation/runbooks live in:
 
 ## Project Snapshot
 
-CodexMonitor is a Tauri app that orchestrates Codex agents across local workspaces.
+AgentMonitor is a Tauri app that orchestrates Codex agents across local workspaces.
 
 - Frontend: React + Vite (`src/`)
 - Backend app: Tauri Rust process (`src-tauri/src/lib.rs`)
@@ -121,8 +121,8 @@ Do not reintroduce duplicated modal/toast/panel/popover shell styling in feature
 
 Run validations based on touched areas:
 
-- Always: `npm run typecheck`
-- Frontend behavior/state/hooks/components: `npm run test`
+- Always: `pnpm run typecheck`
+- Frontend behavior/state/hooks/components: `pnpm run test`
 - Rust backend changes: `cd src-tauri && cargo check`
 - Use targeted tests for touched modules before full-suite runs when iterating.
 
@@ -131,24 +131,24 @@ Run validations based on touched areas:
 Core local commands (keep these inline for daily use):
 
 ```bash
-npm install
-npm run doctor:strict
-npm run tauri:dev
-npm run test
-npm run typecheck
+pnpm install
+pnpm run doctor:strict
+pnpm run tauri:dev
+pnpm run test
+pnpm run typecheck
 cd src-tauri && cargo check
 ```
 
 Release build:
 
 ```bash
-npm run tauri:build
+pnpm run tauri:build
 ```
 
 Focused test runs:
 
 ```bash
-npm run test -- <path-to-test-file>
+pnpm run test -- <path-to-test-file>
 ```
 
 ## Hotspots

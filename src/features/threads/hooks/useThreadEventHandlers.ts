@@ -26,6 +26,7 @@ type ThreadEventHandlersOptions = {
   isThreadHidden: (workspaceId: string, threadId: string) => boolean;
   setThreadLoaded: (threadId: string, isLoaded: boolean) => void;
   markProcessing: (threadId: string, isProcessing: boolean) => void;
+  shouldMarkProcessingFromItemEvent: (threadId: string) => boolean;
   markReviewing: (threadId: string, isReviewing: boolean) => void;
   setActiveTurnId: (threadId: string, turnId: string | null) => void;
   getActiveTurnId: (threadId: string) => string | null;
@@ -67,6 +68,7 @@ export function useThreadEventHandlers({
   isThreadHidden,
   setThreadLoaded,
   markProcessing,
+  shouldMarkProcessingFromItemEvent,
   markReviewing,
   setActiveTurnId,
   getActiveTurnId,
@@ -145,6 +147,7 @@ export function useThreadEventHandlers({
     dispatch,
     getCustomName,
     markProcessing,
+    shouldMarkProcessingFromItemEvent,
     markReviewing,
     safeMessageActivity,
     recordThreadActivity,

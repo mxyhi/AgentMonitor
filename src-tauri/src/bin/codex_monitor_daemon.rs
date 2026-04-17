@@ -77,6 +77,7 @@ use tokio::sync::{broadcast, mpsc, Mutex, Semaphore};
 
 use backend::app_server::{spawn_workspace_session, WorkspaceSession};
 use backend::events::{AppServerEvent, EventSink, TerminalExit, TerminalOutput};
+use codex_home::configure_default_codex_home;
 use shared::codex_core::CodexLoginCancelState;
 use shared::process_core::kill_child_process_tree;
 use shared::prompts_core::{self, CustomPromptEntry};
@@ -168,6 +169,7 @@ struct WorkspaceFileResponse {
 
 impl DaemonState {
     fn load(config: &DaemonConfig, event_sink: DaemonEventSink) -> Self {
+        configure_default_codex_home(&config.data_dir);
         let storage_path = config.data_dir.join("workspaces.json");
         let settings_path = config.data_dir.join("settings.json");
         let workspaces = read_workspaces(&storage_path).unwrap_or_default();

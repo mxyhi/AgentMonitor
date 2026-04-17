@@ -13,6 +13,8 @@ import ChevronUp from "lucide-react/dist/esm/icons/chevron-up";
 import Mic from "lucide-react/dist/esm/icons/mic";
 import Square from "lucide-react/dist/esm/icons/square";
 import X from "lucide-react/dist/esm/icons/x";
+import * as m from "@/i18n/messages";
+import { useAppLocale } from "@/i18n/I18nProvider";
 import { useComposerImageDrop } from "../hooks/useComposerImageDrop";
 import { ComposerMobileActionsMenu } from "./ComposerMobileActionsMenu";
 import { ComposerSuggestionsPopover } from "./ComposerSuggestionsPopover";
@@ -136,6 +138,7 @@ export function ComposerInput({
   onReviewPromptUpdateCustomInstructions,
   onReviewPromptConfirmCustom,
 }: ComposerInputProps) {
+  const locale = useAppLocale();
   const suggestionListRef = useRef<HTMLDivElement | null>(null);
   const suggestionRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const { isPhoneLayout, isPhoneTallInput } = useComposerInputLayout({
@@ -247,8 +250,8 @@ export function ComposerInput({
             className="composer-attach"
             onClick={onAddAttachment}
             disabled={disabled || !onAddAttachment}
-            aria-label="Add image"
-            title="Add image"
+            aria-label={m.composer_add_image({}, { locale })}
+            title={m.composer_add_image({}, { locale })}
           >
             <ImagePlus size={14} aria-hidden />
           </button>
@@ -275,8 +278,8 @@ export function ComposerInput({
             ref={textareaRef}
             placeholder={
               disabled
-                ? "Review in progress. Chat will re-enable when it completes."
-                : "Ask Codex to do something..."
+                ? m.composer_review_in_progress_placeholder({}, { locale })
+                : m.composer_placeholder({}, { locale })
             }
             value={text}
             onChange={handleTextareaChange}
@@ -297,8 +300,16 @@ export function ComposerInput({
                 }`}
                 onClick={onToggleExpand}
                 disabled={disabled}
-                aria-label={isExpanded ? "Collapse input" : "Expand input"}
-                title={isExpanded ? "Collapse input" : "Expand input"}
+                aria-label={
+                  isExpanded
+                    ? m.composer_collapse_input({}, { locale })
+                    : m.composer_expand_input({}, { locale })
+                }
+                title={
+                  isExpanded
+                    ? m.composer_collapse_input({}, { locale })
+                    : m.composer_expand_input({}, { locale })
+                }
               >
                 {isExpanded ? <ChevronDown aria-hidden /> : <ChevronUp aria-hidden />}
               </button>

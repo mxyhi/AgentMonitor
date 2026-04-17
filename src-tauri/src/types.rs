@@ -383,6 +383,8 @@ pub(crate) struct AppSettings {
     pub(crate) codex_args: Option<String>,
     #[serde(default, rename = "backendMode")]
     pub(crate) backend_mode: BackendMode,
+    #[serde(default = "default_app_language", rename = "appLanguage")]
+    pub(crate) app_language: String,
     #[serde(default, rename = "remoteBackendProvider")]
     pub(crate) remote_backend_provider: RemoteBackendProvider,
     #[serde(default = "default_remote_backend_host", rename = "remoteBackendHost")]
@@ -693,6 +695,10 @@ fn default_backend_mode() -> BackendMode {
 
 fn default_remote_backend_host() -> String {
     "127.0.0.1:4732".to_string()
+}
+
+fn default_app_language() -> String {
+    "en".to_string()
 }
 
 fn default_remote_backends() -> Vec<RemoteBackendTarget> {
@@ -1126,6 +1132,7 @@ impl Default for AppSettings {
             codex_bin: None,
             codex_args: None,
             backend_mode: default_backend_mode(),
+            app_language: default_app_language(),
             remote_backend_provider: RemoteBackendProvider::Tcp,
             remote_backend_host: default_remote_backend_host(),
             remote_backend_token: None,
@@ -1223,6 +1230,7 @@ mod tests {
             (&settings.backend_mode, &expected_backend_mode),
             (BackendMode::Local, BackendMode::Local) | (BackendMode::Remote, BackendMode::Remote)
         ));
+        assert_eq!(settings.app_language, "en");
         assert!(matches!(
             settings.remote_backend_provider,
             RemoteBackendProvider::Tcp

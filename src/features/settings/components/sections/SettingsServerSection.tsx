@@ -2,11 +2,14 @@ import { useMemo, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import X from "lucide-react/dist/esm/icons/x";
 import type {
+  AppLanguage,
   AppSettings,
   TailscaleDaemonCommandPreview,
   TailscaleStatus,
   TcpDaemonStatus,
 } from "@/types";
+import * as m from "@/i18n/messages";
+import { useAppLocale } from "@/i18n/I18nProvider";
 import { ModalShell } from "@/features/design-system/components/modal/ModalShell";
 import {
   SettingsSection,
@@ -18,6 +21,32 @@ type AddRemoteBackendDraft = {
   name: string;
   host: string;
   token: string;
+};
+
+const getTcpRunnerStatusText = (
+  tcpDaemonStatus: TcpDaemonStatus | null,
+  locale: AppLanguage,
+) => {
+  if (!tcpDaemonStatus) {
+    return null;
+  }
+  const listenAddr =
+    tcpDaemonStatus.listenAddr ??
+    m.settings_server_configured_listen_address({}, { locale });
+  if (tcpDaemonStatus.state === "running") {
+    return tcpDaemonStatus.pid
+      ? m.settings_server_tcp_daemon_running_with_pid(
+          { pid: String(tcpDaemonStatus.pid), address: listenAddr },
+          { locale },
+        )
+      : m.settings_server_tcp_daemon_running({ address: listenAddr }, { locale });
+  }
+  if (tcpDaemonStatus.state === "error") {
+    return (
+      tcpDaemonStatus.lastError ?? m.settings_server_tcp_daemon_error({}, { locale })
+    );
+  }
+  return m.settings_server_tcp_daemon_stopped({ address: listenAddr }, { locale });
 };
 
 type SettingsServerSectionProps = {
@@ -107,6 +136,7 @@ export function SettingsServerSection({
   onTcpDaemonStatus,
   onMobileConnectTest,
 }: SettingsServerSectionProps) {
+  const locale = useAppLocale();
   const [pendingDeleteRemoteId, setPendingDeleteRemoteId] = useState<string | null>(
     null,
   );
@@ -124,20 +154,7 @@ export function SettingsServerSection({
         : remoteBackends.find((entry) => entry.id === pendingDeleteRemoteId) ?? null,
     [pendingDeleteRemoteId, remoteBackends],
   );
-  const tcpRunnerStatusText = (() => {
-    if (!tcpDaemonStatus) {
-      return null;
-    }
-    if (tcpDaemonStatus.state === "running") {
-      return tcpDaemonStatus.pid
-        ? `Mobile daemon is running (pid ${tcpDaemonStatus.pid}) on ${tcpDaemonStatus.listenAddr ?? "configured listen address"}.`
-        : `Mobile daemon is running on ${tcpDaemonStatus.listenAddr ?? "configured listen address"}.`;
-    }
-    if (tcpDaemonStatus.state === "error") {
-      return tcpDaemonStatus.lastError ?? "Mobile daemon is in an error state.";
-    }
-    return `Mobile daemon is stopped${tcpDaemonStatus.listenAddr ? ` (${tcpDaemonStatus.listenAddr})` : ""}.`;
-  })();
+  const tcpRunnerStatusText = getTcpRunnerStatusText(tcpDaemonStatus, locale);
 
   const openAddRemoteModal = () => {
     setAddRemoteError(null);
@@ -170,7 +187,11 @@ export function SettingsServerSection({
         });
         setAddRemoteOpen(false);
       } catch (error) {
-        setAddRemoteError(error instanceof Error ? error.message : "Unable to add remote.");
+        setAddRemoteError(
+          error instanceof Error
+            ? error.message
+            : m.settings_server_add_remote_error({}, { locale }),
+        );
       } finally {
         setAddRemoteBusy(false);
       }
@@ -179,18 +200,18 @@ export function SettingsServerSection({
 
   return (
     <SettingsSection
-      title="Server"
+      title={m.settings_nav_server({}, { locale })}
       subtitle={
         isMobileSimplified
-          ? "Configure TCP host/token from your desktop setup, then run a connection test."
-          : "Configure how CodexMonitor exposes TCP backend access for mobile and remote clients. Desktop usage remains local unless you explicitly connect through remote mode."
+          ? m.settings_server_subtitle_mobile({}, { locale })
+          : m.settings_server_subtitle_desktop({}, { locale })
       }
     >
 
       {!isMobileSimplified && (
         <div className="settings-field">
           <label className="settings-field-label" htmlFor="backend-mode">
-            Backend mode
+            {m.settings_server_backend_mode_label({}, { locale })}
           </label>
           <select
             id="backend-mode"
@@ -203,12 +224,11 @@ export function SettingsServerSection({
               })
             }
           >
-            <option value="local">Local (default)</option>
-            <option value="remote">Remote (daemon)</option>
+            <option value="local">{m.settings_server_backend_mode_local({}, { locale })}</option>
+            <option value="remote">{m.settings_server_backend_mode_remote({}, { locale })}</option>
           </select>
           <div className="settings-help">
-            Local keeps desktop requests in-process. Remote routes desktop requests through the same
-            TCP transport path used by mobile clients.
+            {m.settings_server_backend_mode_help({}, { locale })}
           </div>
         </div>
       )}
@@ -217,8 +237,14 @@ export function SettingsServerSection({
         {isMobileSimplified && (
           <>
             <div className="settings-field">
-              <div className="settings-field-label">Saved remotes</div>
-              <div className="settings-mobile-remotes" role="list" aria-label="Saved remotes">
+              <div className="settings-field-label">
+                {m.settings_server_saved_remotes({}, { locale })}
+              </div>
+              <div
+                className="settings-mobile-remotes"
+                role="list"
+                aria-label={m.settings_server_saved_remotes({}, { locale })}
+              >
                 {remoteBackends.map((entry, index) => {
                   const isActive = entry.id === activeRemoteBackendId;
                   return (
@@ -230,14 +256,18 @@ export function SettingsServerSection({
                       <div className="settings-mobile-remote-main">
                         <div className="settings-mobile-remote-name-row">
                           <div className="settings-mobile-remote-name">{entry.name}</div>
-                          {isActive && <span className="settings-mobile-remote-badge">Active</span>}
+                          {isActive && (
+                            <span className="settings-mobile-remote-badge">
+                              {m.settings_server_active({}, { locale })}
+                            </span>
+                          )}
                         </div>
                         <div className="settings-mobile-remote-meta">TCP · {entry.host}</div>
                         <div className="settings-mobile-remote-last">
-                          Last connected:{" "}
+                          {m.settings_server_last_connected({}, { locale })}:{" "}
                           {typeof entry.lastConnectedAtMs === "number"
-                            ? new Date(entry.lastConnectedAtMs).toLocaleString()
-                            : "Never"}
+                            ? new Date(entry.lastConnectedAtMs).toLocaleString(locale)
+                            : m.settings_server_never({}, { locale })}
                         </div>
                       </div>
                       <div className="settings-mobile-remote-actions">
@@ -248,9 +278,14 @@ export function SettingsServerSection({
                             void onSelectRemoteBackend(entry.id);
                           }}
                           disabled={isActive}
-                          aria-label={`Use ${entry.name} remote`}
+                          aria-label={m.settings_server_use_remote_aria(
+                            { name: entry.name },
+                            { locale },
+                          )}
                         >
-                          {isActive ? "Using" : "Use"}
+                          {isActive
+                            ? m.settings_server_using({}, { locale })
+                            : m.settings_server_use_remote({}, { locale })}
                         </button>
                         <button
                           type="button"
@@ -259,7 +294,10 @@ export function SettingsServerSection({
                             void onMoveRemoteBackend(entry.id, "up");
                           }}
                           disabled={index === 0}
-                          aria-label={`Move ${entry.name} up`}
+                          aria-label={m.settings_server_move_remote_up_aria(
+                            { name: entry.name },
+                            { locale },
+                          )}
                         >
                           ↑
                         </button>
@@ -270,7 +308,10 @@ export function SettingsServerSection({
                             void onMoveRemoteBackend(entry.id, "down");
                           }}
                           disabled={index === remoteBackends.length - 1}
-                          aria-label={`Move ${entry.name} down`}
+                          aria-label={m.settings_server_move_remote_down_aria(
+                            { name: entry.name },
+                            { locale },
+                          )}
                         >
                           ↓
                         </button>
@@ -280,9 +321,12 @@ export function SettingsServerSection({
                           onClick={() => {
                             setPendingDeleteRemoteId(entry.id);
                           }}
-                          aria-label={`Delete ${entry.name}`}
+                          aria-label={m.settings_server_delete_remote_aria(
+                            { name: entry.name },
+                            { locale },
+                          )}
                         >
-                          Delete
+                          {m.action_delete({}, { locale })}
                         </button>
                       </div>
                     </div>
@@ -295,7 +339,7 @@ export function SettingsServerSection({
                   className="button settings-button-compact"
                   onClick={openAddRemoteModal}
                 >
-                  Add remote
+                  {m.settings_server_add_remote({}, { locale })}
                 </button>
               </div>
               {remoteStatusText && (
@@ -304,19 +348,19 @@ export function SettingsServerSection({
                 </div>
               )}
               <div className="settings-help">
-                Switch the active remote here. The fields below edit the active entry.
+                {m.settings_server_saved_remotes_help({}, { locale })}
               </div>
             </div>
 
             <div className="settings-field">
               <label className="settings-field-label" htmlFor="mobile-remote-name">
-                Remote name
+                {m.settings_server_remote_name_label({}, { locale })}
               </label>
               <input
                 id="mobile-remote-name"
                 className="settings-input settings-input--compact"
                 value={remoteNameDraft}
-                placeholder="My desktop"
+                placeholder={m.settings_server_remote_name_placeholder({}, { locale })}
                 onChange={(event) => onSetRemoteNameDraft(event.target.value)}
                 onBlur={() => {
                   void onCommitRemoteName();
@@ -335,8 +379,8 @@ export function SettingsServerSection({
 
         {!isMobileSimplified && (
           <SettingsToggleRow
-            title="Keep daemon running after app closes"
-            subtitle="If disabled, CodexMonitor stops managed TCP daemon processes before exit."
+            title={m.settings_server_keep_daemon_running_title({}, { locale })}
+            subtitle={m.settings_server_keep_daemon_running_subtitle({}, { locale })}
           >
             <SettingsToggleSwitch
               pressed={appSettings.keepDaemonRunningAfterAppClose}
@@ -350,8 +394,10 @@ export function SettingsServerSection({
           </SettingsToggleRow>
         )}
 
-        <div className="settings-field">
-          <div className="settings-field-label">Remote backend</div>
+          <div className="settings-field">
+            <div className="settings-field-label">
+              {m.settings_server_remote_backend({}, { locale })}
+            </div>
           <div className="settings-field-row">
             <input
               className="settings-input settings-input--compact"
@@ -367,13 +413,13 @@ export function SettingsServerSection({
                   void onCommitRemoteHost();
                 }
               }}
-              aria-label="Remote backend host"
+              aria-label={m.settings_server_remote_backend_host({}, { locale })}
             />
             <input
               type="password"
               className="settings-input settings-input--compact"
               value={remoteTokenDraft}
-              placeholder="Token (required)"
+              placeholder={m.settings_server_token_required({}, { locale })}
               onChange={(event) => onSetRemoteTokenDraft(event.target.value)}
               onBlur={() => {
                 void onCommitRemoteToken();
@@ -384,20 +430,22 @@ export function SettingsServerSection({
                   void onCommitRemoteToken();
                 }
               }}
-              aria-label="Remote backend token"
+              aria-label={m.settings_server_remote_backend_token({}, { locale })}
             />
           </div>
           {remoteHostError && <div className="settings-help settings-help-error">{remoteHostError}</div>}
           <div className="settings-help">
             {isMobileSimplified
-              ? "Use the Tailscale host from your desktop CodexMonitor app (Server section), for example `macbook.your-tailnet.ts.net:4732`."
-              : "This host/token is used by mobile clients and desktop remote-mode testing."}
+              ? m.settings_server_remote_backend_help_mobile({}, { locale })
+              : m.settings_server_remote_backend_help_desktop({}, { locale })}
           </div>
         </div>
 
         {isMobileSimplified && (
           <div className="settings-field">
-            <div className="settings-field-label">Connection test</div>
+            <div className="settings-field-label">
+              {m.settings_server_connection_test({}, { locale })}
+            </div>
             <div className="settings-field-row">
               <button
                 type="button"
@@ -405,7 +453,9 @@ export function SettingsServerSection({
                 onClick={onMobileConnectTest}
                 disabled={mobileConnectBusy}
               >
-                {mobileConnectBusy ? "Connecting..." : "Connect & test"}
+                {mobileConnectBusy
+                  ? m.settings_server_connecting({}, { locale })
+                  : m.settings_server_connect_and_test({}, { locale })}
               </button>
             </div>
             {mobileConnectStatusText && (
@@ -414,15 +464,16 @@ export function SettingsServerSection({
               </div>
             )}
             <div className="settings-help">
-              Make sure your desktop app daemon is running and reachable on Tailscale, then retry
-              this test.
+              {m.settings_server_connection_test_help({}, { locale })}
             </div>
           </div>
         )}
 
         {!isMobileSimplified && (
           <div className="settings-field">
-            <div className="settings-field-label">Mobile access daemon</div>
+            <div className="settings-field-label">
+              {m.settings_server_mobile_access_daemon({}, { locale })}
+            </div>
             <div className="settings-field-row">
               <button
                 type="button"
@@ -432,7 +483,9 @@ export function SettingsServerSection({
                 }}
                 disabled={tcpDaemonBusyAction !== null}
               >
-                {tcpDaemonBusyAction === "start" ? "Starting..." : "Start daemon"}
+                {tcpDaemonBusyAction === "start"
+                  ? m.settings_server_starting_daemon({}, { locale })
+                  : m.settings_server_start_daemon({}, { locale })}
               </button>
               <button
                 type="button"
@@ -442,7 +495,9 @@ export function SettingsServerSection({
                 }}
                 disabled={tcpDaemonBusyAction !== null}
               >
-                {tcpDaemonBusyAction === "stop" ? "Stopping..." : "Stop daemon"}
+                {tcpDaemonBusyAction === "stop"
+                  ? m.settings_server_stopping_daemon({}, { locale })
+                  : m.settings_server_stop_daemon({}, { locale })}
               </button>
               <button
                 type="button"
@@ -452,25 +507,29 @@ export function SettingsServerSection({
                 }}
                 disabled={tcpDaemonBusyAction !== null}
               >
-                {tcpDaemonBusyAction === "status" ? "Refreshing..." : "Refresh status"}
+                {tcpDaemonBusyAction === "status"
+                  ? m.settings_server_refreshing_status({}, { locale })
+                  : m.settings_server_refresh_status({}, { locale })}
               </button>
             </div>
             {tcpRunnerStatusText && <div className="settings-help">{tcpRunnerStatusText}</div>}
             {tcpDaemonStatus?.startedAtMs && (
               <div className="settings-help">
-                Started at: {new Date(tcpDaemonStatus.startedAtMs).toLocaleString()}
+                {m.settings_server_started_at({}, { locale })}:{" "}
+                {new Date(tcpDaemonStatus.startedAtMs).toLocaleString(locale)}
               </div>
             )}
             <div className="settings-help">
-              Start this daemon before connecting from iOS. It uses your current token and listens
-              on <code>0.0.0.0:&lt;port&gt;</code>, matching your configured host port.
+              {m.settings_server_mobile_daemon_help({}, { locale })}
             </div>
           </div>
         )}
 
         {!isMobileSimplified && (
           <div className="settings-field">
-            <div className="settings-field-label">Tailscale helper</div>
+            <div className="settings-field-label">
+              {m.settings_server_tailscale_helper({}, { locale })}
+            </div>
             <div className="settings-field-row">
               <button
                 type="button"
@@ -478,7 +537,9 @@ export function SettingsServerSection({
                 onClick={onRefreshTailscaleStatus}
                 disabled={tailscaleStatusBusy}
               >
-                {tailscaleStatusBusy ? "Checking..." : "Detect Tailscale"}
+                {tailscaleStatusBusy
+                  ? m.settings_server_checking_tailscale({}, { locale })
+                  : m.settings_server_detect_tailscale({}, { locale })}
               </button>
               <button
                 type="button"
@@ -486,7 +547,9 @@ export function SettingsServerSection({
                 onClick={onRefreshTailscaleCommandPreview}
                 disabled={tailscaleCommandBusy}
               >
-                {tailscaleCommandBusy ? "Refreshing..." : "Refresh daemon command"}
+                {tailscaleCommandBusy
+                  ? m.settings_server_refreshing_daemon_command({}, { locale })
+                  : m.settings_server_refresh_daemon_command({}, { locale })}
               </button>
               <button
                 type="button"
@@ -496,7 +559,7 @@ export function SettingsServerSection({
                   void onUseSuggestedTailscaleHost();
                 }}
               >
-                Use suggested host
+                {m.settings_server_use_suggested_host({}, { locale })}
               </button>
             </div>
             {tailscaleStatusError && (
@@ -507,17 +570,21 @@ export function SettingsServerSection({
                 <div className="settings-help">{tailscaleStatus.message}</div>
                 <div className="settings-help">
                   {tailscaleStatus.installed
-                    ? `Version: ${tailscaleStatus.version ?? "unknown"}`
-                    : "Install Tailscale on both desktop and iOS to continue."}
+                    ? `${m.settings_server_tailscale_version({}, { locale })}: ${
+                        tailscaleStatus.version ?? m.settings_codex_unknown({}, { locale })
+                      }`
+                    : m.settings_server_tailscale_install_help({}, { locale })}
                 </div>
                 {tailscaleStatus.suggestedRemoteHost && (
                   <div className="settings-help">
-                    Suggested remote host: <code>{tailscaleStatus.suggestedRemoteHost}</code>
+                    {m.settings_server_suggested_remote_host({}, { locale })}:{" "}
+                    <code>{tailscaleStatus.suggestedRemoteHost}</code>
                   </div>
                 )}
                 {tailscaleStatus.tailnetName && (
                   <div className="settings-help">
-                    Tailnet: <code>{tailscaleStatus.tailnetName}</code>
+                    {m.settings_server_tailnet({}, { locale })}:{" "}
+                    <code>{tailscaleStatus.tailnetName}</code>
                   </div>
                 )}
               </>
@@ -528,14 +595,14 @@ export function SettingsServerSection({
             {tailscaleCommandPreview && (
               <>
                 <div className="settings-help">
-                  Command template (manual fallback) for starting the daemon:
+                  {m.settings_server_tailscale_command_template({}, { locale })}
                 </div>
                 <pre className="settings-command-preview">
                   <code>{tailscaleCommandPreview.command}</code>
                 </pre>
                 {!tailscaleCommandPreview.tokenConfigured && (
                   <div className="settings-help settings-help-error">
-                    Remote backend token is empty. Set one before exposing daemon access.
+                    {m.settings_server_token_empty_help({}, { locale })}
                   </div>
                 )}
               </>
@@ -546,23 +613,25 @@ export function SettingsServerSection({
 
       <div className="settings-help">
         {isMobileSimplified
-          ? "Use your own infrastructure only. On iOS, get the Tailscale hostname and token from your desktop CodexMonitor setup."
-          : "Mobile access should stay scoped to your own infrastructure (tailnet). CodexMonitor does not provide hosted backend services."}
+          ? m.settings_server_scope_help_mobile({}, { locale })
+          : m.settings_server_scope_help_desktop({}, { locale })}
       </div>
       {addRemoteOpen && (
         <ModalShell
           className="settings-add-remote-overlay"
           cardClassName="settings-add-remote-card"
           onBackdropClick={closeAddRemoteModal}
-          ariaLabel="Add remote"
+          ariaLabel={m.settings_server_add_remote({}, { locale })}
         >
           <div className="settings-add-remote-header">
-            <div className="settings-add-remote-title">Add remote</div>
+            <div className="settings-add-remote-title">
+              {m.settings_server_add_remote({}, { locale })}
+            </div>
             <button
               type="button"
               className="ghost icon-button settings-add-remote-close"
               onClick={closeAddRemoteModal}
-              aria-label="Close add remote modal"
+              aria-label={m.settings_server_close_add_remote_modal({}, { locale })}
               disabled={addRemoteBusy}
             >
               <X aria-hidden />
@@ -570,7 +639,7 @@ export function SettingsServerSection({
           </div>
           <div className="settings-field">
             <label className="settings-field-label" htmlFor="settings-add-remote-name">
-              New remote name
+              {m.settings_server_add_remote_name_label({}, { locale })}
             </label>
             <input
               id="settings-add-remote-name"
@@ -582,27 +651,27 @@ export function SettingsServerSection({
           </div>
           <div className="settings-field">
             <label className="settings-field-label" htmlFor="settings-add-remote-host">
-              New remote host
+              {m.settings_server_add_remote_host_label({}, { locale })}
             </label>
             <input
               id="settings-add-remote-host"
               className="settings-input settings-input--compact"
               value={addRemoteHostDraft}
-              placeholder="macbook.your-tailnet.ts.net:4732"
+              placeholder={m.mobile_setup_host_placeholder({}, { locale })}
               onChange={(event) => setAddRemoteHostDraft(event.target.value)}
               disabled={addRemoteBusy}
             />
           </div>
           <div className="settings-field">
             <label className="settings-field-label" htmlFor="settings-add-remote-token">
-              New remote token
+              {m.settings_server_add_remote_token_label({}, { locale })}
             </label>
             <input
               id="settings-add-remote-token"
               type="password"
               className="settings-input settings-input--compact"
               value={addRemoteTokenDraft}
-              placeholder="Token"
+              placeholder={m.mobile_setup_token_placeholder({}, { locale })}
               onChange={(event) => setAddRemoteTokenDraft(event.target.value)}
               onKeyDown={(event) => {
                 if (event.key === "Enter") {
@@ -616,7 +685,7 @@ export function SettingsServerSection({
           {addRemoteError && <div className="settings-help settings-help-error">{addRemoteError}</div>}
           <div className="settings-add-remote-actions">
             <button type="button" className="ghost" onClick={closeAddRemoteModal} disabled={addRemoteBusy}>
-              Cancel
+              {m.action_cancel({}, { locale })}
             </button>
             <button
               type="button"
@@ -624,7 +693,9 @@ export function SettingsServerSection({
               onClick={handleAddRemoteConfirm}
               disabled={addRemoteBusy}
             >
-              {addRemoteBusy ? "Connecting..." : "Connect & add"}
+              {addRemoteBusy
+                ? m.settings_server_connecting({}, { locale })
+                : m.settings_server_connect_and_add({}, { locale })}
             </button>
           </div>
         </ModalShell>
@@ -634,12 +705,16 @@ export function SettingsServerSection({
           className="settings-delete-remote-overlay"
           cardClassName="settings-delete-remote-card"
           onBackdropClick={() => setPendingDeleteRemoteId(null)}
-          ariaLabel="Delete remote confirmation"
+          ariaLabel={m.settings_server_delete_remote_confirmation({}, { locale })}
         >
-          <div className="settings-delete-remote-title">Delete remote?</div>
+          <div className="settings-delete-remote-title">
+            {m.settings_server_delete_remote_confirm({}, { locale })}
+          </div>
           <div className="settings-delete-remote-message">
-            Remove <strong>{pendingDeleteRemote.name}</strong> from saved remotes? This only
-            removes the profile from this device.
+            {m.settings_server_delete_remote_message(
+              { name: pendingDeleteRemote.name },
+              { locale },
+            )}
           </div>
           <div className="settings-delete-remote-actions">
             <button
@@ -647,7 +722,7 @@ export function SettingsServerSection({
               className="ghost"
               onClick={() => setPendingDeleteRemoteId(null)}
             >
-              Cancel
+              {m.action_cancel({}, { locale })}
             </button>
             <button
               type="button"
@@ -657,7 +732,7 @@ export function SettingsServerSection({
                 setPendingDeleteRemoteId(null);
               }}
             >
-              Delete remote
+              {m.settings_server_delete_remote_action({}, { locale })}
             </button>
           </div>
         </ModalShell>

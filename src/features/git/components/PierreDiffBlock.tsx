@@ -1,6 +1,8 @@
 import { useMemo } from "react";
 import { parsePatchFiles, type FileDiffMetadata } from "@pierre/diffs";
 import { FileDiff, WorkerPoolContextProvider } from "@pierre/diffs/react";
+import * as m from "@/i18n/messages";
+import { useAppLocale } from "@/i18n/I18nProvider";
 import { parseDiff } from "../../../utils/diff";
 import { highlightLine, languageFromPath } from "../../../utils/syntax";
 import { workerFactory } from "../../../utils/diffsWorker";
@@ -29,6 +31,7 @@ export function PierreDiffBlock({
   newLines,
   diffStyle = "unified",
 }: PierreDiffBlockProps) {
+  const locale = useAppLocale();
   const poolOptions = useMemo(() => ({ workerFactory }), []);
   const highlighterOptions = useMemo(
     () => DIFF_VIEWER_HIGHLIGHTER_OPTIONS,
@@ -53,8 +56,8 @@ export function PierreDiffBlock({
       ...parsed,
       name: normalizedName,
       prevName: normalizedPrevName,
-      oldLines,
-      newLines,
+      deletionLines: oldLines ?? parsed.deletionLines,
+      additionLines: newLines ?? parsed.additionLines,
     } satisfies FileDiffMetadata;
   }, [diff, displayPath, oldLines, newLines]);
 
@@ -82,7 +85,7 @@ export function PierreDiffBlock({
   );
 
   if (!diff.trim()) {
-    return <div className="diff-viewer-placeholder">Diff unavailable.</div>;
+    return <div className="diff-viewer-placeholder">{m.git_diff_unavailable({}, { locale })}</div>;
   }
 
   return (

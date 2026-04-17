@@ -1,4 +1,6 @@
 import { useEffect, useMemo } from "react";
+import { useAppLocale } from "@/i18n/I18nProvider";
+import * as m from "@/i18n/messages";
 import type { ApprovalRequest, WorkspaceInfo } from "../../../types";
 import { getApprovalCommandInfo } from "../../../utils/approvalRules";
 import {
@@ -24,6 +26,7 @@ export function ApprovalToasts({
   onDecision,
   onRemember,
 }: ApprovalToastsProps) {
+  const locale = useAppLocale();
   const workspaceLabels = useMemo(
     () => new Map(workspaces.map((workspace) => [workspace.id, workspace.name])),
     [workspaces],
@@ -75,7 +78,7 @@ export function ApprovalToasts({
 
   const renderParamValue = (value: unknown) => {
     if (value === null || value === undefined) {
-      return { text: "None", isCode: false };
+      return { text: m.approval_none({}, { locale }), isCode: false };
     }
     if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
       return { text: String(value), isCode: false };
@@ -103,7 +106,9 @@ export function ApprovalToasts({
             role="alert"
           >
             <ToastHeader className="approval-toast-header">
-              <ToastTitle className="approval-toast-title">Approval needed</ToastTitle>
+              <ToastTitle className="approval-toast-title">
+                {m.approval_needed({}, { locale })}
+              </ToastTitle>
               {workspaceName ? (
                 <div className="approval-toast-workspace">{workspaceName}</div>
               ) : null}
@@ -132,7 +137,7 @@ export function ApprovalToasts({
                 })
               ) : (
                 <div className="approval-toast-detail approval-toast-detail-empty">
-                  No extra details.
+                  {m.approval_no_extra_details({}, { locale })}
                 </div>
               )}
             </div>
@@ -141,22 +146,25 @@ export function ApprovalToasts({
                 className="secondary"
                 onClick={() => onDecision(request, "decline")}
               >
-                Decline
+                {m.approval_decline({}, { locale })}
               </button>
               {commandInfo && onRemember ? (
                 <button
                   className="ghost approval-toast-remember"
                   onClick={() => onRemember(request, commandInfo.tokens)}
-                  title={`Allow commands that start with ${commandInfo.preview}`}
+                  title={m.approval_allow_commands_prefix(
+                    { value: commandInfo.preview },
+                    { locale },
+                  )}
                 >
-                  Always allow
+                  {m.approval_always_allow({}, { locale })}
                 </button>
               ) : null}
               <button
                 className="primary"
                 onClick={() => onDecision(request, "accept")}
               >
-                Approve (Enter)
+                {m.approval_approve_enter({}, { locale })}
               </button>
             </ToastActions>
           </ToastCard>

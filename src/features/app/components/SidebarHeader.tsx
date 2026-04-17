@@ -8,6 +8,8 @@ import ListTree from "lucide-react/dist/esm/icons/list-tree";
 import RefreshCw from "lucide-react/dist/esm/icons/refresh-cw";
 import Search from "lucide-react/dist/esm/icons/search";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useAppLocale } from "@/i18n/I18nProvider";
+import * as m from "@/i18n/messages";
 import type { ThreadListOrganizeMode, ThreadListSortKey } from "../../../types";
 import {
   MenuTrigger,
@@ -43,6 +45,7 @@ export function SidebarHeader({
   refreshDisabled = false,
   refreshInProgress = false,
 }: SidebarHeaderProps) {
+  const locale = useAppLocale();
   const sortMenu = useMenuController();
   const { isOpen: sortMenuOpen, containerRef: sortMenuRef } = sortMenu;
   const sortMenuPopoverRef = useRef<HTMLDivElement | null>(null);
@@ -129,8 +132,8 @@ export function SidebarHeader({
             className="sidebar-title-add ds-tooltip-trigger"
             onClick={onAddWorkspace}
             data-tauri-drag-region="false"
-            aria-label="Add workspaces"
-            data-tooltip="Add workspaces"
+            aria-label={m.sidebar_add_workspaces({}, { locale })}
+            data-tooltip={m.sidebar_add_workspaces({}, { locale })}
             data-tooltip-align="start"
             data-tooltip-placement="bottom"
             type="button"
@@ -141,9 +144,9 @@ export function SidebarHeader({
             className="subtitle subtitle-button sidebar-title-button"
             onClick={onSelectHome}
             data-tauri-drag-region="false"
-            aria-label="Open home"
+            aria-label={m.sidebar_open_home({}, { locale })}
           >
-            Projects
+            {m.sidebar_projects({}, { locale })}
           </button>
         </div>
       </div>
@@ -155,9 +158,9 @@ export function SidebarHeader({
             className="ghost sidebar-sort-toggle ds-tooltip-trigger"
             onClick={sortMenu.toggle}
             data-tauri-drag-region="false"
-            aria-label="Organize and sort threads"
-            title="Organize and sort threads"
-            data-tooltip="Organize and sort threads"
+            aria-label={m.sidebar_sort_and_organize({}, { locale })}
+            title={m.sidebar_sort_and_organize({}, { locale })}
+            data-tooltip={m.sidebar_sort_and_organize({}, { locale })}
             data-tooltip-align="end"
             data-tooltip-placement="bottom"
           >
@@ -174,7 +177,9 @@ export function SidebarHeader({
                   : undefined
               }
             >
-              <div className="sidebar-sort-section-label">Organize</div>
+              <div className="sidebar-sort-section-label">
+                {m.sidebar_organize({}, { locale })}
+              </div>
               <PopoverMenuItem
                 className="sidebar-sort-option"
                 role="menuitemradio"
@@ -184,7 +189,7 @@ export function SidebarHeader({
                 icon={<FolderTree aria-hidden />}
                 active={threadListOrganizeMode === "by_project"}
               >
-                By project
+                {m.sidebar_sort_project({}, { locale })}
               </PopoverMenuItem>
               <PopoverMenuItem
                 className="sidebar-sort-option"
@@ -195,7 +200,7 @@ export function SidebarHeader({
                 icon={<BetweenHorizontalStart aria-hidden />}
                 active={threadListOrganizeMode === "by_project_activity"}
               >
-                By project activity
+                {m.sidebar_sort_project_activity({}, { locale })}
               </PopoverMenuItem>
               <PopoverMenuItem
                 className="sidebar-sort-option"
@@ -206,10 +211,12 @@ export function SidebarHeader({
                 icon={<ListTree aria-hidden />}
                 active={threadListOrganizeMode === "threads_only"}
               >
-                Thread list
+                {m.sidebar_sort_thread_list({}, { locale })}
               </PopoverMenuItem>
               <div className="sidebar-sort-divider" aria-hidden />
-              <div className="sidebar-sort-section-label">Sort by</div>
+              <div className="sidebar-sort-section-label">
+                {m.sidebar_sort_by({}, { locale })}
+              </div>
               <PopoverMenuItem
                 className="sidebar-sort-option"
                 role="menuitemradio"
@@ -219,7 +226,7 @@ export function SidebarHeader({
                 icon={<ArrowDownUp aria-hidden />}
                 active={threadListSortKey === "updated_at"}
               >
-                Updated
+                {m.sidebar_sort_updated({}, { locale })}
               </PopoverMenuItem>
               <PopoverMenuItem
                 className="sidebar-sort-option"
@@ -230,7 +237,7 @@ export function SidebarHeader({
                 icon={<Calendar aria-hidden />}
                 active={threadListSortKey === "created_at"}
               >
-                Created
+                {m.sidebar_sort_created({}, { locale })}
               </PopoverMenuItem>
             </PopoverSurface>
           )}
@@ -239,10 +246,10 @@ export function SidebarHeader({
           className="ghost sidebar-refresh-toggle ds-tooltip-trigger"
           onClick={onRefreshAllThreads}
           data-tauri-drag-region="false"
-          aria-label="Refresh all workspace threads"
+          aria-label={m.sidebar_refresh_threads({}, { locale })}
           type="button"
-          title="Refresh all workspace threads"
-          data-tooltip="Refresh all workspace threads"
+          title={m.sidebar_refresh_threads({}, { locale })}
+          data-tooltip={m.sidebar_refresh_threads({}, { locale })}
           data-tooltip-align="end"
           data-tooltip-placement="bottom"
           disabled={refreshDisabled}
@@ -257,8 +264,12 @@ export function SidebarHeader({
           className={`ghost sidebar-search-toggle ds-tooltip-trigger${isSearchOpen ? " is-active" : ""}`}
           onClick={onToggleSearch}
           data-tauri-drag-region="false"
-          aria-label="Toggle search"
-          data-tooltip={isSearchOpen ? "Close search" : "Search threads"}
+          aria-label={m.sidebar_toggle_search({}, { locale })}
+          data-tooltip={
+            isSearchOpen
+              ? m.sidebar_close_search({}, { locale })
+              : m.sidebar_search_threads({}, { locale })
+          }
           data-tooltip-align="end"
           data-tooltip-placement="bottom"
           aria-pressed={isSearchOpen}

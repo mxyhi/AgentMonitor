@@ -8,8 +8,10 @@ use tokio::sync::{mpsc, Mutex};
 use tokio::time::timeout;
 
 use crate::backend::app_server::{
-    build_codex_command_with_bin, build_codex_path_env, check_codex_installation, WorkspaceSession,
+    build_codex_command_with_bin, build_codex_path_env, check_codex_installation,
+    resolve_codex_runtime_for_bin, WorkspaceSession,
 };
+use crate::shared::codex_runtime_core::{bundled_codex_version, codex_runtime_requires_node};
 use crate::shared::process_core::tokio_command;
 use crate::types::{AppSettings, WorkspaceEntry};
 
@@ -299,11 +301,12 @@ pub(crate) async fn codex_doctor_core(
         .clone()
         .filter(|value| !value.trim().is_empty())
         .or(default_bin);
+    let runtime = resolve_codex_runtime_for_bin(resolved.clone());
     let resolved_args = codex_args
         .clone()
         .filter(|value| !value.trim().is_empty())
         .or(default_args);
-    let path_env = build_codex_path_env(resolved.as_deref());
+    let path_env = build_codex_path_env(Some(runtime.program.as_str()));
     let version = check_codex_installation(resolved.clone()).await?;
     let mut command = build_codex_command_with_bin(
         resolved.clone(),
@@ -318,7 +321,7 @@ pub(crate) async fn codex_doctor_core(
             .unwrap_or(false),
         Err(_) => false,
     };
-    let (node_ok, node_version, node_details) = {
+    let (node_ok, node_version, node_details) = if codex_runtime_requires_node(runtime.source) {
         let mut node_command = tokio_command("node");
         if let Some(ref path_env) = path_env {
             node_command.env("PATH", path_env);
@@ -373,6 +376,12 @@ pub(crate) async fn codex_doctor_core(
                 Some("Timed out while checking Node.".to_string()),
             ),
         }
+    } else {
+        (
+            true,
+            Some(bundled_codex_version().to_string()),
+            Some("Bundled Codex runtime does not require Node on PATH.".to_string()),
+        )
     };
     let details = if app_server_ok {
         None
@@ -381,7 +390,8 @@ pub(crate) async fn codex_doctor_core(
     };
     Ok(json!({
         "ok": version.is_some() && app_server_ok,
-        "codexBin": resolved,
+        "codexBin": runtime.program,
+        "runtimeSource": runtime.source.as_str(),
         "version": version,
         "appServerOk": app_server_ok,
         "details": details,
@@ -655,6 +665,8 @@ mod tests {
         build_commit_message_prompt_for_diff, parse_agent_description_value,
         parse_run_metadata_value,
     };
+    use crate::backend::app_server::resolve_codex_runtime_for_bin;
+    use crate::shared::codex_runtime_core::CodexRuntimeSource;
 
     #[test]
     fn build_commit_message_prompt_for_diff_requires_changes() {
@@ -722,5 +734,11 @@ mod tests {
             "Refactors large React components for performance"
         );
         assert_eq!(parsed.developer_instructions, "");
+    }
+
+    #[test]
+    fn resolve_codex_runtime_for_bin_marks_custom_bin() {
+        let runtime = resolve_codex_runtime_for_bin(Some("/tmp/custom-codex".to_string()));
+        assert_eq!(runtime.source, CodexRuntimeSource::Custom);
     }
 }

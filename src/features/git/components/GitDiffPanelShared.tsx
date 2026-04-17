@@ -6,6 +6,8 @@ import Plus from "lucide-react/dist/esm/icons/plus";
 import RotateCcw from "lucide-react/dist/esm/icons/rotate-ccw";
 import Upload from "lucide-react/dist/esm/icons/upload";
 import X from "lucide-react/dist/esm/icons/x";
+import * as m from "@/i18n/messages";
+import { useAppLocale } from "@/i18n/I18nProvider";
 import { MagicSparkleIcon } from "../../shared/components/MagicSparkleIcon";
 import { formatRelativeTime } from "../../../utils/time";
 import {
@@ -44,6 +46,7 @@ export function CommitButton({
   commitLoading,
   onCommit,
 }: CommitButtonProps) {
+  const locale = useAppLocale();
   const hasMessage = commitMessage.trim().length > 0;
   const hasChanges = hasStagedFiles || hasUnstagedFiles;
   const canCommit = hasMessage && hasChanges && !commitLoading;
@@ -63,12 +66,12 @@ export function CommitButton({
         disabled={!canCommit}
         title={
           !hasMessage
-            ? "Enter a commit message"
+            ? m.git_enter_commit_message({}, { locale })
             : !hasChanges
-              ? "No changes to commit"
+              ? m.git_no_changes_to_commit({}, { locale })
               : hasStagedFiles
-                ? "Commit staged changes"
-                : "Commit all unstaged changes"
+                ? m.git_commit_staged_changes({}, { locale })
+                : m.git_commit_all_unstaged_changes({}, { locale })
         }
       >
         {commitLoading ? (
@@ -88,7 +91,9 @@ export function CommitButton({
             <path d="M20 6 9 17l-5-5" />
           </svg>
         )}
-        <span>{commitLoading ? "Committing..." : "Commit"}</span>
+        <span>
+          {commitLoading ? m.git_committing({}, { locale }) : m.git_commit({}, { locale })}
+        </span>
       </button>
     </div>
   );
@@ -107,6 +112,7 @@ export function SidebarError({
   action,
   onDismiss,
 }: SidebarErrorProps) {
+  const locale = useAppLocale();
   return (
     <div className={`sidebar-error sidebar-error-${variant}`}>
       <div className="sidebar-error-body">
@@ -129,8 +135,8 @@ export function SidebarError({
         type="button"
         className="ghost icon-button sidebar-error-dismiss"
         onClick={onDismiss}
-        aria-label="Dismiss error"
-        title="Dismiss error"
+        aria-label={m.git_dismiss_error({}, { locale })}
+        title={m.git_dismiss_error({}, { locale })}
       >
         <X size={12} aria-hidden />
       </button>
@@ -163,6 +169,7 @@ function DiffFileRow({
   onUnstageFile,
   onDiscardFile,
 }: DiffFileRowProps) {
+  const locale = useAppLocale();
   const { name, dir } = splitPath(file.path);
   const { base, extension } = splitNameAndExtension(name);
   const statusSymbol = getStatusSymbol(file.status);
@@ -203,7 +210,7 @@ function DiffFileRow({
           <span className="diff-sep">/</span>
           <span className="diff-del">-{file.deletions}</span>
         </span>
-        <div className="diff-row-actions" role="group" aria-label="File actions">
+        <div className="diff-row-actions" role="group" aria-label={m.git_file_actions({}, { locale })}>
           {showStage && (
             <button
               type="button"
@@ -212,9 +219,9 @@ function DiffFileRow({
                 event.stopPropagation();
                 void onStageFile?.(file.path);
               }}
-              data-tooltip="Stage Changes"
+              data-tooltip={m.git_stage_changes({}, { locale })}
               data-tooltip-align="end"
-              aria-label="Stage file"
+              aria-label={m.git_stage_file({}, { locale })}
             >
               <Plus size={12} aria-hidden />
             </button>
@@ -227,9 +234,9 @@ function DiffFileRow({
                 event.stopPropagation();
                 void onUnstageFile?.(file.path);
               }}
-              data-tooltip="Unstage Changes"
+              data-tooltip={m.git_unstage_changes({}, { locale })}
               data-tooltip-align="end"
-              aria-label="Unstage file"
+              aria-label={m.git_unstage_file({}, { locale })}
             >
               <Minus size={12} aria-hidden />
             </button>
@@ -242,9 +249,9 @@ function DiffFileRow({
                 event.stopPropagation();
                 void onDiscardFile?.(file.path);
               }}
-              data-tooltip="Discard Changes"
+              data-tooltip={m.git_discard_changes({}, { locale })}
               data-tooltip-align="end"
-              aria-label="Discard changes"
+              aria-label={m.git_discard_file({}, { locale })}
             >
               <RotateCcw size={12} aria-hidden />
             </button>
@@ -306,6 +313,7 @@ export function DiffSection({
   onFileClick,
   onShowFileMenu,
 }: DiffSectionProps) {
+  const locale = useAppLocale();
   const filePaths = files.map((file) => file.path);
   const canStageAll =
     section === "unstaged" &&
@@ -339,9 +347,11 @@ export function DiffSection({
                   void onApplyWorktreeChanges?.();
                 }}
                 disabled={worktreeApplyLoading || worktreeApplySuccess}
-                data-tooltip={worktreeApplyTitle ?? "Apply changes to parent workspace"}
+                data-tooltip={
+                  worktreeApplyTitle ?? m.git_apply_changes_parent_workspace({}, { locale })
+                }
                 data-tooltip-align="end"
-                aria-label="Apply worktree changes"
+                aria-label={m.git_apply_worktree_changes({}, { locale })}
               >
                 <WorktreeApplyIcon success={worktreeApplySuccess} />
               </button>
@@ -353,9 +363,9 @@ export function DiffSection({
                 onClick={() => {
                   void onReviewUncommittedChanges?.();
                 }}
-                data-tooltip="Review Uncommitted Changes"
+                data-tooltip={m.git_review_uncommitted_changes_title({}, { locale })}
                 data-tooltip-align="end"
-                aria-label="Review uncommitted changes"
+                aria-label={m.git_review_uncommitted_changes({}, { locale })}
               >
                 <MagicSparkleIcon size={12} />
               </button>
@@ -375,9 +385,9 @@ export function DiffSection({
                     }
                   })();
                 }}
-                data-tooltip="Stage All Changes"
+                data-tooltip={m.git_stage_all_changes({}, { locale })}
                 data-tooltip-align="end"
-                aria-label="Stage all changes"
+                aria-label={m.git_stage_all_changes_aria({}, { locale })}
               >
                 <Plus size={12} aria-hidden />
               </button>
@@ -393,9 +403,9 @@ export function DiffSection({
                     }
                   })();
                 }}
-                data-tooltip="Unstage All Changes"
+                data-tooltip={m.git_unstage_all_changes({}, { locale })}
                 data-tooltip-align="end"
-                aria-label="Unstage all changes"
+                aria-label={m.git_unstage_all_changes_aria({}, { locale })}
               >
                 <Minus size={12} aria-hidden />
               </button>
@@ -407,9 +417,9 @@ export function DiffSection({
                 onClick={() => {
                   void onDiscardFiles?.(filePaths);
                 }}
-                data-tooltip="Discard All Changes"
+                data-tooltip={m.git_discard_all_changes({}, { locale })}
                 data-tooltip-align="end"
-                aria-label="Discard all changes"
+                aria-label={m.git_discard_all_changes_aria({}, { locale })}
               >
                 <RotateCcw size={12} aria-hidden />
               </button>

@@ -1,6 +1,8 @@
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { openUrl } from "@tauri-apps/plugin-opener";
+import { useAppLocale } from "@/i18n/I18nProvider";
+import * as m from "@/i18n/messages";
 import type { PostUpdateNoticeState, UpdateState } from "../hooks/useUpdater";
 import {
   ToastActions,
@@ -41,23 +43,26 @@ export function UpdateToast({
   postUpdateNotice = null,
   onDismissPostUpdateNotice,
 }: UpdateToastProps) {
+  const locale = useAppLocale();
   if (postUpdateNotice) {
     return (
       <ToastViewport className="update-toasts" role="region" ariaLive="polite">
         <ToastCard className="update-toast" role="status">
           <ToastHeader className="update-toast-header">
-            <ToastTitle className="update-toast-title">What's New</ToastTitle>
+            <ToastTitle className="update-toast-title">
+              {m.update_whats_new({}, { locale })}
+            </ToastTitle>
             <div className="update-toast-version">v{postUpdateNotice.version}</div>
           </ToastHeader>
           {postUpdateNotice.stage === "loading" ? (
             <ToastBody className="update-toast-body">
-              Updated successfully. Loading release notes...
+              {m.update_loading_notes({}, { locale })}
             </ToastBody>
           ) : null}
           {postUpdateNotice.stage === "ready" ? (
             <>
               <ToastBody className="update-toast-body">
-                Updated successfully. Here is what is new:
+                {m.update_ready_body({}, { locale })}
               </ToastBody>
               <div className="update-toast-notes" role="document">
                 <ReactMarkdown
@@ -90,8 +95,10 @@ export function UpdateToast({
           ) : null}
           {postUpdateNotice.stage === "fallback" ? (
             <ToastBody className="update-toast-body">
-              Updated to v{postUpdateNotice.version}. Release notes could not be
-              loaded.
+              {m.update_fallback_body(
+                { version: postUpdateNotice.version },
+                { locale },
+              )}
             </ToastBody>
           ) : null}
           <ToastActions className="update-toast-actions">
@@ -102,14 +109,14 @@ export function UpdateToast({
                   void openUrl(postUpdateNotice.htmlUrl);
                 }}
               >
-                View on GitHub
+                {m.update_view_on_github({}, { locale })}
               </button>
             ) : null}
             <button
               className="secondary"
               onClick={onDismissPostUpdateNotice ?? onDismiss}
             >
-              Dismiss
+              {m.update_dismiss({}, { locale })}
             </button>
           </ToastActions>
         </ToastCard>
@@ -132,25 +139,29 @@ export function UpdateToast({
     <ToastViewport className="update-toasts" role="region" ariaLive="polite">
       <ToastCard className="update-toast" role="status">
         <ToastHeader className="update-toast-header">
-          <ToastTitle className="update-toast-title">Update</ToastTitle>
+          <ToastTitle className="update-toast-title">
+            {m.update_title({}, { locale })}
+          </ToastTitle>
           {state.version ? (
             <div className="update-toast-version">v{state.version}</div>
           ) : null}
         </ToastHeader>
         {state.stage === "checking" && (
-          <ToastBody className="update-toast-body">Checking for updates...</ToastBody>
+          <ToastBody className="update-toast-body">
+            {m.update_checking({}, { locale })}
+          </ToastBody>
         )}
         {state.stage === "available" && (
           <>
             <ToastBody className="update-toast-body">
-              A new version is available.
+              {m.update_available({}, { locale })}
             </ToastBody>
             <ToastActions className="update-toast-actions">
               <button className="secondary" onClick={onDismiss}>
-                Later
+                {m.update_later({}, { locale })}
               </button>
               <button className="primary" onClick={onUpdate}>
-                Update
+                {m.update_action({}, { locale })}
               </button>
             </ToastActions>
           </>
@@ -158,17 +169,17 @@ export function UpdateToast({
         {state.stage === "latest" && (
           <div className="update-toast-inline">
             <ToastBody className="update-toast-body update-toast-body-inline">
-              You’re up to date.
+              {m.update_latest({}, { locale })}
             </ToastBody>
             <button className="secondary" onClick={onDismiss}>
-              Dismiss
+              {m.update_dismiss({}, { locale })}
             </button>
           </div>
         )}
         {state.stage === "downloading" && (
           <>
             <ToastBody className="update-toast-body">
-              Downloading update…
+              {m.update_downloading({}, { locale })}
             </ToastBody>
             <div className="update-toast-progress">
               <div className="update-toast-progress-bar">
@@ -179,30 +190,45 @@ export function UpdateToast({
               </div>
               <div className="update-toast-progress-meta">
                 {totalBytes
-                  ? `${formatBytes(downloadedBytes)} / ${formatBytes(totalBytes)}`
-                  : `${formatBytes(downloadedBytes)} downloaded`}
+                  ? m.update_download_progress(
+                      {
+                        downloaded: formatBytes(downloadedBytes),
+                        total: formatBytes(totalBytes),
+                      },
+                      { locale },
+                    )
+                  : m.update_downloaded(
+                      { value: formatBytes(downloadedBytes) },
+                      { locale },
+                    )}
               </div>
             </div>
           </>
         )}
         {state.stage === "installing" && (
-          <ToastBody className="update-toast-body">Installing update…</ToastBody>
+          <ToastBody className="update-toast-body">
+            {m.update_installing({}, { locale })}
+          </ToastBody>
         )}
         {state.stage === "restarting" && (
-          <ToastBody className="update-toast-body">Restarting…</ToastBody>
+          <ToastBody className="update-toast-body">
+            {m.update_restarting({}, { locale })}
+          </ToastBody>
         )}
         {state.stage === "error" && (
           <>
-            <ToastBody className="update-toast-body">Update failed.</ToastBody>
+            <ToastBody className="update-toast-body">
+              {m.update_failed({}, { locale })}
+            </ToastBody>
             {state.error ? (
               <ToastError className="update-toast-error">{state.error}</ToastError>
             ) : null}
             <ToastActions className="update-toast-actions">
               <button className="secondary" onClick={onDismiss}>
-                Dismiss
+                {m.update_dismiss({}, { locale })}
               </button>
               <button className="primary" onClick={onUpdate}>
-                Retry
+                {m.update_retry({}, { locale })}
               </button>
             </ToastActions>
           </>

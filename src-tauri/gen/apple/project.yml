@@ -1,6 +1,6 @@
 name: codex-monitor
 options:
-  bundleIdPrefix: com.dimillian.codexmonitor
+  bundleIdPrefix: com.mxyhi.agentmonitor
   deploymentTarget:
     iOS: 14.0
 fileGroups: [../../src]
@@ -10,8 +10,8 @@ configs:
 settingGroups:
   app:
     base:
-      PRODUCT_NAME: Codex Monitor
-      PRODUCT_BUNDLE_IDENTIFIER: com.dimillian.codexmonitor
+      PRODUCT_NAME: Agent Monitor
+      PRODUCT_BUNDLE_IDENTIFIER: com.mxyhi.agentmonitor
 targetTemplates:
   app:
     type: application

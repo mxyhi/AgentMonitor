@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
+import * as m from "@/i18n/messages";
+import { useAppLocale } from "@/i18n/I18nProvider";
 
 type DictationWaveformProps = {
   active: boolean;
@@ -21,6 +23,7 @@ export function DictationWaveform({
   processing,
   level,
 }: DictationWaveformProps) {
+  const locale = useAppLocale();
   const [bars, setBars] = useState<number[]>(
     () => new Array(MAX_BARS).fill(0),
   );
@@ -50,7 +53,11 @@ export function DictationWaveform({
       className={`composer-waveform${processing ? " is-processing" : ""}`}
       aria-hidden
     >
-      {processing && <span className="composer-waveform-label">Processing...</span>}
+      {processing && (
+        <span className="composer-waveform-label">
+          {m.dictation_processing({}, { locale })}
+        </span>
+      )}
       {barHeights.map((height, index) => (
         <span
           key={index}

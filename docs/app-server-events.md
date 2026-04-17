@@ -1,18 +1,19 @@
-# App-Server Events Reference (Codex `19702e190ebf16f789617ca5f16bfc373c238fe7`)
+# App-Server Events Reference (Codex `8494e5bd7bb9fda5df56e232d7ef890108a3d8d4`)
 
 This document helps agents quickly answer:
 - Which app-server events CodexMonitor supports right now.
 - Which app-server requests CodexMonitor sends right now.
 - Where to look in CodexMonitor to add support.
-- Where to look in `../Codex` to compare event lists and find emitters.
+- Where to look in `.ref/codex` to compare event lists and find emitters.
 
 When updating this document:
-1. Fetch latest refs with `git -C ../Codex fetch --all --prune`.
-2. Update the Codex hash in the title using `git -C ../Codex rev-parse origin/main`.
+1. Update the Codex hash in the title using `git -C .ref/codex rev-parse HEAD`.
+2. Prefer strict schema baselines from `codex app-server generate-ts` / `codex app-server generate-json-schema`, or the vendored `.ref/codex/codex-rs/app-server-protocol/schema/*` fixtures.
 3. Compare Codex events vs CodexMonitor routing.
 4. Compare Codex client request methods vs CodexMonitor outgoing request methods.
 5. Compare Codex server request methods vs CodexMonitor inbound request handling.
-6. Update supported and missing lists below.
+6. Use a live `codex app-server` trace to verify lifecycle ordering when behavior depends on event timing rather than field shape.
+7. Update supported and missing lists below.
 
 Related project skill:
 - `.codex/skills/app-server-events-sync/SKILL.md`
@@ -238,27 +239,65 @@ Missing server requests:
 - `account/chatgptAuthTokens/refresh`
 - `mcpServer/elicitation/request`
 
-## Where To Look In ../Codex
+## Strict Baseline
+
+Prefer this order when validating protocol compatibility:
+
+1. Generated TypeScript bindings:
+   - `codex app-server generate-ts --out DIR`
+2. Generated JSON Schema bundle:
+   - `codex app-server generate-json-schema --out DIR`
+3. Vendored upstream fixtures in this repo:
+   - `.ref/codex/codex-rs/app-server-protocol/schema/typescript`
+   - `.ref/codex/codex-rs/app-server-protocol/schema/json`
+4. Source-level follow-up when generated artifacts are not enough:
+   - `.ref/codex/codex-rs/app-server-protocol/src/protocol/common.rs`
+   - `.ref/codex/codex-rs/app-server-protocol/src/protocol/v2.rs`
+   - `.ref/codex/codex-rs/app-server/src/bespoke_event_handling.rs`
+   - `.ref/codex/codex-rs/app-server/README.md`
+
+Why this order:
+- `generate-ts` / `generate-json-schema` are emitted by the exact Codex build under test, so they are the safest static contract baseline.
+- Source files remain necessary for emitter wiring and runtime semantics that schemas cannot express.
+
+## Runtime Lifecycle Note
+
+Static schema is necessary but not sufficient.
+
+In a live probe against current Codex, a normal `turn/start` emitted:
+- `thread/status/changed` -> `active`
+- `turn/started`
+- item lifecycle and delta events
+- `thread/status/changed` -> `idle`
+
+That probe did not emit `turn/completed`.
+
+Implication for CodexMonitor:
+- `thread/status/changed(type=idle)` is a critical completion signal.
+- Do not assume `turn/completed` is always present.
+- When debugging stuck "处理中…" states, inspect event ordering, not just schema shape.
+
+## Where To Look In `.ref/codex`
 
 Start here for the authoritative v2 notification list:
-- `../Codex/codex-rs/app-server-protocol/src/protocol/common.rs`
+- `.ref/codex/codex-rs/app-server-protocol/src/protocol/common.rs`
 
 Useful follow-ups:
 - Notification payload types:
-  - `../Codex/codex-rs/app-server-protocol/src/protocol/v2.rs`
+  - `.ref/codex/codex-rs/app-server-protocol/src/protocol/v2.rs`
 - Emitters / wiring from core events to server notifications:
-  - `../Codex/codex-rs/app-server/src/bespoke_event_handling.rs`
+  - `.ref/codex/codex-rs/app-server/src/bespoke_event_handling.rs`
 - Human-readable protocol notes:
-  - `../Codex/codex-rs/app-server/README.md`
+  - `.ref/codex/codex-rs/app-server/README.md`
 
 ## Quick Comparison Workflow
 
 Use this workflow to update the lists above:
 
 1. Get the current Codex hash:
-   - `git -C ../Codex fetch --all --prune && git -C ../Codex rev-parse origin/main`
+   - `git -C .ref/codex rev-parse HEAD`
 2. List Codex v2 notification methods:
-   - `git -C ../Codex show origin/main:codex-rs/app-server-protocol/src/protocol/common.rs | awk '/server_notification_definitions! \\{/,/client_notification_definitions! \\{/' | rg -N -o '=>\\s*\"[^\"]+\"|rename = \"[^\"]+\"' | sed -E 's/.*\"([^\"]+)\".*/\\1/' | sort -u`
+   - `awk '/server_notification_definitions! \\{/,/client_notification_definitions! \\{/' .ref/codex/codex-rs/app-server-protocol/src/protocol/common.rs | rg -N -o '=>\\s*\"[^\"]+\"|rename = \"[^\"]+\"' | sed -E 's/.*\"([^\"]+)\".*/\\1/' | sort -u`
 3. List CodexMonitor routed methods:
    - `rg -n \"SUPPORTED_APP_SERVER_METHODS\" src/utils/appServerEvents.ts`
 4. Update the Supported and Missing sections.
@@ -268,11 +307,11 @@ Use this workflow to update the lists above:
 Use this workflow to update request support lists:
 
 1. Get the current Codex hash:
-   - `git -C ../Codex fetch --all --prune && git -C ../Codex rev-parse origin/main`
+   - `git -C .ref/codex rev-parse HEAD`
 2. List Codex client request methods:
-   - `git -C ../Codex show origin/main:codex-rs/app-server-protocol/src/protocol/common.rs | awk '/client_request_definitions! \\{/,/\\/\\/\\/ DEPRECATED APIs below/' | rg -N -o '=>\\s*\"[^\"]+\"\\s*\\{' | sed -E 's/.*\"([^\"]+)\".*/\\1/' | sort -u`
+   - `awk '/client_request_definitions! \\{/,/\\/\\/\\/ DEPRECATED APIs below/' .ref/codex/codex-rs/app-server-protocol/src/protocol/common.rs | rg -N -o '=>\\s*\"[^\"]+\"\\s*\\{' | sed -E 's/.*\"([^\"]+)\".*/\\1/' | sort -u`
 3. List Codex server request methods:
-   - `git -C ../Codex show origin/main:codex-rs/app-server-protocol/src/protocol/common.rs | awk '/server_request_definitions! \\{/,/\\/\\/\\/ DEPRECATED APIs below/' | rg -N -o '=>\\s*\"[^\"]+\"\\s*\\{' | sed -E 's/.*\"([^\"]+)\".*/\\1/' | sort -u`
+   - `awk '/server_request_definitions! \\{/,/\\/\\/\\/ DEPRECATED APIs below/' .ref/codex/codex-rs/app-server-protocol/src/protocol/common.rs | rg -N -o '=>\\s*\"[^\"]+\"\\s*\\{' | sed -E 's/.*\"([^\"]+)\".*/\\1/' | sort -u`
 4. List CodexMonitor outgoing requests:
    - `perl -0777 -ne 'while(/send_request_for_workspace\\(\\s*&[^,]+\\s*,\\s*\"([^\"]+)\"/g){print \"$1\\n\"}' src-tauri/src/shared/codex_core.rs | sort -u`
 5. Update the Supported Requests, Missing Client Requests, and Server Requests sections.
@@ -282,18 +321,18 @@ Use this workflow to update request support lists:
 Use this when the method list is unchanged but behavior looks off.
 
 1. Confirm the current Codex hash:
-   - `git -C ../Codex fetch --all --prune && git -C ../Codex rev-parse origin/main`
+   - `git -C .ref/codex rev-parse HEAD`
 2. Inspect the authoritative notification structs:
-   - `git -C ../Codex show origin/main:codex-rs/app-server-protocol/src/protocol/v2.rs | rg -n \"struct .*Notification\"`
+   - `rg -n \"struct .*Notification\" .ref/codex/codex-rs/app-server-protocol/src/protocol/v2.rs`
 3. For a specific method, jump to its struct definition:
-   - Example: `git -C ../Codex show origin/main:codex-rs/app-server-protocol/src/protocol/v2.rs | rg -n \"struct TurnPlanUpdatedNotification|struct ThreadTokenUsageUpdatedNotification|struct AccountRateLimitsUpdatedNotification|struct ItemStartedNotification|struct ItemCompletedNotification\"`
+   - Example: `rg -n \"struct TurnPlanUpdatedNotification|struct ThreadTokenUsageUpdatedNotification|struct AccountRateLimitsUpdatedNotification|struct ItemStartedNotification|struct ItemCompletedNotification\" .ref/codex/codex-rs/app-server-protocol/src/protocol/v2.rs`
 4. Compare payload shapes to the router expectations:
    - Parser/source of truth: `src/utils/appServerEvents.ts`
    - Router: `src/features/app/hooks/useAppServerEvents.ts`
    - Turn/plan/token/rate-limit normalization: `src/features/threads/utils/threadNormalize.ts`
    - Item shaping for display: `src/utils/threadItems.ts`
 5. Verify the ThreadItem schema (many UI issues start here):
-   - `git -C ../Codex show origin/main:codex-rs/app-server-protocol/src/protocol/v2.rs | rg -n \"enum ThreadItem|CommandExecution|FileChange|McpToolCall|EnteredReviewMode|ExitedReviewMode|ContextCompaction\"`
+   - `rg -n \"enum ThreadItem|CommandExecution|FileChange|McpToolCall|EnteredReviewMode|ExitedReviewMode|ContextCompaction\" .ref/codex/codex-rs/app-server-protocol/src/protocol/v2.rs`
 6. Check for camelCase vs snake_case mismatches:
    - The protocol uses `#[serde(rename_all = \"camelCase\")]`, but fields are often declared in snake_case.
    - CodexMonitor generally defends against this by checking both forms (for example in `threadNormalize.ts` and `useAppServerEvents.ts`), while centralizing method/type parsing in `appServerEvents.ts`.

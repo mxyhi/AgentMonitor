@@ -1,4 +1,6 @@
 import type { TurnPlan } from "../../../types";
+import * as m from "@/i18n/messages";
+import { useAppLocale } from "@/i18n/I18nProvider";
 
 type PlanPanelProps = {
   plan: TurnPlan | null;
@@ -25,15 +27,18 @@ function statusLabel(status: TurnPlan["steps"][number]["status"]) {
 }
 
 export function PlanPanel({ plan, isProcessing }: PlanPanelProps) {
+  const locale = useAppLocale();
   const progress = plan ? formatProgress(plan) : "";
   const steps = plan?.steps ?? [];
   const showEmpty = !steps.length && !plan?.explanation;
-  const emptyLabel = isProcessing ? "Waiting on a plan..." : "No active plan.";
+  const emptyLabel = isProcessing
+    ? m.plan_panel_waiting({}, { locale })
+    : m.plan_panel_empty({}, { locale });
 
   return (
     <aside className="plan-panel">
       <div className="plan-header">
-        <span>Plan</span>
+        <span>{m.plan_panel_title({}, { locale })}</span>
         {progress && <span className="plan-progress">{progress}</span>}
       </div>
       {plan?.explanation && (

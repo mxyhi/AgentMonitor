@@ -2,6 +2,8 @@ import ChevronLeft from "lucide-react/dist/esm/icons/chevron-left";
 import ChevronRight from "lucide-react/dist/esm/icons/chevron-right";
 import RefreshCw from "lucide-react/dist/esm/icons/refresh-cw";
 import { useEffect, useState } from "react";
+import { useAppLocale } from "@/i18n/I18nProvider";
+import * as m from "@/i18n/messages";
 import type {
   AccountSnapshot,
   LocalUsageSnapshot,
@@ -58,6 +60,7 @@ export function HomeUsageSection({
   usageWorkspaceId,
   usageWorkspaceOptions,
 }: HomeUsageSectionProps) {
+  const locale = useAppLocale();
   const [chartWeekOffset, setChartWeekOffset] = useState(0);
   const {
     accountCards,
@@ -72,6 +75,7 @@ export function HomeUsageSection({
     localUsageSnapshot,
     usageMetric,
     usageShowRemaining,
+    locale,
   });
 
   const maxHistoricalWeekOffset = Math.max(0, Math.ceil(usageDays.length / 7) - 1);
@@ -90,18 +94,29 @@ export function HomeUsageSection({
   );
   const canShowOlderWeek = chartWeekOffset < maxHistoricalWeekOffset;
   const canShowNewerWeek = chartWeekOffset > 0;
-  const chartRangeLabel = formatWeekRange(chartDays);
+  const chartRangeLabel =
+    chartDays.length > 0
+      ? formatWeekRange(chartDays, locale)
+      : m.home_usage_no_chart_data({}, { locale });
   const chartRangeAriaLabel =
     chartDays.length > 0
-      ? `Usage week ${chartDays[0]?.day} to ${chartDays[chartDays.length - 1]?.day}`
-      : "Usage week";
+      ? m.home_usage_week_range(
+          {
+            start: chartDays[0]?.day ?? "",
+            end: chartDays[chartDays.length - 1]?.day ?? "",
+          },
+          { locale },
+        )
+      : m.home_usage_week({}, { locale });
   const showUsageSkeleton = isLoadingLocalUsage && !localUsageSnapshot;
   const showUsageEmpty = !isLoadingLocalUsage && !localUsageSnapshot;
 
   return (
     <div className="home-usage">
       <div className="home-section-header">
-        <div className="home-section-title">Usage snapshot</div>
+        <div className="home-section-title">
+          {m.home_usage_snapshot({}, { locale })}
+        </div>
         <div className="home-section-meta-row">
           {updatedLabel && <div className="home-section-meta">{updatedLabel}</div>}
           <button
@@ -113,8 +128,8 @@ export function HomeUsageSection({
             }
             onClick={onRefreshLocalUsage}
             disabled={isLoadingLocalUsage}
-            aria-label="Refresh usage"
-            title="Refresh usage"
+            aria-label={m.home_usage_refresh({}, { locale })}
+            title={m.home_usage_refresh({}, { locale })}
           >
             <RefreshCw
               className={
@@ -129,7 +144,9 @@ export function HomeUsageSection({
       </div>
       <div className="home-usage-controls">
         <div className="home-usage-control-group">
-          <span className="home-usage-control-label">Workspace</span>
+          <span className="home-usage-control-label">
+            {m.home_usage_workspace({}, { locale })}
+          </span>
           <div className="home-usage-select-wrap">
             <select
               className="home-usage-select"
@@ -137,7 +154,9 @@ export function HomeUsageSection({
               onChange={(event) => onUsageWorkspaceChange(event.target.value || null)}
               disabled={usageWorkspaceOptions.length === 0}
             >
-              <option value="">All workspaces</option>
+              <option value="">
+                {m.home_usage_all_workspaces({}, { locale })}
+              </option>
               {usageWorkspaceOptions.map((option) => (
                 <option key={option.id} value={option.id}>
                   {option.label}
@@ -147,8 +166,14 @@ export function HomeUsageSection({
           </div>
         </div>
         <div className="home-usage-control-group">
-          <span className="home-usage-control-label">View</span>
-          <div className="home-usage-toggle" role="group" aria-label="Usage view">
+          <span className="home-usage-control-label">
+            {m.home_usage_view({}, { locale })}
+          </span>
+          <div
+            className="home-usage-toggle"
+            role="group"
+            aria-label={m.home_usage_view_group({}, { locale })}
+          >
             <button
               type="button"
               className={
@@ -159,7 +184,7 @@ export function HomeUsageSection({
               onClick={() => onUsageMetricChange("tokens")}
               aria-pressed={usageMetric === "tokens"}
             >
-              Tokens
+              {m.home_usage_tokens({}, { locale })}
             </button>
             <button
               type="button"
@@ -171,7 +196,7 @@ export function HomeUsageSection({
               onClick={() => onUsageMetricChange("time")}
               aria-pressed={usageMetric === "time"}
             >
-              Time
+              {m.home_usage_time({}, { locale })}
             </button>
           </div>
         </div>
@@ -192,9 +217,11 @@ export function HomeUsageSection({
         </div>
       ) : showUsageEmpty ? (
         <div className="home-usage-empty">
-          <div className="home-usage-empty-title">No usage data yet</div>
+          <div className="home-usage-empty-title">
+            {m.home_usage_empty_title({}, { locale })}
+          </div>
           <div className="home-usage-empty-subtitle">
-            Run a Codex session to start tracking local usage.
+            {m.home_usage_empty_subtitle({}, { locale })}
           </div>
           {localUsageError && (
             <div className="home-usage-error">{localUsageError}</div>
@@ -222,8 +249,8 @@ export function HomeUsageSection({
                     type="button"
                     className="home-usage-chart-button"
                     onClick={() => setChartWeekOffset((current) => current + 1)}
-                    aria-label="Show previous week"
-                    title="Show previous week"
+                    aria-label={m.home_usage_previous_week({}, { locale })}
+                    title={m.home_usage_previous_week({}, { locale })}
                   >
                     <ChevronLeft aria-hidden />
                   </button>
@@ -232,8 +259,8 @@ export function HomeUsageSection({
                   type="button"
                   className="home-usage-chart-button"
                   onClick={() => setChartWeekOffset((current) => Math.max(0, current - 1))}
-                  aria-label="Show next week"
-                  title="Show next week"
+                  aria-label={m.home_usage_next_week({}, { locale })}
+                  title={m.home_usage_next_week({}, { locale })}
                   disabled={!canShowNewerWeek}
                 >
                   <ChevronRight aria-hidden />
@@ -247,15 +274,29 @@ export function HomeUsageSection({
                 const height = Math.max(6, Math.round((value / maxUsageValue) * 100));
                 const tooltip =
                   usageMetric === "tokens"
-                    ? `${formatDayLabel(day.day)} · ${formatCount(day.totalTokens)} tokens`
-                    : `${formatDayLabel(day.day)} · ${formatDuration(day.agentTimeMs ?? 0)} agent time`;
+                    ? m.home_usage_chart_tokens_tooltip(
+                        {
+                          day: formatDayLabel(day.day, locale),
+                          tokens: formatCount(day.totalTokens, locale),
+                        },
+                        { locale },
+                      )
+                    : m.home_usage_chart_time_tooltip(
+                        {
+                          day: formatDayLabel(day.day, locale),
+                          value: formatDuration(day.agentTimeMs ?? 0),
+                        },
+                        { locale },
+                      );
                 return (
                   <div className="home-usage-bar" key={day.day} data-value={tooltip}>
                     <span
                       className="home-usage-bar-fill"
                       style={{ height: `${height}%` }}
                     />
-                    <span className="home-usage-bar-label">{formatDayLabel(day.day)}</span>
+                    <span className="home-usage-bar-label">
+                      {formatDayLabel(day.day, locale)}
+                    </span>
                   </div>
                 );
               })}
@@ -268,9 +309,11 @@ export function HomeUsageSection({
           </div>
           <div className="home-usage-models">
             <div className="home-usage-models-label">
-              Top models
+              {m.home_usage_top_models({}, { locale })}
               {usageMetric === "time" && (
-                <span className="home-usage-models-hint">Tokens</span>
+                <span className="home-usage-models-hint">
+                  {m.home_usage_top_models_hint({}, { locale })}
+                </span>
               )}
             </div>
             <div className="home-usage-models-list">
@@ -279,7 +322,13 @@ export function HomeUsageSection({
                   <span
                     className="home-usage-model-chip"
                     key={model.model}
-                    title={`${model.model}: ${formatCount(model.tokens)} tokens`}
+                    title={m.home_usage_model_tooltip(
+                      {
+                        model: model.model,
+                        tokens: formatCount(model.tokens, locale),
+                      },
+                      { locale },
+                    )}
                   >
                     {model.model}
                     <span className="home-usage-model-share">
@@ -288,7 +337,9 @@ export function HomeUsageSection({
                   </span>
                 ))
               ) : (
-                <span className="home-usage-model-empty">No models yet</span>
+                <span className="home-usage-model-empty">
+                  {m.home_models_empty({}, { locale })}
+                </span>
               )}
             </div>
             {localUsageError && <div className="home-usage-error">{localUsageError}</div>}
@@ -298,7 +349,9 @@ export function HomeUsageSection({
       {accountCards.length > 0 && (
         <div className="home-account">
           <div className="home-section-header">
-            <div className="home-section-title">Account limits</div>
+            <div className="home-section-title">
+              {m.home_usage_account_limits({}, { locale })}
+            </div>
             {accountMeta && (
               <div className="home-section-meta-row">
                 <div className="home-section-meta">{accountMeta}</div>

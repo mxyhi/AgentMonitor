@@ -7,6 +7,8 @@ import {
 } from "@pierre/diffs";
 import { FileDiff } from "@pierre/diffs/react";
 import RotateCcw from "lucide-react/dist/esm/icons/rotate-ccw";
+import * as m from "@/i18n/messages";
+import { useAppLocale } from "@/i18n/I18nProvider";
 import type {
   PullRequestReviewAction,
   PullRequestReviewIntent,
@@ -116,6 +118,7 @@ export const DiffCard = memo(function DiffCard({
   pullRequestReviewLaunching = false,
   pullRequestReviewThreadId = null,
 }: DiffCardProps) {
+  const locale = useAppLocale();
   const displayPath = entry.displayPath ?? entry.path;
   const { name: fileName, dir } = useMemo(
     () => splitPath(displayPath),
@@ -144,8 +147,8 @@ export const DiffCard = memo(function DiffCard({
       ...parsed,
       name: normalizedName,
       prevName: normalizedPrevName,
-      oldLines: entry.oldLines,
-      newLines: entry.newLines,
+      deletionLines: entry.oldLines ?? parsed.deletionLines,
+      additionLines: entry.newLines ?? parsed.additionLines,
     } satisfies FileDiffMetadata;
   }, [displayPath, entry.diff, entry.newLines, entry.oldLines]);
 
@@ -211,8 +214,8 @@ export const DiffCard = memo(function DiffCard({
           <button
             type="button"
             className="diff-viewer-header-action diff-viewer-header-action--discard"
-            title="Discard changes in this file"
-            aria-label="Discard changes in this file"
+            title={m.git_discard_changes_in_file({}, { locale })}
+            aria-label={m.git_discard_changes_in_file({}, { locale })}
             onClick={(event) => {
               event.preventDefault();
               event.stopPropagation();
@@ -224,7 +227,11 @@ export const DiffCard = memo(function DiffCard({
         )}
       </div>
       {useInteractiveDiff && selectedLines && reviewActions.length > 0 ? (
-        <div className="diff-viewer-review-actions" role="toolbar" aria-label="PR selection actions">
+        <div
+          className="diff-viewer-review-actions"
+          role="toolbar"
+          aria-label={m.git_pr_selection_actions({}, { locale })}
+        >
           {reviewActions.map((action) => (
             <button
               key={action.id}
@@ -267,8 +274,8 @@ export const DiffCard = memo(function DiffCard({
                     <button
                       type="button"
                       className="diff-viewer-line-action-button"
-                      aria-label="Ask for changes on hovered line"
-                      title="Ask for changes on this line"
+                      aria-label={m.git_ask_changes_hovered_line({}, { locale })}
+                      title={m.git_ask_changes_line({}, { locale })}
                       onMouseDown={(event) => {
                         event.preventDefault();
                         event.stopPropagation();

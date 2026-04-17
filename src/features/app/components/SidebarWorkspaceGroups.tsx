@@ -3,6 +3,8 @@ import type { MouseEvent, MutableRefObject, ReactNode } from "react";
 import Copy from "lucide-react/dist/esm/icons/copy";
 import GitBranch from "lucide-react/dist/esm/icons/git-branch";
 import Plus from "lucide-react/dist/esm/icons/plus";
+import * as m from "@/i18n/messages";
+import { useAppLocale } from "@/i18n/I18nProvider";
 
 import type { ThreadSummary, WorkspaceInfo } from "../../../types";
 import type { ThreadStatusById } from "../../../utils/threadStatus";
@@ -141,6 +143,7 @@ function SidebarWorkspaceEntry({
   onLoadOlderThreads,
   onToggleAddMenu,
 }: SidebarWorkspaceEntryProps) {
+  const locale = useAppLocale();
   if (cloneChildIds.has(workspace.id)) {
     return null;
   }
@@ -194,18 +197,35 @@ function SidebarWorkspaceEntry({
     !activeThreadId;
   const draftStatusClass =
     startingDraftThreadWorkspaceId === workspace.id ? "processing" : "ready";
+  const latestThreadTime = threads[0] ? getThreadTime(threads[0]) : null;
+  const summary =
+    displayThreadRootCount > 0
+      ? latestThreadTime
+        ? displayThreadRootCount === 1
+          ? m.sidebar_workspace_summary_single_updated(
+              { updated: latestThreadTime },
+              { locale },
+            )
+          : m.sidebar_workspace_summary_plural_updated(
+              {
+                count: String(displayThreadRootCount),
+                updated: latestThreadTime,
+              },
+              { locale },
+            )
+        : displayThreadRootCount === 1
+          ? m.sidebar_workspace_summary_single({}, { locale })
+          : m.sidebar_workspace_summary_plural(
+              { count: String(displayThreadRootCount) },
+              { locale },
+            )
+      : m.sidebar_empty_none({}, { locale });
 
   return (
     <WorkspaceCard
       workspace={workspace}
       workspaceName={renderHighlightedName(workspace.name)}
-      summary={
-        displayThreadRootCount > 0
-          ? `${displayThreadRootCount} conversation${
-              displayThreadRootCount === 1 ? "" : "s"
-            }${threads[0] ? ` · Updated ${getThreadTime(threads[0])}` : ""}`
-          : "No conversations yet"
-      }
+      summary={summary}
       isActive={workspace.id === activeWorkspaceId}
       isCollapsed={isCollapsed}
       addMenuOpen={addMenuOpen}
@@ -236,7 +256,7 @@ function SidebarWorkspaceEntry({
               }}
               icon={<Plus aria-hidden />}
             >
-              New agent
+              {m.sidebar_new_agent({}, { locale })}
             </PopoverMenuItem>
             <PopoverMenuItem
               className="workspace-add-option"
@@ -247,7 +267,7 @@ function SidebarWorkspaceEntry({
               }}
               icon={<GitBranch aria-hidden />}
             >
-              New worktree agent
+              {m.sidebar_new_worktree_agent({}, { locale })}
             </PopoverMenuItem>
             <PopoverMenuItem
               className="workspace-add-option"
@@ -258,7 +278,7 @@ function SidebarWorkspaceEntry({
               }}
               icon={<Copy aria-hidden />}
             >
-              New clone agent
+              {m.sidebar_new_clone_agent({}, { locale })}
             </PopoverMenuItem>
           </PopoverSurface>,
           document.body,
@@ -279,7 +299,7 @@ function SidebarWorkspaceEntry({
           <span className={`thread-status ${draftStatusClass}`} aria-hidden />
           <div className="thread-content">
             <div className="thread-headline">
-              <span className="thread-name">New Agent</span>
+              <span className="thread-name">{m.sidebar_new_agent({}, { locale })}</span>
             </div>
           </div>
         </div>
@@ -313,7 +333,7 @@ function SidebarWorkspaceEntry({
           onLoadOlderThreads={onLoadOlderThreads}
           searchQuery={normalizedQuery}
           isSearchActive={isSearchActive}
-          sectionLabel="Clone agents"
+          sectionLabel={m.sidebar_clone_agents({}, { locale })}
           sectionIcon={<Copy className="worktree-header-icon" aria-hidden />}
           className="clone-section"
         />

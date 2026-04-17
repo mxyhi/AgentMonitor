@@ -1,6 +1,8 @@
 import type { CSSProperties, MouseEvent } from "react";
 
 import type { ThreadSummary } from "../../../types";
+import * as m from "@/i18n/messages";
+import { useAppLocale } from "@/i18n/I18nProvider";
 import { getThreadStatusClass, type ThreadStatusById } from "../../../utils/threadStatus";
 
 function hashString(value: string) {
@@ -86,6 +88,7 @@ export function ThreadRow({
   onToggleSubagents,
   showPinnedLabel = true,
 }: ThreadRowProps) {
+  const locale = useAppLocale();
   const relativeTime = getThreadTime(thread);
   const badge = getThreadArgsBadge?.(workspaceId, thread.id) ?? null;
   const modelBadge =
@@ -107,9 +110,9 @@ export function ThreadRow({
   );
   const statusLabel =
     statusClass === "reviewing"
-      ? "Reviewing"
+      ? m.thread_reviewing({}, { locale })
       : hasPendingUserInput
-        ? "Waiting"
+        ? m.thread_waiting({}, { locale })
         : null;
   const subagentLabel =
     thread.isSubagent && (thread.subagentNickname || thread.subagentRole)
@@ -197,7 +200,9 @@ export function ThreadRow({
                 {contextLabel}
               </span>
             )}
-            {showPinnedLabel && isPinned && <span className="thread-pinned-label">Pinned</span>}
+            {showPinnedLabel && isPinned && (
+              <span className="thread-pinned-label">{m.thread_pinned({}, { locale })}</span>
+            )}
           </div>
         )}
       </div>
@@ -211,10 +216,16 @@ export function ThreadRow({
               onToggleSubagents?.(workspaceId, thread.id);
             }}
             data-tauri-drag-region="false"
-            aria-label={subagentsExpanded ? "Hide sub-agents" : "Show sub-agents"}
+            aria-label={
+              subagentsExpanded
+                ? m.thread_hide_subagents({}, { locale })
+                : m.thread_show_subagents({}, { locale })
+            }
             aria-expanded={subagentsExpanded}
           >
-            <span className="thread-subagent-time-label">{relativeTime ?? "Now"}</span>
+            <span className="thread-subagent-time-label">
+              {relativeTime ?? m.thread_now({}, { locale })}
+            </span>
             <span className="thread-subagent-toggle-icon" aria-hidden>
               ›
             </span>

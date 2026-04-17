@@ -1,5 +1,7 @@
 import "../../../styles/mobile-setup-wizard.css";
 import X from "lucide-react/dist/esm/icons/x";
+import { useAppLocale } from "@/i18n/I18nProvider";
+import * as m from "@/i18n/messages";
 import { ModalShell } from "../../design-system/components/modal/ModalShell";
 
 export type MobileServerSetupWizardProps = {
@@ -27,52 +29,57 @@ export function MobileServerSetupWizard({
   onRemoteTokenChange,
   onConnectTest,
 }: MobileServerSetupWizardProps) {
+  const locale = useAppLocale();
+
   return (
     <ModalShell
       className="mobile-setup-wizard-overlay"
       cardClassName="mobile-setup-wizard-card"
       onBackdropClick={onClose}
-      ariaLabel="Mobile server setup"
+      ariaLabel={m.mobile_setup_aria({}, { locale })}
     >
       <div className="mobile-setup-wizard-header">
         <button
           type="button"
           className="ghost icon-button mobile-setup-wizard-close"
           onClick={onClose}
-          aria-label="Close mobile setup"
+          aria-label={m.mobile_setup_close({}, { locale })}
         >
           <X aria-hidden />
         </button>
-        <div className="mobile-setup-wizard-kicker">Mobile Setup Required</div>
-        <h2 className="mobile-setup-wizard-title">Connect to your desktop backend</h2>
+        <div className="mobile-setup-wizard-kicker">
+          {m.mobile_setup_kicker({}, { locale })}
+        </div>
+        <h2 className="mobile-setup-wizard-title">
+          {m.mobile_setup_title({}, { locale })}
+        </h2>
         <p className="mobile-setup-wizard-subtitle">
-          Complete this setup before using the app. Use the same connection details configured on
-          your desktop CodexMonitor server settings.
+          {m.mobile_setup_subtitle({}, { locale })}
         </p>
       </div>
 
       <div className="mobile-setup-wizard-body">
         <label className="mobile-setup-wizard-label" htmlFor="mobile-setup-host">
-          Tailscale host
+          {m.mobile_setup_host_label({}, { locale })}
         </label>
         <input
           id="mobile-setup-host"
           className="mobile-setup-wizard-input"
           value={remoteHostDraft}
-          placeholder="macbook.your-tailnet.ts.net:4732"
+          placeholder={m.mobile_setup_host_placeholder({}, { locale })}
           onChange={(event) => onRemoteHostChange(event.target.value)}
           disabled={busy || checking}
         />
 
         <label className="mobile-setup-wizard-label" htmlFor="mobile-setup-token">
-          Remote backend token
+          {m.mobile_setup_token_label({}, { locale })}
         </label>
         <input
           id="mobile-setup-token"
           type="password"
           className="mobile-setup-wizard-input"
           value={remoteTokenDraft}
-          placeholder="Token"
+          placeholder={m.mobile_setup_token_placeholder({}, { locale })}
           onChange={(event) => onRemoteTokenChange(event.target.value)}
           disabled={busy || checking}
         />
@@ -83,7 +90,11 @@ export function MobileServerSetupWizard({
           onClick={onConnectTest}
           disabled={busy || checking}
         >
-          {checking ? "Checking..." : busy ? "Connecting..." : "Connect & test"}
+          {checking
+            ? m.mobile_setup_checking({}, { locale })
+            : busy
+              ? m.mobile_setup_connecting({}, { locale })
+              : m.mobile_setup_connect_test({}, { locale })}
         </button>
 
         {statusMessage ? (
@@ -99,7 +110,7 @@ export function MobileServerSetupWizard({
         ) : null}
 
         <div className="mobile-setup-wizard-hint">
-          Use the Tailscale host from desktop Server settings and keep the desktop daemon running.
+          {m.mobile_setup_hint({}, { locale })}
         </div>
       </div>
     </ModalShell>

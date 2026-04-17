@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
 import RefreshCw from "lucide-react/dist/esm/icons/refresh-cw";
 import Save from "lucide-react/dist/esm/icons/save";
+import * as m from "@/i18n/messages";
+import { useAppLocale } from "@/i18n/I18nProvider";
 
 type FileEditorCardClassNames = {
   container: string;
@@ -47,6 +49,7 @@ export function FileEditorCard({
   onSave,
   classNames,
 }: FileEditorCardProps) {
+  const locale = useAppLocale();
   return (
     <div className={classNames.container}>
       <div className={classNames.header}>
@@ -58,8 +61,8 @@ export function FileEditorCard({
             className={classNames.iconButton}
             onClick={onRefresh}
             disabled={refreshDisabled}
-            aria-label={`Refresh ${title}`}
-            title="Refresh"
+            aria-label={m.file_editor_refresh_aria({ value: title }, { locale })}
+            title={m.file_editor_refresh({}, { locale })}
           >
             <RefreshCw aria-hidden />
           </button>
@@ -68,7 +71,11 @@ export function FileEditorCard({
             className={classNames.iconButton}
             onClick={onSave}
             disabled={saveDisabled}
-            aria-label={saveLabel === "Create" ? `Create ${title}` : `Save ${title}`}
+            aria-label={
+              saveLabel === "Create"
+                ? m.file_editor_create_aria({ value: title }, { locale })
+                : m.file_editor_save_aria({ value: title }, { locale })
+            }
             title={saveLabel}
           >
             <Save aria-hidden />
@@ -88,4 +95,3 @@ export function FileEditorCard({
     </div>
   );
 }
-

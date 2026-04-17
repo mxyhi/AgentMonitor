@@ -1,5 +1,9 @@
+import { useEffect, useState } from "react";
 import ChevronLeft from "lucide-react/dist/esm/icons/chevron-left";
 import X from "lucide-react/dist/esm/icons/x";
+import * as m from "@/i18n/messages";
+import { useAppLocale } from "@/i18n/I18nProvider";
+import { getAppBuildType, type AppBuildType } from "@services/tauri";
 import type {
   AppSettings,
   CodexDoctorResult,
@@ -15,7 +19,7 @@ import { useSettingsViewOrchestration } from "@settings/hooks/useSettingsViewOrc
 import { ModalShell } from "@/features/design-system/components/modal/ModalShell";
 import { SettingsNav } from "./SettingsNav";
 import type { CodexSection } from "./settingsTypes";
-import { SETTINGS_SECTION_LABELS } from "./settingsViewConstants";
+import { getSettingsSectionLabel } from "./settingsViewConstants";
 import { SettingsSectionContainers } from "./sections/SettingsSectionContainers";
 
 export type SettingsViewProps = {
@@ -99,13 +103,36 @@ export function SettingsView({
   onRemoveDictationModel,
   initialSection,
 }: SettingsViewProps) {
+  const locale = useAppLocale();
+  const [appBuildType, setAppBuildType] = useState<AppBuildType | "unknown">("unknown");
+  const serverSectionVisible = appBuildType === "debug";
+
+  useEffect(() => {
+    let active = true;
+    void (async () => {
+      try {
+        const value = await getAppBuildType();
+        if (active) {
+          setAppBuildType(value);
+        }
+      } catch {
+        if (active) {
+          setAppBuildType("unknown");
+        }
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const {
     activeSection,
     showMobileDetail,
     setShowMobileDetail,
     useMobileMasterDetail,
     handleSelectSection,
-  } = useSettingsViewNavigation({ initialSection });
+  } = useSettingsViewNavigation({ initialSection, serverSectionVisible });
 
   const orchestration = useSettingsViewOrchestration({
     workspaceGroups,
@@ -140,7 +167,11 @@ export function SettingsView({
 
   useSettingsViewCloseShortcuts(onClose);
 
-  const activeSectionLabel = SETTINGS_SECTION_LABELS[activeSection];
+  const activeSectionLabel = getSettingsSectionLabel(
+    activeSection,
+    locale,
+    serverSectionVisible,
+  );
   const settingsBodyClassName = `settings-body${
     useMobileMasterDetail ? " settings-body-mobile-master-detail" : ""
   }${useMobileMasterDetail && showMobileDetail ? " is-detail-visible" : ""}`;
@@ -154,13 +185,13 @@ export function SettingsView({
     >
       <div className="settings-titlebar">
         <div className="settings-title" id="settings-modal-title">
-          Settings
+          {m.settings_title({}, { locale })}
         </div>
         <button
           type="button"
           className="ghost icon-button settings-close"
           onClick={onClose}
-          aria-label="Close settings"
+          aria-label={m.settings_close({}, { locale })}
         >
           <X aria-hidden />
         </button>
@@ -171,6 +202,7 @@ export function SettingsView({
             <SettingsNav
               activeSection={activeSection}
               onSelectSection={handleSelectSection}
+              serverSectionVisible={serverSectionVisible}
               showDisclosure={useMobileMasterDetail}
             />
           </div>
@@ -183,10 +215,10 @@ export function SettingsView({
                   type="button"
                   className="settings-mobile-back"
                   onClick={() => setShowMobileDetail(false)}
-                  aria-label="Back to settings sections"
+                  aria-label={m.settings_back_to_sections({}, { locale })}
                 >
                   <ChevronLeft aria-hidden />
-                  Sections
+                  {m.settings_sections({}, { locale })}
                 </button>
                 <div className="settings-mobile-detail-title">{activeSectionLabel}</div>
               </div>
@@ -194,6 +226,7 @@ export function SettingsView({
             <div className="settings-content">
               <SettingsSectionContainers
                 activeSection={activeSection}
+                serverSectionVisible={serverSectionVisible}
                 orchestration={orchestration}
               />
             </div>

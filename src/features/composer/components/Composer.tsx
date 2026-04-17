@@ -27,6 +27,8 @@ import {
   resolveBoundAppMentions,
   type AppMentionBinding,
 } from "../../apps/utils/appMentions";
+import * as m from "@/i18n/messages";
+import { useAppLocale } from "@/i18n/I18nProvider";
 import {
   getFenceTriggerLine,
   getLineIndent,
@@ -244,6 +246,7 @@ export const Composer = memo(function Composer({
   onFileAutocompleteActiveChange,
   contextActions = [],
 }: ComposerProps) {
+  const locale = useAppLocale();
   const [text, setText] = useState(draftText);
   const [selectionStart, setSelectionStart] = useState<number | null>(null);
   const [appMentionBindings, setAppMentionBindings] = useState<AppMentionBinding[]>([]);
@@ -584,25 +587,40 @@ export const Composer = memo(function Composer({
       />
       {isProcessing && composerFollowUpHintEnabled && (
         <div className="composer-followup-hint" role="status" aria-live="polite">
-          <div className="composer-followup-title">Follow-up behavior</div>
+          <div className="composer-followup-title">
+            {m.composer_followup_behavior_label({}, { locale })}
+          </div>
           <div className="composer-followup-copy">
             {oppositeFallsBackToQueue ? (
-              <>
-                Default: Queue (Steer unavailable). Both Enter and {followUpShortcutLabel} will
-                queue this message.
-              </>
+              m.composer_followup_queue_unavailable_copy(
+                { shortcut: followUpShortcutLabel },
+                { locale },
+              )
             ) : (
-              <>
-                Default: {effectiveFollowUpBehavior === "steer" ? "Steer" : "Queue"}. Press{" "}
-                {followUpShortcutLabel} to{" "}
-                {oppositeFollowUpIntent === "steer" ? "steer" : "queue"} this message.
-              </>
+              m.composer_followup_hint_copy(
+                {
+                  behavior:
+                    effectiveFollowUpBehavior === "steer"
+                      ? m.composer_followup_option_steer({}, { locale })
+                      : m.composer_followup_option_queue({}, { locale }),
+                  shortcut: followUpShortcutLabel,
+                  action:
+                    oppositeFollowUpIntent === "steer"
+                      ? m.composer_followup_option_steer({}, { locale }).toLowerCase()
+                      : m.composer_followup_option_queue({}, { locale }).toLowerCase(),
+                },
+                { locale },
+              )
             )}
           </div>
         </div>
       )}
       {contextActions.length > 0 ? (
-        <div className="composer-context-actions" role="toolbar" aria-label="Review tools">
+        <div
+          className="composer-context-actions"
+          role="toolbar"
+          aria-label={m.composer_review_tools({}, { locale })}
+        >
           {contextActions.map((action) => (
             <button
               key={action.id}

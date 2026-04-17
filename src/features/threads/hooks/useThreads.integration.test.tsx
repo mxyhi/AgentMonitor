@@ -941,6 +941,42 @@ describe("useThreads UX integration", () => {
     expect(interruptMock).not.toHaveBeenCalledWith("ws-1", "thread-1", "pending");
   });
 
+  it("does not re-open processing when a late item delta arrives after idle", () => {
+    const { result } = renderHook(() =>
+      useThreads({
+        activeWorkspace: workspace,
+        onWorkspaceConnected: vi.fn(),
+      }),
+    );
+
+    act(() => {
+      result.current.setActiveThreadId("thread-1");
+      handlers?.onTurnStarted?.("ws-1", "thread-1", "turn-1");
+    });
+
+    expect(result.current.threadStatusById["thread-1"]?.isProcessing).toBe(true);
+    expect(result.current.activeTurnIdByThread["thread-1"]).toBe("turn-1");
+
+    act(() => {
+      handlers?.onThreadStatusChanged?.("ws-1", "thread-1", { type: "idle" });
+    });
+
+    expect(result.current.threadStatusById["thread-1"]?.isProcessing).toBe(false);
+    expect(result.current.activeTurnIdByThread["thread-1"]).toBeNull();
+
+    act(() => {
+      handlers?.onAgentMessageDelta?.({
+        workspaceId: "ws-1",
+        threadId: "thread-1",
+        itemId: "assistant-1",
+        delta: "late chunk",
+      });
+    });
+
+    expect(result.current.threadStatusById["thread-1"]?.isProcessing).toBe(false);
+    expect(result.current.activeTurnIdByThread["thread-1"]).toBeNull();
+  });
+
   it("uses turn steer after request user input when the turn is still active", async () => {
     vi.mocked(steerTurn).mockResolvedValue({
       result: { turnId: "turn-1" },

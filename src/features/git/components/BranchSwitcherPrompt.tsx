@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { BranchInfo, WorkspaceInfo } from "../../../types";
+import * as m from "@/i18n/messages";
+import { useAppLocale } from "@/i18n/I18nProvider";
 import { ModalShell } from "../../design-system/components/modal/ModalShell";
 import { BranchList } from "./BranchList";
 import { filterBranches } from "../utils/branchSearch";
@@ -44,6 +46,7 @@ export function BranchSwitcherPrompt({
   onSelect,
   onCancel,
 }: BranchSwitcherPromptProps) {
+  const locale = useAppLocale();
   const inputRef = useRef<HTMLInputElement | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
   const [query, setQuery] = useState("");
@@ -105,7 +108,7 @@ export function BranchSwitcherPrompt({
     <ModalShell
       className="branch-switcher-modal"
       onBackdropClick={onCancel}
-      ariaLabel="Switch branch"
+      ariaLabel={m.branch_switcher_title({}, { locale })}
     >
       <input
         ref={inputRef}
@@ -113,7 +116,7 @@ export function BranchSwitcherPrompt({
         value={query}
         onChange={(event) => setQuery(event.target.value)}
         onKeyDown={handleKeyDown}
-        placeholder="Search branches..."
+        placeholder={m.branch_switcher_placeholder({}, { locale })}
       />
       <BranchList
         branches={filteredBranches}
@@ -125,7 +128,7 @@ export function BranchSwitcherPrompt({
         selectedItemClassName="selected"
         itemLabelClassName="branch-switcher-modal-item-name"
         emptyClassName="branch-switcher-modal-empty"
-        emptyText="No branches found"
+        emptyText={m.branch_switcher_empty({}, { locale })}
         onSelect={handleSelect}
         onMouseEnter={setSelectedIndex}
         renderMeta={(branch) => {
@@ -138,10 +141,14 @@ export function BranchSwitcherPrompt({
           return (
             <span className="branch-switcher-modal-item-meta">
               {isCurrent && (
-                <span className="branch-switcher-modal-item-current">current</span>
+                <span className="branch-switcher-modal-item-current">
+                  {m.branch_switcher_current({}, { locale })}
+                </span>
               )}
               {worktree && (
-                <span className="branch-switcher-modal-item-worktree">worktree</span>
+                <span className="branch-switcher-modal-item-worktree">
+                  {m.branch_switcher_worktree({}, { locale })}
+                </span>
               )}
             </span>
           );

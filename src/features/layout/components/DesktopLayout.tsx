@@ -1,4 +1,6 @@
 import { useEffect, useRef, type MouseEvent, type ReactNode } from "react";
+import * as m from "@/i18n/messages";
+import { useAppLocale } from "@/i18n/I18nProvider";
 import { MainTopbar } from "../../app/components/MainTopbar";
 import { ChatPane } from "./ChatPane";
 
@@ -107,6 +109,7 @@ export function DesktopLayout({
   onPlanPanelResizeStart,
   onChatDiffSplitPositionResizeStart,
 }: DesktopLayoutProps) {
+  const locale = useAppLocale();
   const diffLayerRef = useRef<HTMLDivElement | null>(null);
   const chatLayerRef = useRef<HTMLDivElement | null>(null);
   const chatPaneNode = <ChatPane messagesNode={messagesNode} composerNode={composerNode} />;
@@ -146,7 +149,7 @@ export function DesktopLayout({
         className="sidebar-resizer"
         role="separator"
         aria-orientation="vertical"
-        aria-label="Resize sidebar"
+        aria-label={m.layout_resize_sidebar({}, { locale })}
         onMouseDown={onSidebarResizeStart}
       />
 
@@ -176,7 +179,7 @@ export function DesktopLayout({
                     className="content-split-resizer"
                     role="separator"
                     aria-orientation="vertical"
-                    aria-label="Resize chat/diff split"
+                    aria-label={m.layout_resize_chat_diff_split({}, { locale })}
                     onMouseDown={onChatDiffSplitPositionResizeStart}
                   />
                   <div
@@ -222,7 +225,7 @@ export function DesktopLayout({
               className="right-panel-resizer"
               role="separator"
               aria-orientation="vertical"
-              aria-label="Resize right panel"
+              aria-label={m.layout_resize_right_panel({}, { locale })}
               onMouseDown={onRightPanelResizeStart}
             />
             <div className={`right-panel ${hasActivePlan ? "" : "plan-collapsed"}`}>
@@ -232,7 +235,7 @@ export function DesktopLayout({
                 className="right-panel-divider"
                 role="separator"
                 aria-orientation="horizontal"
-                aria-label="Resize plan panel"
+                aria-label={m.layout_resize_plan_panel({}, { locale })}
                 onMouseDown={onPlanPanelResizeStart}
               />
               <div className="right-panel-bottom">{planPanelNode}</div>

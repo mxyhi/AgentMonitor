@@ -1,11 +1,14 @@
 import { useEffect, useState } from "react";
 import { getVersion } from "@tauri-apps/api/app";
 import { openUrl } from "@tauri-apps/plugin-opener";
+import { useAppLocale } from "@/i18n/I18nProvider";
+import * as m from "@/i18n/messages";
 
 const GITHUB_URL = "https://github.com/Dimillian/CodexMonitor";
 const TWITTER_URL = "https://x.com/dimillian";
 
 export function AboutView() {
+  const locale = useAppLocale();
   const [version, setVersion] = useState<string | null>(null);
 
   const handleOpenGitHub = () => {
@@ -44,15 +47,17 @@ export function AboutView() {
           <img
             className="about-icon"
             src="/app-icon.png"
-            alt="Codex Monitor icon"
+            alt={m.about_icon_alt({}, { locale })}
           />
-          <div className="about-title">Codex Monitor</div>
+          <div className="about-title">{m.home_title({}, { locale })}</div>
         </div>
         <div className="about-version">
-          {version ? `Version ${version}` : "Version —"}
+          {version
+            ? m.about_version_prefix({ value: version }, { locale })
+            : m.about_version_unknown({}, { locale })}
         </div>
         <div className="about-tagline">
-          Monitor the situation of your Codex agents
+          {m.about_tagline({}, { locale })}
         </div>
         <div className="about-divider" />
         <div className="about-links">
@@ -72,7 +77,7 @@ export function AboutView() {
             Twitter
           </button>
         </div>
-        <div className="about-footer">Made with ♥ by Codex & Dimillian</div>
+        <div className="about-footer">{m.about_footer({}, { locale })}</div>
       </div>
     </div>
   );

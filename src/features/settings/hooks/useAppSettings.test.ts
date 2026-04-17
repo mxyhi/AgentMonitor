@@ -55,6 +55,7 @@ describe("useAppSettings", () => {
     expect(result.current.settings.personality).toBe("friendly");
     expect(result.current.settings.backendMode).toBe("remote");
     expect(result.current.settings.remoteBackendHost).toBe("example:1234");
+    expect(result.current.settings.appLanguage).toBe("en");
   });
 
   it("keeps defaults when getAppSettings fails", async () => {
@@ -71,6 +72,7 @@ describe("useAppSettings", () => {
     expect(result.current.settings.backendMode).toBe("local");
     expect(result.current.settings.dictationModelId).toBe("base");
     expect(result.current.settings.interruptShortcut).toBeTruthy();
+    expect(result.current.settings.appLanguage).toBe("en");
   });
 
   it("persists settings via updateAppSettings and updates local state", async () => {
@@ -88,6 +90,7 @@ describe("useAppSettings", () => {
       codeFontFamily: "  ",
       codeFontSize: 2,
       notificationSoundsEnabled: false,
+      appLanguage: "zh-CN",
     };
     const saved: AppSettings = {
       ...result.current.settings,
@@ -98,6 +101,7 @@ describe("useAppSettings", () => {
       codeFontFamily: "JetBrains Mono, monospace",
       codeFontSize: 13,
       notificationSoundsEnabled: false,
+      appLanguage: "zh-CN",
     };
     updateAppSettingsMock.mockResolvedValue(saved);
 
@@ -114,11 +118,13 @@ describe("useAppSettings", () => {
         codeFontFamily: expect.stringContaining("ui-monospace"),
         codeFontSize: 9,
         notificationSoundsEnabled: false,
+        appLanguage: "zh-CN",
       }),
     );
     expect(returned).toEqual(saved);
     expect(result.current.settings.theme).toBe("dark");
     expect(result.current.settings.uiScale).toBe(2.4);
+    expect(result.current.settings.appLanguage).toBe("zh-CN");
   });
 
   it("surfaces doctor errors", async () => {
@@ -142,6 +148,7 @@ describe("useAppSettings", () => {
     const response: CodexDoctorResult = {
       ok: true,
       codexBin: "/bin/codex",
+      runtimeSource: "custom",
       version: "1.0.0",
       appServerOk: true,
       details: null,

@@ -6,7 +6,8 @@ use std::time::Duration;
 use tokio::sync::Mutex;
 use tokio::time::timeout;
 
-use crate::backend::app_server::check_codex_installation;
+use crate::backend::app_server::{check_codex_installation, resolve_codex_runtime_for_bin};
+use crate::shared::codex_runtime_core::{bundled_codex_version, CodexRuntimeSource};
 use crate::shared::process_core::tokio_command;
 use crate::types::AppSettings;
 
@@ -124,6 +125,31 @@ async fn npm_has_package(package: &str) -> Result<bool, String> {
     Ok(output.status.success())
 }
 
+async fn pnpm_has_package(package: &str) -> Result<bool, String> {
+    let mut command = tokio_command("pnpm");
+    command.arg("list");
+    command.arg("-g");
+    command.arg(package);
+    command.arg("--depth=0");
+    command.stdout(std::process::Stdio::piped());
+    command.stderr(std::process::Stdio::piped());
+
+    let output = match timeout(Duration::from_secs(10), command.output()).await {
+        Ok(result) => match result {
+            Ok(output) => output,
+            Err(err) => {
+                if err.kind() == std::io::ErrorKind::NotFound {
+                    return Ok(false);
+                }
+                return Err(err.to_string());
+            }
+        },
+        Err(_) => return Ok(false),
+    };
+
+    Ok(output.status.success())
+}
+
 async fn run_npm_install_latest(package: &str) -> Result<(bool, String), String> {
     let mut command = tokio_command("npm");
     command.arg("install");
@@ -135,6 +161,25 @@ async fn run_npm_install_latest(package: &str) -> Result<(bool, String), String>
     let output = match timeout(Duration::from_secs(60 * 10), command.output()).await {
         Ok(result) => result.map_err(|err| err.to_string())?,
         Err(_) => return Err("Timed out while running `npm install -g`.".to_string()),
+    };
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let combined = format!("{}\n{}", stdout.trim_end(), stderr.trim_end());
+    Ok((output.status.success(), combined.trim().to_string()))
+}
+
+async fn run_pnpm_install_latest(package: &str) -> Result<(bool, String), String> {
+    let mut command = tokio_command("pnpm");
+    command.arg("add");
+    command.arg("-g");
+    command.arg(format!("{package}@latest"));
+    command.stdout(std::process::Stdio::piped());
+    command.stderr(std::process::Stdio::piped());
+
+    let output = match timeout(Duration::from_secs(60 * 10), command.output()).await {
+        Ok(result) => result.map_err(|err| err.to_string())?,
+        Err(_) => return Err("Timed out while running `pnpm add -g`.".to_string()),
     };
 
     let stdout = String::from_utf8_lossy(&output.stdout);
@@ -156,6 +201,7 @@ pub(crate) async fn codex_update_core(
         .clone()
         .filter(|value| !value.trim().is_empty())
         .or(default_bin);
+    let runtime = resolve_codex_runtime_for_bin(resolved.clone());
     let resolved_args = codex_args
         .clone()
         .filter(|value| !value.trim().is_empty())
@@ -167,7 +213,20 @@ pub(crate) async fn codex_update_core(
         .ok()
         .flatten();
 
-    let (method, package, upgrade_ok, output, upgraded) = if detect_brew_cask("codex").await? {
+    let (method, package, upgrade_ok, output, upgraded) = if runtime.source
+        == CodexRuntimeSource::Bundled
+    {
+        (
+            "bundled".to_string(),
+            None,
+            true,
+            format!(
+                "Bundled Codex runtime {} is managed by Agent Monitor releases.",
+                bundled_codex_version()
+            ),
+            false,
+        )
+    } else if detect_brew_cask("codex").await? {
         let (ok, output) = run_brew_upgrade(&["--cask", "codex"]).await?;
         let upgraded = brew_output_indicates_upgrade(&output);
         (
@@ -186,6 +245,15 @@ pub(crate) async fn codex_update_core(
             ok,
             output,
             upgraded,
+        )
+    } else if pnpm_has_package("@openai/codex").await? {
+        let (ok, output) = run_pnpm_install_latest("@openai/codex").await?;
+        (
+            "pnpm".to_string(),
+            Some("@openai/codex".to_string()),
+            ok,
+            output,
+            ok,
         )
     } else if npm_has_package("@openai/codex").await? {
         let (ok, output) = run_npm_install_latest("@openai/codex").await?;
@@ -222,7 +290,7 @@ pub(crate) async fn codex_update_core(
     };
 
     let details = if method == "unknown" {
-        Some("Unable to detect Codex installation method (brew/npm).".to_string())
+        Some("Unable to detect Codex installation method (brew/pnpm/npm).".to_string())
     } else if upgrade_ok {
         None
     } else {

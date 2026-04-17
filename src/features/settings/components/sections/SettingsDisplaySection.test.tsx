@@ -2,7 +2,10 @@
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AppSettings } from "@/types";
+import * as m from "@/i18n/messages";
 import { SettingsDisplaySection } from "./SettingsDisplaySection";
+
+const locale = "en" as const;
 
 describe("SettingsDisplaySection", () => {
   afterEach(() => {
@@ -50,7 +53,7 @@ describe("SettingsDisplaySection", () => {
     );
 
     const row = screen
-      .getByText("Auto-generate new thread titles")
+      .getByText(m.display_auto_thread_title({}, { locale }))
       .closest(".settings-toggle-row");
     expect(row).toBeTruthy();
     const button = within(row as HTMLElement).getByRole("button");
@@ -103,7 +106,9 @@ describe("SettingsDisplaySection", () => {
       />,
     );
 
-    const row = screen.getByText("Unlimited chat history").closest(".settings-toggle-row");
+    const row = screen
+      .getByText(m.display_unlimited_chat_title({}, { locale }))
+      .closest(".settings-toggle-row");
     expect(row).toBeTruthy();
     const button = within(row as HTMLElement).getByRole("button");
 
@@ -156,16 +161,20 @@ describe("SettingsDisplaySection", () => {
       />,
     );
 
-    const presetSelect = screen.getByLabelText("Scrollback preset");
+    const presetSelect = screen.getByLabelText(
+      m.display_scrollback_preset_label({}, { locale }),
+    );
     expect((presetSelect as HTMLSelectElement).disabled).toBe(true);
 
-    const maxItemsInput = screen.getByLabelText("Max items per thread");
+    const maxItemsInput = screen.getByLabelText(
+      m.display_scrollback_max_items_label({}, { locale }),
+    );
     expect((maxItemsInput as HTMLInputElement).disabled).toBe(true);
 
     const maxItemsRow = maxItemsInput.closest(".settings-field-row");
     expect(maxItemsRow).toBeTruthy();
     const resetButton = within(maxItemsRow as HTMLElement).getByRole("button", {
-      name: "Reset",
+      name: m.action_reset({}, { locale }),
     });
     expect((resetButton as HTMLButtonElement).disabled).toBe(true);
 
@@ -215,7 +224,7 @@ describe("SettingsDisplaySection", () => {
       />,
     );
 
-    const select = screen.getByLabelText("Scrollback preset");
+    const select = screen.getByLabelText(m.display_scrollback_preset_label({}, { locale }));
     fireEvent.change(select, { target: { value: "1000" } });
 
     expect(onUpdateAppSettings).toHaveBeenCalledWith(
@@ -265,11 +274,13 @@ describe("SettingsDisplaySection", () => {
       />,
     );
 
-    const maxItemsInput = screen.getByLabelText("Max items per thread");
+    const maxItemsInput = screen.getByLabelText(
+      m.display_scrollback_max_items_label({}, { locale }),
+    );
     fireEvent.change(maxItemsInput, { target: { value: "50" } });
 
     const unlimitedRow = screen
-      .getByText("Unlimited chat history")
+      .getByText(m.display_unlimited_chat_title({}, { locale }))
       .closest(".settings-toggle-row");
     expect(unlimitedRow).toBeTruthy();
     const unlimitedButton = within(unlimitedRow as HTMLElement).getByRole("button");
@@ -325,13 +336,15 @@ describe("SettingsDisplaySection", () => {
       />,
     );
 
-    const maxItemsInput = screen.getByLabelText("Max items per thread");
+    const maxItemsInput = screen.getByLabelText(
+      m.display_scrollback_max_items_label({}, { locale }),
+    );
     fireEvent.change(maxItemsInput, { target: { value: "50" } });
 
     const maxItemsRow = maxItemsInput.closest(".settings-field-row");
     expect(maxItemsRow).toBeTruthy();
     const resetButton = within(maxItemsRow as HTMLElement).getByRole("button", {
-      name: "Reset",
+      name: m.action_reset({}, { locale }),
     });
 
     fireEvent.blur(maxItemsInput, { relatedTarget: resetButton });

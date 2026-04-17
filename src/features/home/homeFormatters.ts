@@ -1,4 +1,5 @@
-import type { AccountSnapshot, LocalUsageDay } from "../../types";
+import type { AppLanguage, AccountSnapshot, LocalUsageDay } from "../../types";
+import * as m from "@/i18n/messages";
 
 export function formatCompactNumber(value: number | null | undefined) {
   if (value === null || value === undefined) {
@@ -19,11 +20,14 @@ export function formatCompactNumber(value: number | null | undefined) {
   return String(value);
 }
 
-export function formatCount(value: number | null | undefined) {
+export function formatCount(
+  value: number | null | undefined,
+  locale?: AppLanguage,
+) {
   if (value === null || value === undefined) {
     return "--";
   }
-  return new Intl.NumberFormat().format(value);
+  return new Intl.NumberFormat(locale).format(value);
 }
 
 export function formatDuration(valueMs: number | null | undefined) {
@@ -59,7 +63,10 @@ export function formatDurationCompact(valueMs: number | null | undefined) {
   return `${seconds}s`;
 }
 
-export function formatDayLabel(value: string | null | undefined) {
+export function formatDayLabel(
+  value: string | null | undefined,
+  locale?: AppLanguage,
+) {
   if (!value) {
     return "--";
   }
@@ -71,20 +78,20 @@ export function formatDayLabel(value: string | null | undefined) {
   if (Number.isNaN(date.getTime())) {
     return value;
   }
-  return new Intl.DateTimeFormat(undefined, {
+  return new Intl.DateTimeFormat(locale, {
     month: "short",
     day: "numeric",
   }).format(date);
 }
 
-export function formatWeekRange(days: LocalUsageDay[]) {
+export function formatWeekRange(days: LocalUsageDay[], locale?: AppLanguage) {
   if (days.length === 0) {
-    return "No usage data";
+    return "--";
   }
   const first = days[0];
   const last = days[days.length - 1];
-  const firstLabel = formatDayLabel(first?.day);
-  const lastLabel = formatDayLabel(last?.day);
+  const firstLabel = formatDayLabel(first?.day, locale);
+  const lastLabel = formatDayLabel(last?.day, locale);
   return first?.day === last?.day ? firstLabel : `${firstLabel} to ${lastLabel}`;
 }
 
@@ -116,19 +123,25 @@ export function formatAccountTypeLabel(
   return "Connected account";
 }
 
-export function formatWindowDuration(valueMins: number | null | undefined) {
+export function formatWindowDuration(
+  valueMins: number | null | undefined,
+  locale?: AppLanguage,
+) {
   if (typeof valueMins !== "number" || !Number.isFinite(valueMins) || valueMins <= 0) {
     return null;
   }
   if (valueMins >= 60 * 24) {
     const days = Math.round(valueMins / (60 * 24));
-    return `${days} day${days === 1 ? "" : "s"} window`;
+    return m.home_window_days({ value: String(days) }, { locale });
   }
   if (valueMins >= 60) {
     const hours = Math.round(valueMins / 60);
-    return `${hours}h window`;
+    return m.home_window_hours({ value: String(hours) }, { locale });
   }
-  return `${Math.round(valueMins)}m window`;
+  return m.home_window_minutes(
+    { value: String(Math.round(valueMins)) },
+    { locale },
+  );
 }
 
 export function buildWindowCaption(
@@ -140,7 +153,10 @@ export function buildWindowCaption(
   return parts.length > 0 ? parts.join(" · ") : fallback;
 }
 
-export function formatCreditsBalance(value: string | null | undefined) {
+export function formatCreditsBalance(
+  value: string | null | undefined,
+  locale?: AppLanguage,
+) {
   const trimmed = value?.trim();
   if (!trimmed) {
     return null;
@@ -149,14 +165,17 @@ export function formatCreditsBalance(value: string | null | undefined) {
   if (!Number.isFinite(numeric) || numeric <= 0) {
     return trimmed;
   }
-  return new Intl.NumberFormat(undefined, {
+  return new Intl.NumberFormat(locale, {
     maximumFractionDigits: 0,
   }).format(numeric);
 }
 
-export function formatDayCount(value: number | null | undefined) {
+export function formatDayCount(
+  value: number | null | undefined,
+  locale?: AppLanguage,
+) {
   if (value === null || value === undefined) {
     return "--";
   }
-  return `${value} day${value === 1 ? "" : "s"}`;
+  return m.home_value_day_count({ value: String(value) }, { locale });
 }

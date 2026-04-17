@@ -63,13 +63,18 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-resolve_npm() {
+resolve_package_manager() {
+  if command -v pnpm >/dev/null 2>&1; then
+    command -v pnpm
+    return
+  fi
+
   if command -v npm >/dev/null 2>&1; then
     command -v npm
     return
   fi
 
-  for candidate in /opt/homebrew/bin/npm /usr/local/bin/npm; do
+  for candidate in /opt/homebrew/bin/pnpm /usr/local/bin/pnpm /opt/homebrew/bin/npm /usr/local/bin/npm; do
     if [[ -x "$candidate" ]]; then
       echo "$candidate"
       return
@@ -79,6 +84,10 @@ resolve_npm() {
   if [[ -n "${NVM_DIR:-}" && -s "${NVM_DIR}/nvm.sh" ]]; then
     # shellcheck source=/dev/null
     . "${NVM_DIR}/nvm.sh"
+    if command -v pnpm >/dev/null 2>&1; then
+      command -v pnpm
+      return
+    fi
     if command -v npm >/dev/null 2>&1; then
       command -v npm
       return
@@ -134,12 +143,13 @@ case "$TARGET" in
     ;;
 esac
 
-NPM_BIN="$(resolve_npm || true)"
-if [[ -z "$NPM_BIN" ]]; then
-  echo "Unable to find npm in PATH or common install locations." >&2
-  echo "Install Node/npm, or run from a shell where npm is available." >&2
+PACKAGE_MANAGER_BIN="$(resolve_package_manager || true)"
+if [[ -z "$PACKAGE_MANAGER_BIN" ]]; then
+  echo "Unable to find pnpm or npm in PATH or common install locations." >&2
+  echo "Install Node and pnpm, or run from a shell where pnpm is available." >&2
   exit 1
 fi
+PACKAGE_MANAGER_NAME="$(basename "$PACKAGE_MANAGER_BIN")"
 
 if [[ -f "$TAURI_IOS_LOCAL_CONFIG" ]]; then
   TAURI_CONFIG_ARGS+=(--config "$TAURI_IOS_LOCAL_CONFIG")
@@ -149,7 +159,7 @@ if [[ -z "$BUNDLE_ID" ]]; then
   BUNDLE_ID="$(resolve_ios_bundle_id)"
 fi
 if [[ -z "$BUNDLE_ID" ]]; then
-  BUNDLE_ID="com.dimillian.codexmonitor.ios"
+  BUNDLE_ID="com.mxyhi.agentmonitor"
 fi
 
 if [[ "$SKIP_BUILD" -eq 0 ]]; then
@@ -157,12 +167,16 @@ if [[ "$SKIP_BUILD" -eq 0 ]]; then
   if [[ "$CLEAN_BUILD" -eq 1 ]]; then
     rm -rf src-tauri/gen/apple/build
   fi
-  "$NPM_BIN" run tauri -- ios build -d -t "$TARGET" "${TAURI_CONFIG_ARGS[@]}" --ci
+  if [[ "$PACKAGE_MANAGER_NAME" == "pnpm" ]]; then
+    "$PACKAGE_MANAGER_BIN" exec tauri ios build -d -t "$TARGET" "${TAURI_CONFIG_ARGS[@]}" --ci
+  else
+    "$PACKAGE_MANAGER_BIN" exec -- tauri ios build -d -t "$TARGET" "${TAURI_CONFIG_ARGS[@]}" --ci
+  fi
 fi
 
-APP_PATH="src-tauri/gen/apple/build/${APP_ARCH_DIR}/Codex Monitor.app"
+APP_PATH="src-tauri/gen/apple/build/${APP_ARCH_DIR}/Agent Monitor.app"
 if [[ ! -d "$APP_PATH" ]]; then
-  FALLBACK_APP="$(find src-tauri/gen/apple/build -maxdepth 3 -type d -name 'Codex Monitor.app' | head -n 1 || true)"
+  FALLBACK_APP="$(find src-tauri/gen/apple/build -maxdepth 3 -type d -name 'Agent Monitor.app' | head -n 1 || true)"
   if [[ -n "$FALLBACK_APP" ]]; then
     APP_PATH="$FALLBACK_APP"
   fi

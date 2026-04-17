@@ -7,6 +7,7 @@ import type {
   WorkspaceGroup,
   WorkspaceSettings,
 } from "@/types";
+import { useAppLocale } from "@/i18n/I18nProvider";
 import { isMacPlatform, isWindowsPlatform } from "@utils/platformPaths";
 import { useSettingsOpenAppDrafts } from "./useSettingsOpenAppDrafts";
 import { useSettingsShortcutDrafts } from "./useSettingsShortcutDrafts";
@@ -21,8 +22,8 @@ import { useSettingsServerSection } from "./useSettingsServerSection";
 import type { GroupedWorkspaces } from "./settingsSectionTypes";
 import {
   COMPOSER_PRESET_CONFIGS,
-  COMPOSER_PRESET_LABELS,
-  DICTATION_MODELS,
+  getComposerPresetLabels,
+  getDictationModels,
 } from "@settings/components/settingsViewConstants";
 
 type UseSettingsViewOrchestrationArgs = {
@@ -98,6 +99,7 @@ export function useSettingsViewOrchestration({
   onCancelDictationDownload,
   onRemoveDictationModel,
 }: UseSettingsViewOrchestrationArgs) {
+  const locale = useAppLocale();
   const projects = useMemo(
     () => groupedWorkspaces.flatMap((group) => group.workspaces),
     [groupedWorkspaces],
@@ -121,13 +123,19 @@ export function useSettingsViewOrchestration({
     ? "Shift+Cmd+Enter"
     : "Shift+Ctrl+Enter";
 
+  const dictationModels = useMemo(() => getDictationModels(locale), [locale]);
+  const composerPresetLabels = useMemo(
+    () => getComposerPresetLabels(locale),
+    [locale],
+  );
+
   const selectedDictationModel = useMemo(() => {
     return (
-      DICTATION_MODELS.find(
+      dictationModels.find(
         (model) => model.id === appSettings.dictationModelId,
-      ) ?? DICTATION_MODELS[1]
+      ) ?? dictationModels[1]
     );
-  }, [appSettings.dictationModelId]);
+  }, [appSettings.dictationModelId, dictationModels]);
 
   const dictationReady = dictationModelStatus?.state === "ready";
 
@@ -226,7 +234,7 @@ export function useSettingsViewOrchestration({
       appSettings,
       optionKeyLabel,
       followUpShortcutLabel,
-      composerPresetLabels: COMPOSER_PRESET_LABELS,
+      composerPresetLabels,
       onComposerPresetChange: (
         preset: AppSettings["composerEditorPreset"],
       ) => {
@@ -243,7 +251,7 @@ export function useSettingsViewOrchestration({
       appSettings,
       optionKeyLabel,
       metaKeyLabel,
-      dictationModels: DICTATION_MODELS,
+      dictationModels,
       selectedDictationModel,
       dictationModelStatus,
       dictationReady,

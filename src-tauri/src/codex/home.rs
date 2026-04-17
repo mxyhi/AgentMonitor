@@ -1,7 +1,10 @@
 use std::env;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use crate::types::WorkspaceEntry;
+
+const CODEX_MONITOR_APP_DATA_DIR_ENV: &str = "CODEX_MONITOR_APP_DATA_DIR";
+const APP_PRIVATE_CODEX_HOME_DIR: &str = "codex-home";
 
 pub(crate) fn resolve_workspace_codex_home(
     _entry: &WorkspaceEntry,
@@ -10,13 +13,39 @@ pub(crate) fn resolve_workspace_codex_home(
     resolve_default_codex_home()
 }
 
+pub(crate) fn app_private_codex_home(data_dir: &Path) -> PathBuf {
+    data_dir.join(APP_PRIVATE_CODEX_HOME_DIR)
+}
+
+pub(crate) fn configure_default_codex_home(data_dir: &Path) {
+    let normalized = data_dir.to_string_lossy().trim().to_string();
+    if normalized.is_empty() {
+        return;
+    }
+    env::set_var(CODEX_MONITOR_APP_DATA_DIR_ENV, normalized);
+    let codex_home = app_private_codex_home(data_dir);
+    let _ = std::fs::create_dir_all(&codex_home);
+    if env::var("CODEX_HOME")
+        .ok()
+        .and_then(|value| normalize_codex_home(&value))
+        .is_none()
+    {
+        env::set_var("CODEX_HOME", codex_home);
+    }
+}
+
 pub(crate) fn resolve_default_codex_home() -> Option<PathBuf> {
     if let Ok(value) = env::var("CODEX_HOME") {
         if let Some(path) = normalize_codex_home(&value) {
             return Some(path);
         }
     }
-    resolve_home_dir().map(|home| home.join(".codex"))
+    if let Ok(value) = env::var(CODEX_MONITOR_APP_DATA_DIR_ENV) {
+        if let Some(path) = normalize_codex_home(&value) {
+            return Some(app_private_codex_home(&path));
+        }
+    }
+    None
 }
 
 fn normalize_codex_home(value: &str) -> Option<PathBuf> {
@@ -199,10 +228,12 @@ mod tests {
     #[test]
     fn workspace_codex_home_uses_default_resolution() {
         let entry = workspace_entry(WorkspaceKind::Main, "/repo");
-        let _guard = ENV_LOCK.lock().expect("lock env");
+        let _guard = ENV_LOCK.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
 
         let prev_codex_home = std::env::var("CODEX_HOME").ok();
+        let prev_monitor_data_dir = std::env::var("CODEX_MONITOR_APP_DATA_DIR").ok();
         std::env::set_var("CODEX_HOME", "/tmp/codex-global");
+        std::env::set_var("CODEX_MONITOR_APP_DATA_DIR", "/tmp/codex-data");
 
         let resolved = resolve_workspace_codex_home(&entry, None);
         assert_eq!(resolved, Some(PathBuf::from("/tmp/codex-global")));
@@ -211,11 +242,46 @@ mod tests {
             Some(value) => std::env::set_var("CODEX_HOME", value),
             None => std::env::remove_var("CODEX_HOME"),
         }
+        match prev_monitor_data_dir {
+            Some(value) => std::env::set_var("CODEX_MONITOR_APP_DATA_DIR", value),
+            None => std::env::remove_var("CODEX_MONITOR_APP_DATA_DIR"),
+        }
+    }
+
+    #[test]
+    fn default_codex_home_uses_app_private_data_dir_when_global_override_missing() {
+        let _guard = ENV_LOCK.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        let prev_codex_home = std::env::var("CODEX_HOME").ok();
+        let prev_monitor_data_dir = std::env::var("CODEX_MONITOR_APP_DATA_DIR").ok();
+        let prev_home = std::env::var("HOME").ok();
+
+        std::env::remove_var("CODEX_HOME");
+        std::env::set_var("CODEX_MONITOR_APP_DATA_DIR", "/tmp/codex-monitor-data");
+        std::env::set_var("HOME", "/tmp/should-not-be-used");
+
+        let resolved = resolve_default_codex_home();
+        assert_eq!(
+            resolved,
+            Some(PathBuf::from("/tmp/codex-monitor-data").join("codex-home"))
+        );
+
+        match prev_codex_home {
+            Some(value) => std::env::set_var("CODEX_HOME", value),
+            None => std::env::remove_var("CODEX_HOME"),
+        }
+        match prev_monitor_data_dir {
+            Some(value) => std::env::set_var("CODEX_MONITOR_APP_DATA_DIR", value),
+            None => std::env::remove_var("CODEX_MONITOR_APP_DATA_DIR"),
+        }
+        match prev_home {
+            Some(value) => std::env::set_var("HOME", value),
+            None => std::env::remove_var("HOME"),
+        }
     }
 
     #[test]
     fn codex_home_expands_tilde_and_env_vars() {
-        let _guard = ENV_LOCK.lock().expect("lock env");
+        let _guard = ENV_LOCK.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
         let home_dir = std::env::temp_dir().join("codex-home-test");
         let home_str = home_dir.to_string_lossy().to_string();
 

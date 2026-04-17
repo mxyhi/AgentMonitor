@@ -11,10 +11,12 @@ import {
 import type { ComponentProps } from "react";
 import { describe, expect, it, vi } from "vitest";
 import type { AppSettings, WorkspaceInfo } from "@/types";
+import * as m from "@/i18n/messages";
 import {
   connectWorkspace,
   getAppBuildType,
   getAgentsSettings,
+  getCodexConfigPath,
   getConfigModel,
   getExperimentalFeatureList,
   isMobileRuntime,
@@ -37,6 +39,7 @@ vi.mock("@services/tauri", async () => {
     ...actual,
     connectWorkspace: vi.fn(),
     getAppBuildType: vi.fn(),
+    getCodexConfigPath: vi.fn(),
     getModelList: vi.fn(),
     getConfigModel: vi.fn(),
     getExperimentalFeatureList: vi.fn(),
@@ -48,6 +51,7 @@ vi.mock("@services/tauri", async () => {
 
 const connectWorkspaceMock = vi.mocked(connectWorkspace);
 const getAppBuildTypeMock = vi.mocked(getAppBuildType);
+const getCodexConfigPathMock = vi.mocked(getCodexConfigPath);
 const getConfigModelMock = vi.mocked(getConfigModel);
 const getModelListMock = vi.mocked(getModelList);
 const getExperimentalFeatureListMock = vi.mocked(getExperimentalFeatureList);
@@ -56,11 +60,14 @@ const isMobileRuntimeMock = vi.mocked(isMobileRuntime);
 const listWorkspacesMock = vi.mocked(listWorkspaces);
 connectWorkspaceMock.mockResolvedValue(undefined);
 getAppBuildTypeMock.mockResolvedValue("release");
+getCodexConfigPathMock.mockResolvedValue(
+  "/Users/me/Library/Application Support/CodexMonitor/codex-home/config.toml",
+);
 getConfigModelMock.mockResolvedValue(null);
 isMobileRuntimeMock.mockResolvedValue(false);
 listWorkspacesMock.mockResolvedValue([]);
 getAgentsSettingsMock.mockResolvedValue({
-  configPath: "/Users/me/.codex/config.toml",
+  configPath: "/Users/me/Library/Application Support/CodexMonitor/codex-home/config.toml",
   multiAgentEnabled: false,
   maxThreads: 6,
   maxDepth: 1,
@@ -109,6 +116,7 @@ const baseSettings: AppSettings = {
   lastComposerReasoningEffort: null,
   uiScale: 1,
   theme: "system",
+  appLanguage: "en",
   usageShowRemaining: false,
   showMessageFilePath: true,
   chatHistoryScrollbackItems: 200,
@@ -166,6 +174,7 @@ const baseSettings: AppSettings = {
 const createDoctorResult = () => ({
   ok: true,
   codexBin: null,
+  runtimeSource: "path" as const,
   version: null,
   appServerOk: true,
   details: null,
@@ -185,6 +194,8 @@ const createUpdateResult = () => ({
   output: null,
   details: null,
 });
+
+const locale = "en" as const;
 
 const renderDisplaySection = (
   options: {
@@ -522,12 +533,26 @@ describe("SettingsView Display", () => {
     });
   });
 
+  it("updates the app language selection", async () => {
+    const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
+    renderDisplaySection({ onUpdateAppSettings });
+
+    const select = screen.getByLabelText("Language");
+    fireEvent.change(select, { target: { value: "zh-CN" } });
+
+    await waitFor(() => {
+      expect(onUpdateAppSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ appLanguage: "zh-CN" }),
+      );
+    });
+  });
+
   it("toggles remaining limits display", async () => {
     const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
     renderDisplaySection({ onUpdateAppSettings });
 
     const row = screen
-      .getByText("Show remaining Codex limits")
+      .getByText(m.display_usage_remaining_title({}, { locale }))
       .closest(".settings-toggle-row") as HTMLElement | null;
     if (!row) {
       throw new Error("Expected remaining limits row");
@@ -552,7 +577,7 @@ describe("SettingsView Display", () => {
     renderDisplaySection({ onUpdateAppSettings });
 
     const row = screen
-      .getByText("Show file path in messages")
+      .getByText(m.display_show_file_path_title({}, { locale }))
       .closest(".settings-toggle-row") as HTMLElement | null;
     if (!row) {
       throw new Error("Expected file path visibility row");
@@ -577,7 +602,7 @@ describe("SettingsView Display", () => {
     renderDisplaySection({ onUpdateAppSettings });
 
     const row = screen
-      .getByText("Split chat and diff center panes")
+      .getByText(m.display_split_panes_title({}, { locale }))
       .closest(".settings-toggle-row") as HTMLElement | null;
     if (!row) {
       throw new Error("Expected split center panes row");
@@ -600,7 +625,7 @@ describe("SettingsView Display", () => {
     renderDisplaySection({ onToggleTransparency, reduceTransparency: false });
 
     const row = screen
-      .getByText("Reduce transparency")
+      .getByText(m.display_reduce_transparency_title({}, { locale }))
       .closest(".settings-toggle-row") as HTMLElement | null;
     if (!row) {
       throw new Error("Expected reduce transparency row");
@@ -622,7 +647,7 @@ describe("SettingsView Display", () => {
     const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
     renderDisplaySection({ onUpdateAppSettings });
 
-    const scaleInput = screen.getByLabelText("Interface scale");
+    const scaleInput = screen.getByLabelText(m.display_interface_scale_aria({}, { locale }));
 
     fireEvent.change(scaleInput, { target: { value: "500%" } });
     fireEvent.blur(scaleInput);
@@ -647,7 +672,7 @@ describe("SettingsView Display", () => {
     const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
     renderDisplaySection({ onUpdateAppSettings });
 
-    const uiFontInput = screen.getByLabelText("UI font family");
+    const uiFontInput = screen.getByLabelText(m.display_ui_font_label({}, { locale }));
     fireEvent.change(uiFontInput, { target: { value: "Avenir, sans-serif" } });
     fireEvent.blur(uiFontInput);
 
@@ -657,7 +682,7 @@ describe("SettingsView Display", () => {
       );
     });
 
-    const codeFontInput = screen.getByLabelText("Code font family");
+    const codeFontInput = screen.getByLabelText(m.display_code_font_label({}, { locale }));
     fireEvent.change(codeFontInput, {
       target: { value: "JetBrains Mono, monospace" },
     });
@@ -674,7 +699,7 @@ describe("SettingsView Display", () => {
     const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
     renderDisplaySection({ onUpdateAppSettings });
 
-    const resetButtons = screen.getAllByRole("button", { name: "Reset" });
+    const resetButtons = screen.getAllByRole("button", { name: m.action_reset({}, { locale }) });
     fireEvent.click(resetButtons[1]);
     fireEvent.click(resetButtons[2]);
 
@@ -696,7 +721,7 @@ describe("SettingsView Display", () => {
     const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
     renderDisplaySection({ onUpdateAppSettings });
 
-    const slider = screen.getByLabelText("Code font size");
+    const slider = screen.getByLabelText(m.display_code_font_size_label({}, { locale }));
     fireEvent.change(slider, { target: { value: "14" } });
 
     await waitFor(() => {
@@ -714,7 +739,7 @@ describe("SettingsView Display", () => {
     });
 
     const row = screen
-      .getByText("Notification sounds")
+      .getByText(m.display_notification_sounds_title({}, { locale }))
       .closest(".settings-toggle-row") as HTMLElement | null;
     if (!row) {
       throw new Error("Expected notification sounds row");
@@ -736,7 +761,7 @@ describe("SettingsView Display", () => {
     });
 
     const row = screen
-      .getByText("Sub-agent notifications")
+      .getByText(m.display_subagent_notifications_title({}, { locale }))
       .closest(".settings-toggle-row") as HTMLElement | null;
     if (!row) {
       throw new Error("Expected sub-agent notifications row");
@@ -779,10 +804,12 @@ describe("SettingsView Environments", () => {
       appSettings: { globalWorktreesFolder: "I:/existing-worktrees" },
     });
 
-    const input = screen.getByLabelText("Global worktrees root");
+    const input = screen.getByLabelText(m.environments_global_root_label());
     expect(input).toBeTruthy();
     expect((input as HTMLInputElement).value).toBe("I:/existing-worktrees");
-    expect((input as HTMLInputElement).placeholder).toBe("/path/to/worktrees-root");
+    expect((input as HTMLInputElement).placeholder).toBe(
+      m.environments_global_root_placeholder(),
+    );
   });
 
   it("saves the global worktrees root through app settings", async () => {
@@ -793,9 +820,9 @@ describe("SettingsView Environments", () => {
       onUpdateWorkspaceSettings,
     });
 
-    const input = screen.getByLabelText("Global worktrees root");
+    const input = screen.getByLabelText(m.environments_global_root_label());
     fireEvent.change(input, { target: { value: "I:/cm-worktrees" } });
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    fireEvent.click(screen.getByRole("button", { name: m.action_save() }));
 
     await waitFor(() => {
       expect(onUpdateAppSettings).toHaveBeenCalledWith(
@@ -818,7 +845,7 @@ describe("SettingsView Environments", () => {
 
     const textarea = screen.getByPlaceholderText("pnpm install");
     fireEvent.change(textarea, { target: { value: "echo updated" } });
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    fireEvent.click(screen.getByRole("button", { name: m.action_save() }));
 
     await waitFor(() => {
       expect(onUpdateWorkspaceSettings).toHaveBeenCalledWith("w1", {
@@ -841,13 +868,13 @@ describe("SettingsView Environments", () => {
       onUpdateWorkspaceSettings,
     });
 
-    fireEvent.change(screen.getByLabelText("Global worktrees root"), {
+    fireEvent.change(screen.getByLabelText(m.environments_global_root_label()), {
       target: { value: "I:/cm-worktrees" },
     });
     fireEvent.change(screen.getByPlaceholderText("pnpm install"), {
       target: { value: "echo updated" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    fireEvent.click(screen.getByRole("button", { name: m.action_save() }));
 
     expect(
       await screen.findByText("Failed to save workspace settings"),
@@ -855,7 +882,7 @@ describe("SettingsView Environments", () => {
     expect(onUpdateAppSettings).toHaveBeenCalledTimes(1);
     expect(onUpdateWorkspaceSettings).toHaveBeenCalledTimes(1);
 
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    fireEvent.click(screen.getByRole("button", { name: m.action_save() }));
 
     await waitFor(() => {
       expect(onUpdateWorkspaceSettings).toHaveBeenCalledTimes(2);
@@ -870,10 +897,10 @@ describe("SettingsView Environments", () => {
       onUpdateAppSettings,
     });
 
-    expect(screen.getByText("No projects yet.")).toBeTruthy();
-    const input = screen.getByLabelText("Global worktrees root");
+    expect(screen.getByText(m.environments_no_projects())).toBeTruthy();
+    const input = screen.getByLabelText(m.environments_global_root_label());
     fireEvent.change(input, { target: { value: "I:/cm-worktrees" } });
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    fireEvent.click(screen.getByRole("button", { name: m.action_save() }));
 
     await waitFor(() => {
       expect(onUpdateAppSettings).toHaveBeenCalledWith(
@@ -895,22 +922,23 @@ describe("SettingsView Environments", () => {
       onUpdateAppSettings,
     });
 
-    fireEvent.change(screen.getByLabelText("Global worktrees root"), {
+    fireEvent.change(screen.getByLabelText(m.environments_global_root_label()), {
       target: { value: "I:/cm-worktrees" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    fireEvent.click(screen.getByRole("button", { name: m.action_save() }));
 
     await waitFor(() => {
       expect(
-        (screen.getByRole("button", { name: "Saving..." }) as HTMLButtonElement).disabled,
+        (screen.getByRole("button", { name: m.action_saving() }) as HTMLButtonElement)
+          .disabled,
       ).toBe(true);
     });
-    expect((screen.getByLabelText("Global worktrees root") as HTMLInputElement).disabled).toBe(
-      true,
-    );
+    expect(
+      (screen.getByLabelText(m.environments_global_root_label()) as HTMLInputElement).disabled,
+    ).toBe(true);
     expect(onUpdateAppSettings).toHaveBeenCalledTimes(1);
 
-    fireEvent.click(screen.getByRole("button", { name: "Saving..." }));
+    fireEvent.click(screen.getByRole("button", { name: m.action_saving() }));
     expect(onUpdateAppSettings).toHaveBeenCalledTimes(1);
 
     await act(async () => {
@@ -919,9 +947,9 @@ describe("SettingsView Environments", () => {
     });
 
     await waitFor(() => {
-      expect((screen.getByRole("button", { name: "Save" }) as HTMLButtonElement).disabled).toBe(
-        true,
-      );
+      expect(
+        (screen.getByRole("button", { name: m.action_save() }) as HTMLButtonElement).disabled,
+      ).toBe(true);
     });
   });
 
@@ -931,7 +959,7 @@ describe("SettingsView Environments", () => {
       appSettings: { globalWorktreesFolder: null },
     });
 
-    const input = screen.getByLabelText("Global worktrees root");
+    const input = screen.getByLabelText(m.environments_global_root_label());
     fireEvent.change(input, { target: { value: "I:/typing" } });
 
     rerender({
@@ -939,16 +967,18 @@ describe("SettingsView Environments", () => {
       appSettings: { globalWorktreesFolder: "I:/loaded-from-settings" },
     });
 
-    expect((screen.getByLabelText("Global worktrees root") as HTMLInputElement).value).toBe(
+    expect(
+      (screen.getByLabelText(m.environments_global_root_label()) as HTMLInputElement).value,
+    ).toBe(
       "I:/typing",
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Reset" }));
+    fireEvent.click(screen.getByRole("button", { name: m.action_reset() }));
 
     await waitFor(() => {
-      expect((screen.getByLabelText("Global worktrees root") as HTMLInputElement).value).toBe(
-        "I:/loaded-from-settings",
-      );
+      expect(
+        (screen.getByLabelText(m.environments_global_root_label()) as HTMLInputElement).value,
+      ).toBe("I:/loaded-from-settings");
     });
   });
 
@@ -961,9 +991,9 @@ describe("SettingsView Environments", () => {
       onUpdateAppSettings,
     });
 
-    const input = screen.getByLabelText("Global worktrees root");
+    const input = screen.getByLabelText(m.environments_global_root_label());
     fireEvent.change(input, { target: { value: "I:/cm-worktrees" } });
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    fireEvent.click(screen.getByRole("button", { name: m.action_save() }));
 
     expect(
       await screen.findByText("Failed to save global worktrees root"),
@@ -981,11 +1011,11 @@ describe("SettingsView Environments", () => {
       onUpdateWorkspaceSettings,
     });
 
-    const input = screen.getByLabelText("Global worktrees root");
+    const input = screen.getByLabelText(m.environments_global_root_label());
     const textarea = screen.getByPlaceholderText("pnpm install");
     fireEvent.change(input, { target: { value: "I:/cm-worktrees" } });
     fireEvent.change(textarea, { target: { value: "echo updated" } });
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    fireEvent.click(screen.getByRole("button", { name: m.action_save() }));
 
     expect(
       await screen.findByText("Failed to save workspace settings"),
@@ -1126,7 +1156,135 @@ describe("SettingsView Codex section", () => {
     });
   });
 
-  it("renders mobile daemon controls in local backend mode for TCP provider", async () => {
+  it("shows only AGENTS.md editor in codex section and hides runtime internals", async () => {
+    cleanup();
+    render(
+      <SettingsView
+        workspaceGroups={[]}
+        groupedWorkspaces={[]}
+        ungroupedLabel="Ungrouped"
+        onClose={vi.fn()}
+        onMoveWorkspace={vi.fn()}
+        onDeleteWorkspace={vi.fn()}
+        onCreateWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onRenameWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onMoveWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onDeleteWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onAssignWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        reduceTransparency={false}
+        onToggleTransparency={vi.fn()}
+        appSettings={baseSettings}
+        openAppIconById={{}}
+        onUpdateAppSettings={vi.fn().mockResolvedValue(undefined)}
+        onRunDoctor={vi.fn().mockResolvedValue(createDoctorResult())}
+        onRunCodexUpdate={vi.fn().mockResolvedValue(createUpdateResult())}
+        onUpdateWorkspaceSettings={vi.fn().mockResolvedValue(undefined)}
+        scaleShortcutTitle="Scale shortcut"
+        scaleShortcutText="Use Command +/-"
+        onTestNotificationSound={vi.fn()}
+        onTestSystemNotification={vi.fn()}
+        dictationModelStatus={null}
+        onDownloadDictationModel={vi.fn()}
+        onCancelDictationDownload={vi.fn()}
+        onRemoveDictationModel={vi.fn()}
+        initialSection="codex"
+      />,
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("/Users/me/Library/Application Support/CodexMonitor/codex-home/AGENTS.md"),
+      ).toBeTruthy();
+    });
+
+    expect(screen.getByText("AGENTS.md")).toBeTruthy();
+    expect(screen.queryByLabelText("Codex path")).toBeNull();
+    expect(screen.queryByLabelText("Codex args")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Run doctor" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Update Codex" })).toBeNull();
+    expect(screen.queryByText("/Users/me/Library/Application Support/CodexMonitor/codex-home/config.toml")).toBeNull();
+    expect(screen.queryByText("Global config.toml")).toBeNull();
+    expect(screen.queryByText("~/.codex/AGENTS.md")).toBeNull();
+    expect(screen.queryByText("~/.codex/config.toml")).toBeNull();
+  });
+
+  it("hides the server settings entry in release builds", async () => {
+    cleanup();
+    render(
+      <SettingsView
+        workspaceGroups={[]}
+        groupedWorkspaces={[]}
+        ungroupedLabel="Ungrouped"
+        onClose={vi.fn()}
+        onMoveWorkspace={vi.fn()}
+        onDeleteWorkspace={vi.fn()}
+        onCreateWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onRenameWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onMoveWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onDeleteWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onAssignWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        reduceTransparency={false}
+        onToggleTransparency={vi.fn()}
+        appSettings={baseSettings}
+        openAppIconById={{}}
+        onUpdateAppSettings={vi.fn().mockResolvedValue(undefined)}
+        onRunDoctor={vi.fn().mockResolvedValue(createDoctorResult())}
+        onUpdateWorkspaceSettings={vi.fn().mockResolvedValue(undefined)}
+        scaleShortcutTitle="Scale shortcut"
+        scaleShortcutText="Use Command +/-"
+        onTestNotificationSound={vi.fn()}
+        onTestSystemNotification={vi.fn()}
+        dictationModelStatus={null}
+        onDownloadDictationModel={vi.fn()}
+        onCancelDictationDownload={vi.fn()}
+        onRemoveDictationModel={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: "Server" })).toBeNull();
+  });
+
+  it("shows the server settings entry in debug builds", async () => {
+    cleanup();
+    getAppBuildTypeMock.mockResolvedValueOnce("debug");
+
+    render(
+      <SettingsView
+        workspaceGroups={[]}
+        groupedWorkspaces={[]}
+        ungroupedLabel="Ungrouped"
+        onClose={vi.fn()}
+        onMoveWorkspace={vi.fn()}
+        onDeleteWorkspace={vi.fn()}
+        onCreateWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onRenameWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onMoveWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onDeleteWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onAssignWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        reduceTransparency={false}
+        onToggleTransparency={vi.fn()}
+        appSettings={baseSettings}
+        openAppIconById={{}}
+        onUpdateAppSettings={vi.fn().mockResolvedValue(undefined)}
+        onRunDoctor={vi.fn().mockResolvedValue(createDoctorResult())}
+        onUpdateWorkspaceSettings={vi.fn().mockResolvedValue(undefined)}
+        scaleShortcutTitle="Scale shortcut"
+        scaleShortcutText="Use Command +/-"
+        onTestNotificationSound={vi.fn()}
+        onTestSystemNotification={vi.fn()}
+        dictationModelStatus={null}
+        onDownloadDictationModel={vi.fn()}
+        onCancelDictationDownload={vi.fn()}
+        onRemoveDictationModel={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Server" })).toBeTruthy();
+    });
+  });
+
+  it("falls back to projects when server section is requested directly in release builds", async () => {
     cleanup();
     render(
       <SettingsView
@@ -1165,319 +1323,57 @@ describe("SettingsView Codex section", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Start daemon" })).toBeTruthy();
-      expect(screen.getByRole("button", { name: "Stop daemon" })).toBeTruthy();
-      expect(screen.getByRole("button", { name: "Refresh status" })).toBeTruthy();
+      expect(screen.queryByLabelText("Remote backend host")).toBeNull();
+      expect(screen.queryByLabelText("Remote backend token")).toBeNull();
+      expect(screen.queryByRole("button", { name: "Start daemon" })).toBeNull();
+      expect(screen.queryByRole("button", { name: "Connect & test" })).toBeNull();
+    });
+  });
+
+  it("renders server settings when requested directly in debug builds", async () => {
+    cleanup();
+    getAppBuildTypeMock.mockResolvedValueOnce("debug");
+
+    render(
+      <SettingsView
+        workspaceGroups={[]}
+        groupedWorkspaces={[]}
+        ungroupedLabel="Ungrouped"
+        onClose={vi.fn()}
+        onMoveWorkspace={vi.fn()}
+        onDeleteWorkspace={vi.fn()}
+        onCreateWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onRenameWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onMoveWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onDeleteWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onAssignWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        reduceTransparency={false}
+        onToggleTransparency={vi.fn()}
+        appSettings={{
+          ...baseSettings,
+          backendMode: "local",
+          remoteBackendProvider: "tcp",
+        }}
+        openAppIconById={{}}
+        onUpdateAppSettings={vi.fn().mockResolvedValue(undefined)}
+        onRunDoctor={vi.fn().mockResolvedValue(createDoctorResult())}
+        onUpdateWorkspaceSettings={vi.fn().mockResolvedValue(undefined)}
+        scaleShortcutTitle="Scale shortcut"
+        scaleShortcutText="Use Command +/-"
+        onTestNotificationSound={vi.fn()}
+        onTestSystemNotification={vi.fn()}
+        dictationModelStatus={null}
+        onDownloadDictationModel={vi.fn()}
+        onCancelDictationDownload={vi.fn()}
+        onRemoveDictationModel={vi.fn()}
+        initialSection="server"
+      />,
+    );
+
+    await waitFor(() => {
       expect(screen.getByLabelText("Remote backend host")).toBeTruthy();
       expect(screen.getByLabelText("Remote backend token")).toBeTruthy();
     });
-  });
-
-  it("shows mobile-only server controls on iOS runtime", async () => {
-    cleanup();
-    const originalPlatformDescriptor = Object.getOwnPropertyDescriptor(
-      window.navigator,
-      "platform",
-    );
-    const originalUserAgentDescriptor = Object.getOwnPropertyDescriptor(
-      window.navigator,
-      "userAgent",
-    );
-    const originalTouchPointsDescriptor = Object.getOwnPropertyDescriptor(
-      window.navigator,
-      "maxTouchPoints",
-    );
-
-    Object.defineProperty(window.navigator, "platform", {
-      configurable: true,
-      value: "iPhone",
-    });
-    Object.defineProperty(window.navigator, "userAgent", {
-      configurable: true,
-      value:
-        "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148",
-    });
-    Object.defineProperty(window.navigator, "maxTouchPoints", {
-      configurable: true,
-      value: 5,
-    });
-
-    try {
-      render(
-        <SettingsView
-          workspaceGroups={[]}
-          groupedWorkspaces={[]}
-          ungroupedLabel="Ungrouped"
-          onClose={vi.fn()}
-          onMoveWorkspace={vi.fn()}
-          onDeleteWorkspace={vi.fn()}
-          onCreateWorkspaceGroup={vi.fn().mockResolvedValue(null)}
-          onRenameWorkspaceGroup={vi.fn().mockResolvedValue(null)}
-          onMoveWorkspaceGroup={vi.fn().mockResolvedValue(null)}
-          onDeleteWorkspaceGroup={vi.fn().mockResolvedValue(null)}
-          onAssignWorkspaceGroup={vi.fn().mockResolvedValue(null)}
-          reduceTransparency={false}
-          onToggleTransparency={vi.fn()}
-          appSettings={{
-            ...baseSettings,
-            backendMode: "local",
-            remoteBackendProvider: "tcp",
-          }}
-          openAppIconById={{}}
-          onUpdateAppSettings={vi.fn().mockResolvedValue(undefined)}
-          onRunDoctor={vi.fn().mockResolvedValue(createDoctorResult())}
-          onUpdateWorkspaceSettings={vi.fn().mockResolvedValue(undefined)}
-          scaleShortcutTitle="Scale shortcut"
-          scaleShortcutText="Use Command +/-"
-          onTestNotificationSound={vi.fn()}
-          onTestSystemNotification={vi.fn()}
-          dictationModelStatus={null}
-          onDownloadDictationModel={vi.fn()}
-          onCancelDictationDownload={vi.fn()}
-          onRemoveDictationModel={vi.fn()}
-          initialSection="server"
-        />,
-      );
-
-      await waitFor(() => {
-        expect(screen.getByLabelText("Remote backend host")).toBeTruthy();
-        expect(screen.getByLabelText("Remote backend token")).toBeTruthy();
-        expect(screen.getByRole("button", { name: "Connect & test" })).toBeTruthy();
-      });
-
-      expect(screen.queryByLabelText("Backend mode")).toBeNull();
-      expect(screen.queryByRole("button", { name: "Start daemon" })).toBeNull();
-      expect(screen.queryByRole("button", { name: "Detect Tailscale" })).toBeNull();
-      expect(screen.queryByRole("button", { name: "Start Runner" })).toBeNull();
-      expect(
-        screen.getByText(/get the tailscale hostname and token from your desktop/i),
-      ).toBeTruthy();
-    } finally {
-      if (originalPlatformDescriptor) {
-        Object.defineProperty(window.navigator, "platform", originalPlatformDescriptor);
-      } else {
-        Reflect.deleteProperty(window.navigator, "platform");
-      }
-      if (originalUserAgentDescriptor) {
-        Object.defineProperty(window.navigator, "userAgent", originalUserAgentDescriptor);
-      } else {
-        Reflect.deleteProperty(window.navigator, "userAgent");
-      }
-      if (originalTouchPointsDescriptor) {
-        Object.defineProperty(
-          window.navigator,
-          "maxTouchPoints",
-          originalTouchPointsDescriptor,
-        );
-      } else {
-        Reflect.deleteProperty(window.navigator, "maxTouchPoints");
-      }
-    }
-  });
-
-  it("supports multiple saved remotes on iOS runtime", async () => {
-    cleanup();
-    const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
-    const originalPlatformDescriptor = Object.getOwnPropertyDescriptor(
-      window.navigator,
-      "platform",
-    );
-    const originalUserAgentDescriptor = Object.getOwnPropertyDescriptor(
-      window.navigator,
-      "userAgent",
-    );
-    const originalTouchPointsDescriptor = Object.getOwnPropertyDescriptor(
-      window.navigator,
-      "maxTouchPoints",
-    );
-
-    Object.defineProperty(window.navigator, "platform", {
-      configurable: true,
-      value: "iPhone",
-    });
-    Object.defineProperty(window.navigator, "userAgent", {
-      configurable: true,
-      value:
-        "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148",
-    });
-    Object.defineProperty(window.navigator, "maxTouchPoints", {
-      configurable: true,
-      value: 5,
-    });
-
-    try {
-      render(
-        <SettingsView
-          workspaceGroups={[]}
-          groupedWorkspaces={[]}
-          ungroupedLabel="Ungrouped"
-          onClose={vi.fn()}
-          onMoveWorkspace={vi.fn()}
-          onDeleteWorkspace={vi.fn()}
-          onCreateWorkspaceGroup={vi.fn().mockResolvedValue(null)}
-          onRenameWorkspaceGroup={vi.fn().mockResolvedValue(null)}
-          onMoveWorkspaceGroup={vi.fn().mockResolvedValue(null)}
-          onDeleteWorkspaceGroup={vi.fn().mockResolvedValue(null)}
-          onAssignWorkspaceGroup={vi.fn().mockResolvedValue(null)}
-          reduceTransparency={false}
-          onToggleTransparency={vi.fn()}
-          appSettings={{
-            ...baseSettings,
-            remoteBackendProvider: "tcp",
-            remoteBackendHost: "127.0.0.1:4732",
-            remoteBackendToken: "token-a",
-            remoteBackends: [
-              {
-                id: "remote-a",
-                name: "Home Mac",
-                provider: "tcp",
-                host: "127.0.0.1:4732",
-                token: "token-a",
-              },
-              {
-                id: "remote-b",
-                name: "Office Mac",
-                provider: "tcp",
-                host: "office-mac.tailnet.ts.net:4732",
-                token: "token-b",
-              },
-            ],
-            activeRemoteBackendId: "remote-a",
-          }}
-          openAppIconById={{}}
-          onUpdateAppSettings={onUpdateAppSettings}
-          onRunDoctor={vi.fn().mockResolvedValue(createDoctorResult())}
-          onUpdateWorkspaceSettings={vi.fn().mockResolvedValue(undefined)}
-          scaleShortcutTitle="Scale shortcut"
-          scaleShortcutText="Use Command +/-"
-          onTestNotificationSound={vi.fn()}
-          onTestSystemNotification={vi.fn()}
-          dictationModelStatus={null}
-          onDownloadDictationModel={vi.fn()}
-          onCancelDictationDownload={vi.fn()}
-          onRemoveDictationModel={vi.fn()}
-          initialSection="server"
-        />,
-      );
-
-      await waitFor(() => {
-        expect(screen.getByRole("list", { name: "Saved remotes" })).toBeTruthy();
-        expect(screen.getByLabelText("Remote name")).toBeTruthy();
-      });
-      expect(screen.getAllByText(/Last connected: Never/i).length).toBeGreaterThan(0);
-
-      fireEvent.click(screen.getByRole("button", { name: "Use Office Mac remote" }));
-
-      await waitFor(() => {
-        expect(onUpdateAppSettings).toHaveBeenCalledWith(
-          expect.objectContaining({
-            activeRemoteBackendId: "remote-b",
-            remoteBackendProvider: "tcp",
-            remoteBackendHost: "office-mac.tailnet.ts.net:4732",
-            remoteBackendToken: "token-b",
-          }),
-        );
-      });
-
-      onUpdateAppSettings.mockClear();
-      fireEvent.change(screen.getByLabelText("Remote name"), {
-        target: { value: "Home Mac" },
-      });
-      fireEvent.blur(screen.getByLabelText("Remote name"));
-
-      await waitFor(() => {
-        expect(
-          screen.getAllByText('A remote named "Home Mac" already exists.').length,
-        ).toBeGreaterThan(0);
-      });
-
-      onUpdateAppSettings.mockClear();
-      fireEvent.click(screen.getByRole("button", { name: "Add remote" }));
-      expect(screen.getByRole("dialog", { name: "Add remote" })).toBeTruthy();
-      expect(onUpdateAppSettings).toHaveBeenCalledTimes(0);
-
-      fireEvent.click(screen.getByRole("button", { name: "Close add remote modal" }));
-      expect(screen.queryByRole("dialog", { name: "Add remote" })).toBeNull();
-
-      fireEvent.click(screen.getByRole("button", { name: "Add remote" }));
-      fireEvent.change(screen.getByLabelText("New remote name"), {
-        target: { value: "Travel Mac" },
-      });
-      fireEvent.change(screen.getByLabelText("New remote host"), {
-        target: { value: "travel-mac.tailnet.ts.net:4732" },
-      });
-      fireEvent.change(screen.getByLabelText("New remote token"), {
-        target: { value: "token-travel" },
-      });
-      fireEvent.click(screen.getByRole("button", { name: "Connect & add" }));
-
-      await waitFor(() => {
-        expect(onUpdateAppSettings).toHaveBeenCalledTimes(2);
-      });
-      const trialSettings = onUpdateAppSettings.mock.calls[0]?.[0] as AppSettings;
-      const connectedSettings = onUpdateAppSettings.mock.calls[1]?.[0] as AppSettings;
-      expect(trialSettings.remoteBackends).toHaveLength(3);
-      expect(trialSettings.activeRemoteBackendId).toBeTruthy();
-      expect(trialSettings.remoteBackendHost).toBe("travel-mac.tailnet.ts.net:4732");
-      expect(trialSettings.remoteBackendToken).toBe("token-travel");
-      expect(connectedSettings.remoteBackends).toHaveLength(3);
-      const connectedEntry = connectedSettings.remoteBackends.find(
-        (entry) => entry.id === connectedSettings.activeRemoteBackendId,
-      );
-      expect(connectedEntry?.lastConnectedAtMs).toEqual(expect.any(Number));
-      expect(screen.queryByRole("dialog", { name: "Add remote" })).toBeNull();
-      expect(listWorkspacesMock).toHaveBeenCalled();
-
-      onUpdateAppSettings.mockClear();
-      fireEvent.click(screen.getByRole("button", { name: "Add remote" }));
-      fireEvent.change(screen.getByLabelText("New remote token"), {
-        target: { value: "" },
-      });
-      fireEvent.click(screen.getByRole("button", { name: "Connect & add" }));
-
-      await waitFor(() => {
-        expect(screen.getByText("Remote backend token is required.")).toBeTruthy();
-      });
-
-      onUpdateAppSettings.mockClear();
-      fireEvent.click(screen.getByRole("button", { name: "Move Home Mac down" }));
-
-      await waitFor(() => {
-        expect(onUpdateAppSettings).toHaveBeenCalledTimes(1);
-        const nextSettings = onUpdateAppSettings.mock.calls[0]?.[0] as AppSettings;
-        expect(nextSettings.remoteBackends[0]?.id).toBe("remote-b");
-      });
-
-      onUpdateAppSettings.mockClear();
-      fireEvent.click(screen.getByRole("button", { name: "Delete Office Mac" }));
-      fireEvent.click(screen.getByRole("button", { name: "Delete remote" }));
-
-      await waitFor(() => {
-        expect(onUpdateAppSettings).toHaveBeenCalledTimes(1);
-        const nextSettings = onUpdateAppSettings.mock.calls[0]?.[0] as AppSettings;
-        expect(nextSettings.remoteBackends.length).toBeGreaterThanOrEqual(1);
-      });
-    } finally {
-      if (originalPlatformDescriptor) {
-        Object.defineProperty(window.navigator, "platform", originalPlatformDescriptor);
-      } else {
-        Reflect.deleteProperty(window.navigator, "platform");
-      }
-      if (originalUserAgentDescriptor) {
-        Object.defineProperty(window.navigator, "userAgent", originalUserAgentDescriptor);
-      } else {
-        Reflect.deleteProperty(window.navigator, "userAgent");
-      }
-      if (originalTouchPointsDescriptor) {
-        Object.defineProperty(
-          window.navigator,
-          "maxTouchPoints",
-          originalTouchPointsDescriptor,
-        );
-      } else {
-        Reflect.deleteProperty(window.navigator, "maxTouchPoints");
-      }
-    }
   });
 
 });
@@ -1804,7 +1700,7 @@ describe("SettingsView Composer", () => {
       },
     });
 
-    const hintTitle = await screen.findByText("Show follow-up hint while processing");
+    const hintTitle = await screen.findByText(m.composer_followup_hint_title());
     const hintRow = hintTitle.closest(".settings-toggle-row");
     expect(hintRow).not.toBeNull();
     fireEvent.click(within(hintRow as HTMLElement).getByRole("button"));
@@ -1848,9 +1744,7 @@ describe("SettingsView Composer", () => {
     const steerOption = screen.getByRole("radio", { name: "Steer" });
     expect(steerOption.hasAttribute("disabled")).toBe(true);
     expect(
-      screen.getByText(
-        "Steer is unavailable in the current Codex config. Follow-ups will queue.",
-      ),
+      screen.getByText(m.composer_followup_unavailable_help()),
     ).not.toBeNull();
 
     fireEvent.click(steerOption);

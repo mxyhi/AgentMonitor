@@ -1,6 +1,8 @@
 import { useCallback } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import type { QueuedMessage } from "../../../types";
+import * as m from "@/i18n/messages";
+import { useAppLocale } from "@/i18n/I18nProvider";
 import {
   PopoverMenuItem,
   PopoverSurface,
@@ -20,13 +22,14 @@ export function ComposerQueue({
   onEditQueued,
   onDeleteQueued,
 }: ComposerQueueProps) {
+  const locale = useAppLocale();
   if (queuedMessages.length === 0) {
     return null;
   }
 
   return (
     <div className="composer-queue">
-      <div className="composer-queue-title">Queued</div>
+      <div className="composer-queue-title">{m.composer_queue_title({}, { locale })}</div>
       {pausedReason ? (
         <div className="composer-queue-hint">{pausedReason}</div>
       ) : null}
@@ -37,17 +40,21 @@ export function ComposerQueue({
               {item.text ||
                 (item.images?.length
                   ? item.images.length === 1
-                    ? "Image"
-                    : "Images"
+                    ? m.composer_queue_image({}, { locale })
+                    : m.composer_queue_images({}, { locale })
                   : "")}
               {item.images?.length
-                ? ` · ${item.images.length} image${item.images.length === 1 ? "" : "s"}`
+                ? ` · ${m.composer_queue_images_count(
+                    { value: String(item.images.length) },
+                    { locale },
+                  )}`
                 : ""}
             </span>
             <QueueMenuButton
               item={item}
               onEditQueued={onEditQueued}
               onDeleteQueued={onDeleteQueued}
+              locale={locale}
             />
           </div>
         ))}
@@ -60,9 +67,15 @@ type QueueMenuButtonProps = {
   item: QueuedMessage;
   onEditQueued?: (item: QueuedMessage) => void;
   onDeleteQueued?: (id: string) => void;
+  locale: ReturnType<typeof useAppLocale>;
 };
 
-function QueueMenuButton({ item, onEditQueued, onDeleteQueued }: QueueMenuButtonProps) {
+function QueueMenuButton({
+  item,
+  onEditQueued,
+  onDeleteQueued,
+  locale,
+}: QueueMenuButtonProps) {
   const menu = useMenuController();
   const handleToggleMenu = useCallback(
     (event: ReactMouseEvent<HTMLButtonElement>) => {
@@ -89,7 +102,7 @@ function QueueMenuButton({ item, onEditQueued, onDeleteQueued }: QueueMenuButton
         type="button"
         className={`composer-queue-menu${menu.isOpen ? " is-open" : ""}`}
         onClick={handleToggleMenu}
-        aria-label="Queue item menu"
+        aria-label={m.composer_queue_item_menu({}, { locale })}
         aria-haspopup="menu"
         aria-expanded={menu.isOpen}
       >
@@ -97,8 +110,12 @@ function QueueMenuButton({ item, onEditQueued, onDeleteQueued }: QueueMenuButton
       </button>
       {menu.isOpen && (
         <PopoverSurface className="composer-queue-item-popover" role="menu">
-          <PopoverMenuItem onClick={handleEdit}>Edit</PopoverMenuItem>
-          <PopoverMenuItem onClick={handleDelete}>Delete</PopoverMenuItem>
+          <PopoverMenuItem onClick={handleEdit}>
+            {m.action_edit({}, { locale })}
+          </PopoverMenuItem>
+          <PopoverMenuItem onClick={handleDelete}>
+            {m.action_delete({}, { locale })}
+          </PopoverMenuItem>
         </PopoverSurface>
       )}
     </div>

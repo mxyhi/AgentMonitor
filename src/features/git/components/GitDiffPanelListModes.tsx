@@ -4,6 +4,8 @@ import { useCallback, useEffect, useState } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import ChevronDown from "lucide-react/dist/esm/icons/chevron-down";
 import ChevronRight from "lucide-react/dist/esm/icons/chevron-right";
+import * as m from "@/i18n/messages";
+import { useAppLocale } from "@/i18n/I18nProvider";
 import { formatRelativeTime } from "../../../utils/time";
 import type { PerFileDiffGroup } from "../utils/perFileThreadDiffs";
 import { GitLogEntryRow } from "./GitDiffPanelShared";
@@ -20,6 +22,7 @@ export function GitPerFileModeContent({
   selectedPath,
   onSelectFile,
 }: GitPerFileModeContentProps) {
+  const locale = useAppLocale();
   const [collapsedPaths, setCollapsedPaths] = useState<Set<string>>(new Set());
 
   useEffect(() => {
@@ -61,7 +64,7 @@ export function GitPerFileModeContent({
   }, []);
 
   if (groups.length === 0) {
-    return <div className="diff-empty">No agent edits in this thread yet.</div>;
+    return <div className="diff-empty">{m.git_no_agent_edits({}, { locale })}</div>;
   }
 
   return (
@@ -83,7 +86,9 @@ export function GitPerFileModeContent({
                 {fileName || group.path}
               </span>
               <span className="per-file-group-count">
-                {group.edits.length} edit{group.edits.length === 1 ? "" : "s"}
+                {group.edits.length === 1
+                  ? m.git_edit_count_single({}, { locale })
+                  : m.git_edit_count_plural({ count: group.edits.length }, { locale })}
               </span>
             </button>
             {isExpanded && (
@@ -153,19 +158,20 @@ export function GitLogModeContent({
   onSelectCommit,
   onShowLogMenu,
 }: GitLogModeContentProps) {
+  const locale = useAppLocale();
   return (
     <div className="git-log-list">
       {!logError && logLoading && (
-        <div className="diff-viewer-loading">Loading commits...</div>
+        <div className="diff-viewer-loading">{m.git_loading_commits({}, { locale })}</div>
       )}
       {!logError &&
         !logLoading &&
         !logEntries.length &&
         !showAheadSection &&
-        !showBehindSection && <div className="diff-empty">No commits yet.</div>}
+        !showBehindSection && <div className="diff-empty">{m.git_no_commits_yet({}, { locale })}</div>}
       {showAheadSection && (
         <div className="git-log-section">
-          <div className="git-log-section-title">To push</div>
+          <div className="git-log-section-title">{m.git_to_push({}, { locale })}</div>
           <div className="git-log-section-list">
             {logAheadEntries.map((entry) => {
               const isSelected = selectedCommitSha === entry.sha;
@@ -185,7 +191,7 @@ export function GitLogModeContent({
       )}
       {showBehindSection && (
         <div className="git-log-section">
-          <div className="git-log-section-title">To pull</div>
+          <div className="git-log-section-title">{m.git_to_pull({}, { locale })}</div>
           <div className="git-log-section-list">
             {logBehindEntries.map((entry) => {
               const isSelected = selectedCommitSha === entry.sha;
@@ -205,7 +211,7 @@ export function GitLogModeContent({
       )}
       {(logEntries.length > 0 || logLoading) && (
         <div className="git-log-section">
-          <div className="git-log-section-title">Recent commits</div>
+          <div className="git-log-section-title">{m.git_recent_commits({}, { locale })}</div>
           <div className="git-log-section-list">
             {logEntries.map((entry) => {
               const isSelected = selectedCommitSha === entry.sha;
@@ -237,10 +243,11 @@ export function GitIssuesModeContent({
   issuesLoading,
   issues,
 }: GitIssuesModeContentProps) {
+  const locale = useAppLocale();
   return (
     <div className="git-issues-list">
       {!issuesError && !issuesLoading && !issues.length && (
-        <div className="diff-empty">No open issues.</div>
+        <div className="diff-empty">{m.git_no_open_issues({}, { locale })}</div>
       )}
       {issues.map((issue) => {
         const relativeTime = formatRelativeTime(new Date(issue.updatedAt).getTime());
@@ -286,14 +293,15 @@ export function GitPullRequestsModeContent({
   onSelectPullRequest,
   onShowPullRequestMenu,
 }: GitPullRequestsModeContentProps) {
+  const locale = useAppLocale();
   return (
     <div className="git-pr-list">
       {!pullRequestsError && !pullRequestsLoading && !pullRequests.length && (
-        <div className="diff-empty">No open pull requests.</div>
+        <div className="diff-empty">{m.git_no_open_pull_requests({}, { locale })}</div>
       )}
       {pullRequests.map((pullRequest) => {
         const relativeTime = formatRelativeTime(new Date(pullRequest.updatedAt).getTime());
-        const author = pullRequest.author?.login ?? "unknown";
+        const author = pullRequest.author?.login ?? m.common_unknown({}, { locale });
         const isSelected = selectedPullRequest === pullRequest.number;
 
         return (
@@ -321,7 +329,7 @@ export function GitPullRequestsModeContent({
             <div className="git-pr-meta">
               <span className="git-pr-author-inline">@{author}</span>
               {pullRequest.isDraft && (
-                <span className="git-pr-pill git-pr-draft">Draft</span>
+                <span className="git-pr-pill git-pr-draft">{m.git_draft({}, { locale })}</span>
               )}
             </div>
           </div>

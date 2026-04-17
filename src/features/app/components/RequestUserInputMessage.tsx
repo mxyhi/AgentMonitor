@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
+import * as m from "@/i18n/messages";
+import { useAppLocale } from "@/i18n/I18nProvider";
 import type {
   RequestUserInputRequest,
   RequestUserInputResponse,
@@ -23,6 +25,7 @@ export function RequestUserInputMessage({
   activeWorkspaceId,
   onSubmit,
 }: RequestUserInputMessageProps) {
+  const locale = useAppLocale();
   const activeRequests = useMemo(
     () =>
       requests.filter((request) => {
@@ -116,13 +119,18 @@ export function RequestUserInputMessage({
       <div
         className="bubble request-user-input-card"
         role="group"
-        aria-label="User input requested"
+        aria-label={m.request_user_input_aria({}, { locale })}
       >
         <div className="request-user-input-header">
-          <div className="request-user-input-title">Input requested</div>
+          <div className="request-user-input-title">
+            {m.request_user_input_title({}, { locale })}
+          </div>
           {totalRequests > 1 ? (
             <div className="request-user-input-queue">
-              {`Request 1 of ${totalRequests}`}
+              {m.request_user_input_queue_label(
+                { current: "1", total: String(totalRequests) },
+                { locale },
+              )}
             </div>
           ) : null}
         </div>
@@ -133,10 +141,10 @@ export function RequestUserInputMessage({
               const selectedIndex = selections[questionId];
               const options = question.options ?? [];
               const notePlaceholder = question.isOther
-                ? "Type your answer (optional)"
+                ? m.request_user_input_note_placeholder_answer({}, { locale })
                 : options.length
-                ? "Add notes (optional)"
-                : "Type your answer (optional)";
+                  ? m.request_user_input_note_placeholder_notes({}, { locale })
+                  : m.request_user_input_note_placeholder_answer({}, { locale });
               return (
                 <section key={questionId} className="request-user-input-question">
                   {question.header ? (
@@ -184,13 +192,13 @@ export function RequestUserInputMessage({
             })
           ) : (
             <div className="request-user-input-empty">
-              No questions provided.
+              {m.request_user_input_empty({}, { locale })}
             </div>
           )}
         </div>
         <div className="request-user-input-actions">
           <button className="primary" onClick={handleSubmit}>
-            Submit
+            {m.request_user_input_submit({}, { locale })}
           </button>
         </div>
       </div>

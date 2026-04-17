@@ -15,6 +15,9 @@ use tokio::time::timeout;
 use crate::backend::events::{AppServerEvent, EventSink};
 use crate::codex::args::parse_codex_args;
 use crate::shared::process_core::{kill_child_process_tree, tokio_command};
+use crate::shared::codex_runtime_core::{
+    codex_runtime_parent_dir, resolve_codex_runtime, CodexRuntimeSource, ResolvedCodexRuntime,
+};
 use crate::types::WorkspaceEntry;
 
 #[cfg(target_os = "windows")]
@@ -420,7 +423,7 @@ fn build_initialize_params(client_version: &str) -> Value {
     json!({
         "clientInfo": {
             "name": "codex_monitor",
-            "title": "Codex Monitor",
+            "title": "Agent Monitor",
             "version": client_version
         },
         "capabilities": {
@@ -585,6 +588,8 @@ pub(crate) fn build_codex_path_env(codex_bin: Option<&str>) -> Option<String> {
         if let Ok(home) = env::var("HOME") {
             let home_path = Path::new(&home);
             extras.push(home_path.join(".local/bin"));
+            extras.push(home_path.join(".local/share/pnpm"));
+            extras.push(home_path.join("Library").join("pnpm"));
             extras.push(home_path.join(".local/share/mise/shims"));
             extras.push(home_path.join(".cargo/bin"));
             extras.push(home_path.join(".bun/bin"));
@@ -606,6 +611,7 @@ pub(crate) fn build_codex_path_env(codex_bin: Option<&str>) -> Option<String> {
             extras.push(Path::new(&appdata).join("npm"));
         }
         if let Ok(local_app_data) = env::var("LOCALAPPDATA") {
+            extras.push(Path::new(&local_app_data).join("pnpm"));
             extras.push(
                 Path::new(&local_app_data)
                     .join("Microsoft")
@@ -622,10 +628,15 @@ pub(crate) fn build_codex_path_env(codex_bin: Option<&str>) -> Option<String> {
         }
     }
 
-    if let Some(bin_path) = codex_bin.filter(|value| !value.trim().is_empty()) {
-        if let Some(parent) = Path::new(bin_path).parent() {
-            extras.push(parent.to_path_buf());
-        }
+    if let Ok(pnpm_home) = env::var("PNPM_HOME") {
+        extras.push(PathBuf::from(pnpm_home));
+    }
+
+    if let Some(bin_path) = codex_bin
+        .filter(|value| !value.trim().is_empty())
+        .and_then(codex_runtime_parent_dir)
+    {
+        extras.push(bin_path);
     }
 
     for extra in extras {
@@ -648,18 +659,14 @@ pub(crate) fn build_codex_command_with_bin(
     codex_args: Option<&str>,
     args: Vec<String>,
 ) -> Result<Command, String> {
-    let bin = codex_bin
-        .clone()
-        .filter(|value| !value.trim().is_empty())
-        .unwrap_or_else(|| "codex".into());
-
-    let path_env = build_codex_path_env(codex_bin.as_deref());
+    let resolved_runtime = resolve_codex_runtime(codex_bin.as_deref());
+    let path_env = build_codex_path_env(Some(resolved_runtime.program.as_str()));
     let mut command_args = parse_codex_args(codex_args)?;
     command_args.extend(args);
 
     #[cfg(target_os = "windows")]
     let mut command = {
-        let bin_trimmed = bin.trim();
+        let bin_trimmed = resolved_runtime.program.trim();
         let resolved = resolve_windows_executable(bin_trimmed, path_env.as_deref());
         let resolved_path = resolved
             .as_deref()
@@ -686,7 +693,7 @@ pub(crate) fn build_codex_command_with_bin(
 
     #[cfg(not(target_os = "windows"))]
     let mut command = {
-        let mut command = tokio_command(bin.trim());
+        let mut command = tokio_command(resolved_runtime.program.trim());
         command.args(command_args);
         command
     };
@@ -697,17 +704,36 @@ pub(crate) fn build_codex_command_with_bin(
     Ok(command)
 }
 
+pub(crate) fn resolve_codex_runtime_for_bin(codex_bin: Option<String>) -> ResolvedCodexRuntime {
+    resolve_codex_runtime(codex_bin.as_deref())
+}
+
 pub(crate) async fn check_codex_installation(
     codex_bin: Option<String>,
 ) -> Result<Option<String>, String> {
-    let mut command = build_codex_command_with_bin(codex_bin, None, vec!["--version".to_string()])?;
+    let resolved_runtime = resolve_codex_runtime_for_bin(codex_bin.clone());
+    let mut command =
+        build_codex_command_with_bin(codex_bin, None, vec!["--version".to_string()])?;
     command.stdout(std::process::Stdio::piped());
     command.stderr(std::process::Stdio::piped());
 
     let output = match timeout(Duration::from_secs(5), command.output()).await {
         Ok(result) => result.map_err(|e| {
             if e.kind() == ErrorKind::NotFound {
-                "Codex CLI not found. Install Codex and ensure `codex` is on your PATH.".to_string()
+                match resolved_runtime.source {
+                    CodexRuntimeSource::Custom => format!(
+                        "Configured Codex binary not found: {}",
+                        resolved_runtime.program
+                    ),
+                    CodexRuntimeSource::Bundled => format!(
+                        "Bundled Codex runtime not found: {}",
+                        resolved_runtime.program
+                    ),
+                    CodexRuntimeSource::Path => {
+                        "Codex CLI not found. Install Codex or let Agent Monitor bundle it before launch."
+                            .to_string()
+                    }
+                }
             } else {
                 e.to_string()
             }
@@ -729,12 +755,25 @@ pub(crate) async fn check_codex_installation(
             stderr.trim()
         };
         if detail.is_empty() {
-            return Err(
-                "Codex CLI failed to start. Try running `codex --version` in Terminal.".to_string(),
-            );
+            return Err(match resolved_runtime.source {
+                CodexRuntimeSource::Bundled => {
+                    "Bundled Codex runtime failed to start.".to_string()
+                }
+                _ => "Codex CLI failed to start. Try running `codex --version` in Terminal."
+                    .to_string(),
+            });
         }
         return Err(format!(
-            "Codex CLI failed to start: {detail}. Try running `codex --version` in Terminal."
+            "{} failed to start: {detail}.{}",
+            match resolved_runtime.source {
+                CodexRuntimeSource::Bundled => "Bundled Codex runtime",
+                _ => "Codex CLI",
+            },
+            if matches!(resolved_runtime.source, CodexRuntimeSource::Bundled) {
+                ""
+            } else {
+                " Try running `codex --version` in Terminal."
+            }
         ));
     }
 
@@ -1105,13 +1144,19 @@ pub(crate) async fn spawn_workspace_session<E: EventSink>(
 #[cfg(test)]
 mod tests {
     use super::{
-        build_initialize_params, extract_related_thread_ids, extract_thread_entries_from_thread_list_result,
-        extract_thread_id, normalize_root_path, resolve_workspace_for_cwd,
+        build_codex_path_env, build_initialize_params, extract_related_thread_ids,
+        extract_thread_entries_from_thread_list_result, extract_thread_id, normalize_root_path,
+        resolve_codex_runtime_for_bin, resolve_workspace_for_cwd,
         should_suppress_hidden_thread_event, source_subagent_kind,
         thread_started_is_memory_consolidation,
     };
-    use std::collections::HashMap;
+    use crate::shared::codex_runtime_core::CodexRuntimeSource;
     use serde_json::json;
+    use std::collections::HashMap;
+    use std::env;
+    use std::sync::Mutex as StdMutex;
+
+    static ENV_LOCK: StdMutex<()> = StdMutex::new(());
 
     #[test]
     fn extract_thread_id_reads_camel_case() {
@@ -1384,5 +1429,31 @@ mod tests {
             Some("codex/backgroundThread"),
             false
         ));
+    }
+
+    #[test]
+    fn build_codex_path_env_includes_custom_bin_parent() {
+        let path_env = build_codex_path_env(Some("/tmp/codex/bin/codex")).expect("path env");
+        let entries = env::split_paths(&path_env).collect::<Vec<_>>();
+        assert!(entries.iter().any(|entry| entry == &std::path::PathBuf::from("/tmp/codex/bin")));
+    }
+
+    #[test]
+    fn build_codex_path_env_includes_pnpm_home_when_set() {
+        let _guard = ENV_LOCK.lock().expect("lock env");
+        env::set_var("PNPM_HOME", "/tmp/pnpm-home");
+        let path_env = build_codex_path_env(None).expect("path env");
+        env::remove_var("PNPM_HOME");
+
+        let entries = env::split_paths(&path_env).collect::<Vec<_>>();
+        assert!(entries.iter().any(|entry| entry == &std::path::PathBuf::from("/tmp/pnpm-home")));
+    }
+
+    #[test]
+    fn runtime_source_for_bin_marks_explicit_bin_as_custom() {
+        assert_eq!(
+            resolve_codex_runtime_for_bin(Some("/tmp/custom-codex".to_string())).source,
+            CodexRuntimeSource::Custom,
+        );
     }
 }

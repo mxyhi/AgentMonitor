@@ -3,6 +3,8 @@ import type {
   LocalUsageSnapshot,
   RateLimitSnapshot,
 } from "../../../types";
+import { useAppLocale } from "@/i18n/I18nProvider";
+import * as m from "@/i18n/messages";
 import { HomeActions } from "./HomeActions";
 import { HomeLatestAgentsSection } from "./HomeLatestAgentsSection";
 import { HomeUsageSection } from "./HomeUsageSection";
@@ -51,12 +53,13 @@ export function Home({
   accountInfo,
   onSelectThread,
 }: HomeProps) {
+  const locale = useAppLocale();
   return (
     <div className="home">
       <div className="home-hero">
-        <div className="home-title">Codex Monitor</div>
+        <div className="home-title">{m.home_title({}, { locale })}</div>
         <div className="home-subtitle">
-          Orchestrate agents across your local projects.
+          {m.home_subtitle({}, { locale })}
         </div>
       </div>
       <HomeLatestAgentsSection

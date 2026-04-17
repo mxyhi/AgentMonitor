@@ -11,20 +11,25 @@ import Layers from "lucide-react/dist/esm/icons/layers";
 import ServerCog from "lucide-react/dist/esm/icons/server-cog";
 import Bot from "lucide-react/dist/esm/icons/bot";
 import Info from "lucide-react/dist/esm/icons/info";
+import * as m from "@/i18n/messages";
+import { useAppLocale } from "@/i18n/I18nProvider";
 import { PanelNavItem, PanelNavList } from "@/features/design-system/components/panel/PanelPrimitives";
 import type { CodexSection } from "./settingsTypes";
 
 type SettingsNavProps = {
   activeSection: CodexSection;
   onSelectSection: (section: CodexSection) => void;
+  serverSectionVisible: boolean;
   showDisclosure?: boolean;
 };
 
 export function SettingsNav({
   activeSection,
   onSelectSection,
+  serverSectionVisible,
   showDisclosure = false,
 }: SettingsNavProps) {
+  const locale = useAppLocale();
   return (
     <aside className="settings-sidebar">
       <PanelNavList className="settings-nav-list">
@@ -35,7 +40,7 @@ export function SettingsNav({
           showDisclosure={showDisclosure}
           onClick={() => onSelectSection("projects")}
         >
-          Projects
+          {m.settings_nav_projects({}, { locale })}
         </PanelNavItem>
         <PanelNavItem
           className="settings-nav"
@@ -44,7 +49,7 @@ export function SettingsNav({
           showDisclosure={showDisclosure}
           onClick={() => onSelectSection("environments")}
         >
-          Environments
+          {m.settings_nav_environments({}, { locale })}
         </PanelNavItem>
         <PanelNavItem
           className="settings-nav"
@@ -53,7 +58,7 @@ export function SettingsNav({
           showDisclosure={showDisclosure}
           onClick={() => onSelectSection("display")}
         >
-          Display &amp; Sound
+          {m.settings_nav_display({}, { locale })}
         </PanelNavItem>
         <PanelNavItem
           className="settings-nav"
@@ -62,7 +67,7 @@ export function SettingsNav({
           showDisclosure={showDisclosure}
           onClick={() => onSelectSection("composer")}
         >
-          Composer
+          {m.settings_nav_composer({}, { locale })}
         </PanelNavItem>
         <PanelNavItem
           className="settings-nav"
@@ -71,7 +76,7 @@ export function SettingsNav({
           showDisclosure={showDisclosure}
           onClick={() => onSelectSection("dictation")}
         >
-          Dictation
+          {m.settings_nav_dictation({}, { locale })}
         </PanelNavItem>
         <PanelNavItem
           className="settings-nav"
@@ -80,7 +85,7 @@ export function SettingsNav({
           showDisclosure={showDisclosure}
           onClick={() => onSelectSection("shortcuts")}
         >
-          Shortcuts
+          {m.settings_nav_shortcuts({}, { locale })}
         </PanelNavItem>
         <PanelNavItem
           className="settings-nav"
@@ -89,7 +94,7 @@ export function SettingsNav({
           showDisclosure={showDisclosure}
           onClick={() => onSelectSection("open-apps")}
         >
-          Open in
+          {m.settings_nav_open_apps({}, { locale })}
         </PanelNavItem>
         <PanelNavItem
           className="settings-nav"
@@ -98,17 +103,19 @@ export function SettingsNav({
           showDisclosure={showDisclosure}
           onClick={() => onSelectSection("git")}
         >
-          Git
+          {m.settings_nav_git({}, { locale })}
         </PanelNavItem>
-        <PanelNavItem
-          className="settings-nav"
-          icon={<ServerCog aria-hidden />}
-          active={activeSection === "server"}
-          showDisclosure={showDisclosure}
-          onClick={() => onSelectSection("server")}
-        >
-          Server
-        </PanelNavItem>
+        {serverSectionVisible ? (
+          <PanelNavItem
+            className="settings-nav"
+            icon={<ServerCog aria-hidden />}
+            active={activeSection === "server"}
+            showDisclosure={showDisclosure}
+            onClick={() => onSelectSection("server")}
+          >
+            {m.settings_nav_server({}, { locale })}
+          </PanelNavItem>
+        ) : null}
         <PanelNavItem
           className="settings-nav"
           icon={<Bot aria-hidden />}
@@ -116,7 +123,7 @@ export function SettingsNav({
           showDisclosure={showDisclosure}
           onClick={() => onSelectSection("agents")}
         >
-          Agents
+          {m.settings_nav_agents({}, { locale })}
         </PanelNavItem>
         <PanelNavItem
           className="settings-nav"
@@ -134,7 +141,7 @@ export function SettingsNav({
           showDisclosure={showDisclosure}
           onClick={() => onSelectSection("features")}
         >
-          Features
+          {m.settings_nav_features({}, { locale })}
         </PanelNavItem>
         <PanelNavItem
           className="settings-nav"
@@ -143,7 +150,7 @@ export function SettingsNav({
           showDisclosure={showDisclosure}
           onClick={() => onSelectSection("about")}
         >
-          About
+          {m.settings_nav_about({}, { locale })}
         </PanelNavItem>
       </PanelNavList>
     </aside>

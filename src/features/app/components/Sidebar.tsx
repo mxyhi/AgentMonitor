@@ -10,6 +10,8 @@ import type {
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import type { MouseEvent, RefObject } from "react";
 import { FolderOpen } from "lucide-react";
+import * as m from "@/i18n/messages";
+import { useAppLocale } from "@/i18n/I18nProvider";
 import { SidebarBottomRail } from "./SidebarBottomRail";
 import { SidebarHeader } from "./SidebarHeader";
 import { SidebarSearchBar } from "./SidebarSearchBar";
@@ -69,13 +71,14 @@ function getThreadBucketId(timestamp: number, nowMs: number): ThreadBucket["id"]
 function groupFlatThreadRowsByTimeBucket(
   groups: FlatThreadRootGroup[],
   nowMs: number,
+  locale: ReturnType<typeof useAppLocale>,
 ): ThreadBucket[] {
   const bucketLabels: Record<ThreadBucket["id"], string> = {
-    now: "Now",
-    today: "Earlier today",
-    yesterday: "Yesterday",
-    week: "This week",
-    older: "Older",
+    now: m.sidebar_bucket_now({}, { locale }),
+    today: m.sidebar_bucket_earlier_today({}, { locale }),
+    yesterday: m.sidebar_bucket_yesterday({}, { locale }),
+    week: m.sidebar_bucket_this_week({}, { locale }),
+    older: m.sidebar_bucket_older({}, { locale }),
   };
   const order: ThreadBucket["id"][] = ["now", "today", "yesterday", "week", "older"];
   const bucketMap = new Map<ThreadBucket["id"], FlatThreadRow[]>();
@@ -217,6 +220,7 @@ export const Sidebar = memo(function Sidebar({
   onWorkspaceDragLeave,
   onWorkspaceDrop,
 }: SidebarProps) {
+  const locale = useAppLocale();
   const [expandedWorkspaces, setExpandedWorkspaces] = useState(
     new Set<string>(),
   );
@@ -674,8 +678,8 @@ export const Sidebar = memo(function Sidebar({
     [flatThreadRootGroups],
   );
   const threadBuckets = useMemo(
-    () => groupFlatThreadRowsByTimeBucket(flatThreadRootGroups, Date.now()),
-    [flatThreadRootGroups],
+    () => groupFlatThreadRowsByTimeBucket(flatThreadRootGroups, Date.now(), locale),
+    [flatThreadRootGroups, locale],
   );
 
   const scrollFadeDeps = useMemo(
@@ -716,6 +720,16 @@ export const Sidebar = memo(function Sidebar({
       ? sortedGroupedWorkspaces
       : filteredGroupedWorkspaces;
   const isThreadsOnlyMode = threadListOrganizeMode === "threads_only";
+  const localizedDropOverlayText = useMemo(() => {
+    switch (workspaceDropText) {
+      case "Drop Project Here":
+        return m.sidebar_drop_project_here({}, { locale });
+      case "Adding Project...":
+        return m.sidebar_adding_project({}, { locale });
+      default:
+        return workspaceDropText;
+    }
+  }, [locale, workspaceDropText]);
 
   const handleAllThreadsAddMenuToggle = useCallback(
     (event: MouseEvent<HTMLButtonElement>) => {
@@ -906,7 +920,7 @@ export const Sidebar = memo(function Sidebar({
           {workspaceDropText === "Drop Project Here" && (
             <FolderOpen className="workspace-drop-overlay-icon" aria-hidden />
           )}
-          {workspaceDropText}
+          {localizedDropOverlayText}
         </div>
       </div>
       <div
@@ -920,7 +934,9 @@ export const Sidebar = memo(function Sidebar({
           {pinnedThreadRows.length > 0 && (
             <div className="pinned-section">
               <div className="sidebar-section-header">
-                <div className="sidebar-section-title">Pinned conversations</div>
+                <div className="sidebar-section-title">
+                  {m.sidebar_pinned_conversations({}, { locale })}
+                </div>
                 <div className="sidebar-section-count">{pinnedRootCount}</div>
               </div>
               <PinnedThreadList
@@ -1015,15 +1031,15 @@ export const Sidebar = memo(function Sidebar({
           {!groupedWorkspacesForRender.length && (
             <div className="empty">
               {isSearchActive
-                ? "No conversations match your search."
-                : "Add a workspace to start."}
+                ? m.sidebar_empty_search({}, { locale })
+                : m.sidebar_empty_start({}, { locale })}
             </div>
           )}
           {isThreadsOnlyMode &&
             groupedWorkspacesForRender.length > 0 &&
             flatThreadRows.length === 0 &&
             pinnedThreadRows.length === 0 && (
-              <div className="empty">No conversations yet.</div>
+              <div className="empty">{m.sidebar_empty_none({}, { locale })}</div>
             )}
         </div>
       </div>

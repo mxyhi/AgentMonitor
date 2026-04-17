@@ -1,4 +1,6 @@
 import { formatRelativeTime } from "../../../utils/time";
+import { useAppLocale } from "@/i18n/I18nProvider";
+import * as m from "@/i18n/messages";
 import type { LatestAgentRun } from "../homeTypes";
 
 type HomeLatestAgentsSectionProps = {
@@ -12,10 +14,11 @@ export function HomeLatestAgentsSection({
   latestAgentRuns,
   onSelectThread,
 }: HomeLatestAgentsSectionProps) {
+  const locale = useAppLocale();
   return (
     <div className="home-latest">
       <div className="home-latest-header">
-        <div className="home-latest-label">Latest agents</div>
+        <div className="home-latest-label">{m.home_latest_agents({}, { locale })}</div>
       </div>
       {latestAgentRuns.length > 0 ? (
         <div className="home-latest-grid">
@@ -34,20 +37,23 @@ export function HomeLatestAgentsSection({
                   )}
                 </div>
                 <div className="home-latest-time">
-                  {formatRelativeTime(run.timestamp)}
+                  {formatRelativeTime(run.timestamp, locale)}
                 </div>
               </div>
               <div className="home-latest-message">
-                {run.message.trim() || "Agent replied."}
+                {run.message.trim() || m.home_latest_agent_replied({}, { locale })}
               </div>
               {run.isProcessing && (
-                <div className="home-latest-status">Running</div>
+                <div className="home-latest-status">{m.home_latest_running({}, { locale })}</div>
               )}
             </button>
           ))}
         </div>
       ) : isLoadingLatestAgents ? (
-        <div className="home-latest-grid home-latest-grid-loading" aria-label="Loading agents">
+        <div
+          className="home-latest-grid home-latest-grid-loading"
+          aria-label={m.home_latest_loading({}, { locale })}
+        >
           {Array.from({ length: 3 }).map((_, index) => (
             <div className="home-latest-card home-latest-card-skeleton" key={index}>
               <div className="home-latest-card-header">
@@ -61,9 +67,11 @@ export function HomeLatestAgentsSection({
         </div>
       ) : (
         <div className="home-latest-empty">
-          <div className="home-latest-empty-title">No agent activity yet</div>
+          <div className="home-latest-empty-title">
+            {m.home_latest_empty_title({}, { locale })}
+          </div>
           <div className="home-latest-empty-subtitle">
-            Start a thread to see the latest responses here.
+            {m.home_latest_empty_subtitle({}, { locale })}
           </div>
         </div>
       )}

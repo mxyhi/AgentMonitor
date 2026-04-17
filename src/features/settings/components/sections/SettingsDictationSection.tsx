@@ -1,4 +1,6 @@
 import type { AppSettings, DictationModelStatus } from "@/types";
+import * as m from "@/i18n/messages";
+import { useAppLocale } from "@/i18n/I18nProvider";
 import {
   SettingsSection,
   SettingsToggleRow,
@@ -40,16 +42,17 @@ export function SettingsDictationSection({
   onCancelDictationDownload,
   onRemoveDictationModel,
 }: SettingsDictationSectionProps) {
+  const locale = useAppLocale();
   const dictationProgress = dictationModelStatus?.progress ?? null;
 
   return (
     <SettingsSection
-      title="Dictation"
-      subtitle="Enable microphone dictation with on-device transcription."
+      title={m.dictation_title({}, { locale })}
+      subtitle={m.dictation_subtitle({}, { locale })}
     >
       <SettingsToggleRow
-        title="Enable dictation"
-        subtitle="Downloads the selected Whisper model on first use."
+        title={m.dictation_enable_title({}, { locale })}
+        subtitle={m.dictation_enable_subtitle({}, { locale })}
       >
         <SettingsToggleSwitch
           pressed={appSettings.dictationEnabled}
@@ -78,7 +81,7 @@ export function SettingsDictationSection({
       </SettingsToggleRow>
       <div className="settings-field">
         <label className="settings-field-label" htmlFor="dictation-model">
-          Dictation model
+          {m.dictation_model_label({}, { locale })}
         </label>
         <select
           id="dictation-model"
@@ -98,12 +101,15 @@ export function SettingsDictationSection({
           ))}
         </select>
         <div className="settings-help">
-          {selectedDictationModel.note} Download size: {selectedDictationModel.size}.
+          {m.dictation_model_help(
+            { note: selectedDictationModel.note, size: selectedDictationModel.size },
+            { locale },
+          )}
         </div>
       </div>
       <div className="settings-field">
         <label className="settings-field-label" htmlFor="dictation-language">
-          Preferred dictation language
+          {m.dictation_language_label({}, { locale })}
         </label>
         <select
           id="dictation-language"
@@ -116,33 +122,33 @@ export function SettingsDictationSection({
             })
           }
         >
-          <option value="">Auto-detect only</option>
-          <option value="en">English</option>
-          <option value="es">Spanish</option>
-          <option value="fr">French</option>
-          <option value="de">German</option>
-          <option value="it">Italian</option>
-          <option value="pt">Portuguese</option>
-          <option value="nl">Dutch</option>
-          <option value="sv">Swedish</option>
-          <option value="no">Norwegian</option>
-          <option value="da">Danish</option>
-          <option value="fi">Finnish</option>
-          <option value="pl">Polish</option>
-          <option value="tr">Turkish</option>
-          <option value="ru">Russian</option>
-          <option value="uk">Ukrainian</option>
-          <option value="ja">Japanese</option>
-          <option value="ko">Korean</option>
-          <option value="zh">Chinese</option>
+          <option value="">{m.dictation_language_auto({}, { locale })}</option>
+          <option value="en">{m.dictation_language_option_en({}, { locale })}</option>
+          <option value="es">{m.dictation_language_option_es({}, { locale })}</option>
+          <option value="fr">{m.dictation_language_option_fr({}, { locale })}</option>
+          <option value="de">{m.dictation_language_option_de({}, { locale })}</option>
+          <option value="it">{m.dictation_language_option_it({}, { locale })}</option>
+          <option value="pt">{m.dictation_language_option_pt({}, { locale })}</option>
+          <option value="nl">{m.dictation_language_option_nl({}, { locale })}</option>
+          <option value="sv">{m.dictation_language_option_sv({}, { locale })}</option>
+          <option value="no">{m.dictation_language_option_no({}, { locale })}</option>
+          <option value="da">{m.dictation_language_option_da({}, { locale })}</option>
+          <option value="fi">{m.dictation_language_option_fi({}, { locale })}</option>
+          <option value="pl">{m.dictation_language_option_pl({}, { locale })}</option>
+          <option value="tr">{m.dictation_language_option_tr({}, { locale })}</option>
+          <option value="ru">{m.dictation_language_option_ru({}, { locale })}</option>
+          <option value="uk">{m.dictation_language_option_uk({}, { locale })}</option>
+          <option value="ja">{m.dictation_language_option_ja({}, { locale })}</option>
+          <option value="ko">{m.dictation_language_option_ko({}, { locale })}</option>
+          <option value="zh">{m.dictation_language_option_zh({}, { locale })}</option>
         </select>
         <div className="settings-help">
-          Auto-detect stays on; this nudges the decoder toward your preference.
+          {m.dictation_language_help({}, { locale })}
         </div>
       </div>
       <div className="settings-field">
         <label className="settings-field-label" htmlFor="dictation-hold-key">
-          Hold-to-dictate key
+          {m.dictation_hold_key_label({}, { locale })}
         </label>
         <select
           id="dictation-hold-key"
@@ -155,25 +161,34 @@ export function SettingsDictationSection({
             })
           }
         >
-          <option value="">Off</option>
+          <option value="">{m.dictation_hold_key_off({}, { locale })}</option>
           <option value="alt">{optionKeyLabel}</option>
-          <option value="shift">Shift</option>
-          <option value="control">Control</option>
+          <option value="shift">{m.dictation_hold_key_shift({}, { locale })}</option>
+          <option value="control">{m.dictation_hold_key_control({}, { locale })}</option>
           <option value="meta">{metaKeyLabel}</option>
         </select>
         <div className="settings-help">
-          Hold the key to start dictation, release to stop and process.
+          {m.dictation_hold_key_help({}, { locale })}
         </div>
       </div>
       {dictationModelStatus && (
         <div className="settings-field">
-          <div className="settings-field-label">Model status ({selectedDictationModel.label})</div>
+          <div className="settings-field-label">
+            {m.dictation_status_label(
+              { model: selectedDictationModel.label },
+              { locale },
+            )}
+          </div>
           <div className="settings-help">
-            {dictationModelStatus.state === "ready" && "Ready for dictation."}
-            {dictationModelStatus.state === "missing" && "Model not downloaded yet."}
-            {dictationModelStatus.state === "downloading" && "Downloading model..."}
+            {dictationModelStatus.state === "ready" &&
+              m.dictation_status_ready({}, { locale })}
+            {dictationModelStatus.state === "missing" &&
+              m.dictation_status_missing({}, { locale })}
+            {dictationModelStatus.state === "downloading" &&
+              m.dictation_status_downloading({}, { locale })}
             {dictationModelStatus.state === "error" &&
-              (dictationModelStatus.error ?? "Download error.")}
+              (dictationModelStatus.error ??
+                m.dictation_status_error_default({}, { locale }))}
           </div>
           {dictationProgress && (
             <div className="settings-download-progress">
@@ -203,7 +218,7 @@ export function SettingsDictationSection({
                 onClick={onDownloadDictationModel}
                 disabled={!onDownloadDictationModel}
               >
-                Download model
+                {m.dictation_download_model({}, { locale })}
               </button>
             )}
             {dictationModelStatus.state === "downloading" && (
@@ -213,7 +228,7 @@ export function SettingsDictationSection({
                 onClick={onCancelDictationDownload}
                 disabled={!onCancelDictationDownload}
               >
-                Cancel download
+                {m.dictation_cancel_download({}, { locale })}
               </button>
             )}
             {dictationReady && (
@@ -223,7 +238,7 @@ export function SettingsDictationSection({
                 onClick={onRemoveDictationModel}
                 disabled={!onRemoveDictationModel}
               >
-                Remove model
+                {m.dictation_remove_model({}, { locale })}
               </button>
             )}
           </div>

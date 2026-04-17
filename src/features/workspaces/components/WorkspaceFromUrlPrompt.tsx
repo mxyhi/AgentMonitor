@@ -1,4 +1,6 @@
 import { useEffect, useRef } from "react";
+import * as m from "@/i18n/messages";
+import { useAppLocale } from "@/i18n/I18nProvider";
 import { ModalShell } from "../../design-system/components/modal/ModalShell";
 
 type WorkspaceFromUrlPromptProps = {
@@ -30,6 +32,7 @@ export function WorkspaceFromUrlPrompt({
   onCancel,
   onConfirm,
 }: WorkspaceFromUrlPromptProps) {
+  const locale = useAppLocale();
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -38,7 +41,7 @@ export function WorkspaceFromUrlPrompt({
 
   return (
     <ModalShell
-      ariaLabel="Add workspace from URL"
+      ariaLabel={m.workspace_from_url_title({}, { locale })}
       className="workspace-from-url-modal"
       cardClassName="workspace-from-url-modal-card"
       onBackdropClick={() => {
@@ -48,9 +51,9 @@ export function WorkspaceFromUrlPrompt({
       }}
     >
       <div className="workspace-from-url-modal-content">
-        <div className="ds-modal-title">Add workspace from URL</div>
+        <div className="ds-modal-title">{m.workspace_from_url_title({}, { locale })}</div>
         <label className="ds-modal-label" htmlFor="workspace-url-input">
-          Remote Git URL
+          {m.workspace_from_url_remote_git_url({}, { locale })}
         </label>
         <input
           id="workspace-url-input"
@@ -58,27 +61,27 @@ export function WorkspaceFromUrlPrompt({
           className="ds-modal-input"
           value={url}
           onChange={(event) => onUrlChange(event.target.value)}
-          placeholder="https://github.com/org/repo.git"
+          placeholder={m.workspace_from_url_url_placeholder({}, { locale })}
         />
         <label className="ds-modal-label" htmlFor="workspace-url-target-name">
-          Target folder name (optional)
+          {m.workspace_from_url_target_folder_name({}, { locale })}
         </label>
         <input
           id="workspace-url-target-name"
           className="ds-modal-input"
           value={targetFolderName}
           onChange={(event) => onTargetFolderNameChange(event.target.value)}
-          placeholder="Defaults to repo name"
+          placeholder={m.workspace_from_url_target_folder_placeholder({}, { locale })}
         />
         <label className="ds-modal-label" htmlFor="workspace-url-destination">
-          Destination parent folder
+          {m.workspace_from_url_destination_parent({}, { locale })}
         </label>
         <div style={{ display: "flex", gap: 8 }}>
           <textarea
             id="workspace-url-destination"
             className="ds-modal-input"
             value={destinationPath}
-            placeholder="Not set"
+            placeholder={m.clone_prompt_not_set({}, { locale })}
             readOnly
             rows={1}
             wrap="off"
@@ -105,7 +108,9 @@ export function WorkspaceFromUrlPrompt({
             onClick={onConfirm}
             disabled={isBusy || !canSubmit}
           >
-            {isBusy ? "Cloning…" : "Clone and Add"}
+            {isBusy
+              ? m.workspace_from_url_cloning({}, { locale })
+              : m.workspace_from_url_clone_and_add({}, { locale })}
           </button>
         </div>
       </div>
