@@ -16,11 +16,13 @@ import type { SettingsViewOrchestration } from "@settings/hooks/useSettingsViewO
 
 type SettingsSectionContainersProps = {
   activeSection: CodexSection;
+  serverSectionVisible: boolean;
   orchestration: SettingsViewOrchestration;
 };
 
 export function SettingsSectionContainers({
   activeSection,
+  serverSectionVisible,
   orchestration,
 }: SettingsSectionContainersProps) {
   if (activeSection === "projects") {
@@ -50,7 +52,7 @@ export function SettingsSectionContainers({
   if (activeSection === "git") {
     return <SettingsGitSection {...orchestration.gitSectionProps} />;
   }
-  if (activeSection === "server") {
+  if (activeSection === "server" && serverSectionVisible) {
     return <SettingsServerSection {...orchestration.serverSectionProps} />;
   }
   if (activeSection === "agents") {

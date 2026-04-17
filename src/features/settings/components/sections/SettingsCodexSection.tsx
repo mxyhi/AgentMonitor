@@ -1,13 +1,5 @@
 import { useEffect, useMemo, useRef } from "react";
-import Stethoscope from "lucide-react/dist/esm/icons/stethoscope";
-import type { Dispatch, SetStateAction } from "react";
-import type {
-  AppLanguage,
-  AppSettings,
-  CodexDoctorResult,
-  CodexUpdateResult,
-  ModelOption,
-} from "@/types";
+import type { AppSettings, ModelOption } from "@/types";
 import * as m from "@/i18n/messages";
 import { useAppLocale } from "@/i18n/I18nProvider";
 import {
@@ -24,20 +16,7 @@ type SettingsCodexSectionProps = {
   defaultModelsError: string | null;
   defaultModelsConnectedWorkspaceCount: number;
   onRefreshDefaultModels: () => void;
-  codexPathDraft: string;
-  codexArgsDraft: string;
-  codexDirty: boolean;
-  isSavingSettings: boolean;
-  doctorState: {
-    status: "idle" | "running" | "done";
-    result: CodexDoctorResult | null;
-  };
   globalAgentsPath: string | null;
-  codexUpdateState: {
-    status: "idle" | "running" | "done";
-    result: CodexUpdateResult | null;
-  };
-  globalConfigPath: string | null;
   globalAgentsMeta: string;
   globalAgentsError: string | null;
   globalAgentsContent: string;
@@ -45,25 +24,9 @@ type SettingsCodexSectionProps = {
   globalAgentsRefreshDisabled: boolean;
   globalAgentsSaveDisabled: boolean;
   globalAgentsSaveLabel: string;
-  globalConfigMeta: string;
-  globalConfigError: string | null;
-  globalConfigContent: string;
-  globalConfigLoading: boolean;
-  globalConfigRefreshDisabled: boolean;
-  globalConfigSaveDisabled: boolean;
-  globalConfigSaveLabel: string;
-  onSetCodexPathDraft: Dispatch<SetStateAction<string>>;
-  onSetCodexArgsDraft: Dispatch<SetStateAction<string>>;
   onSetGlobalAgentsContent: (value: string) => void;
-  onSetGlobalConfigContent: (value: string) => void;
-  onBrowseCodex: () => Promise<void>;
-  onSaveCodexSettings: () => Promise<void>;
-  onRunDoctor: () => Promise<void>;
-  onRunCodexUpdate: () => Promise<void>;
   onRefreshGlobalAgents: () => void;
   onSaveGlobalAgents: () => void;
-  onRefreshGlobalConfig: () => void;
-  onSaveGlobalConfig: () => void;
 };
 
 const DEFAULT_REASONING_EFFORT = "medium";
@@ -110,38 +73,6 @@ const getReasoningOptions = (model: ModelOption | null): string[] => {
   return fallback ? [fallback] : [];
 };
 
-const getDoctorRuntimeSourceLabel = (
-  runtimeSource: CodexDoctorResult["runtimeSource"],
-  locale: AppLanguage,
-) => {
-  switch (runtimeSource) {
-    case "custom":
-      return m.settings_codex_runtime_source_custom({}, { locale });
-    case "bundled":
-      return m.settings_codex_runtime_source_bundled({}, { locale });
-    case "path":
-      return m.settings_codex_runtime_source_path({}, { locale });
-  }
-};
-
-const getCodexUpdateMethodLabel = (
-  method: CodexUpdateResult["method"],
-  locale: AppLanguage,
-) => {
-  switch (method) {
-    case "brew_formula":
-      return m.settings_codex_method_brew_formula({}, { locale });
-    case "brew_cask":
-      return m.settings_codex_method_brew_cask({}, { locale });
-    case "npm":
-      return m.settings_codex_method_npm({}, { locale });
-    case "bundled":
-      return m.settings_codex_method_bundled({}, { locale });
-    case "unknown":
-      return m.settings_codex_method_unknown({}, { locale });
-  }
-};
-
 export function SettingsCodexSection({
   appSettings,
   onUpdateAppSettings,
@@ -150,14 +81,7 @@ export function SettingsCodexSection({
   defaultModelsError,
   defaultModelsConnectedWorkspaceCount,
   onRefreshDefaultModels,
-  codexPathDraft,
-  codexArgsDraft,
-  codexDirty,
-  isSavingSettings,
-  doctorState,
   globalAgentsPath,
-  codexUpdateState,
-  globalConfigPath,
   globalAgentsMeta,
   globalAgentsError,
   globalAgentsContent,
@@ -165,31 +89,13 @@ export function SettingsCodexSection({
   globalAgentsRefreshDisabled,
   globalAgentsSaveDisabled,
   globalAgentsSaveLabel,
-  globalConfigMeta,
-  globalConfigError,
-  globalConfigContent,
-  globalConfigLoading,
-  globalConfigRefreshDisabled,
-  globalConfigSaveDisabled,
-  globalConfigSaveLabel,
-  onSetCodexPathDraft,
-  onSetCodexArgsDraft,
   onSetGlobalAgentsContent,
-  onSetGlobalConfigContent,
-  onBrowseCodex,
-  onSaveCodexSettings,
-  onRunDoctor,
-  onRunCodexUpdate,
   onRefreshGlobalAgents,
   onSaveGlobalAgents,
-  onRefreshGlobalConfig,
-  onSaveGlobalConfig,
 }: SettingsCodexSectionProps) {
   const locale = useAppLocale();
   const globalAgentsResolvedPath =
     globalAgentsPath ?? m.settings_codex_global_agents_managed_path({}, { locale });
-  const globalConfigResolvedPath =
-    globalConfigPath ?? m.settings_codex_global_config_managed_path({}, { locale });
   const latestModelSlug = defaultModels[0]?.model ?? null;
   const savedModelSlug = useMemo(
     () => coerceSavedModelSlug(appSettings.lastComposerModelId, defaultModels),
@@ -276,193 +182,6 @@ export function SettingsCodexSection({
       title={m.settings_nav_codex({}, { locale })}
       subtitle={m.settings_codex_subtitle({}, { locale })}
     >
-      <div className="settings-field">
-        <label className="settings-field-label" htmlFor="codex-path">
-          {m.settings_codex_path_label({}, { locale })}
-        </label>
-        <div className="settings-field-row">
-          <input
-            id="codex-path"
-            className="settings-input"
-            value={codexPathDraft}
-            placeholder="codex"
-            onChange={(event) => onSetCodexPathDraft(event.target.value)}
-          />
-          <button
-            type="button"
-            className="ghost"
-            onClick={() => {
-              void onBrowseCodex();
-            }}
-          >
-            {m.action_browse({}, { locale })}
-          </button>
-          <button
-            type="button"
-            className="ghost"
-            onClick={() => onSetCodexPathDraft("")}
-          >
-            {m.settings_codex_use_path({}, { locale })}
-          </button>
-        </div>
-        <div className="settings-help">{m.settings_codex_path_help({}, { locale })}</div>
-        <label className="settings-field-label" htmlFor="codex-args">
-          {m.settings_codex_args_label({}, { locale })}
-        </label>
-        <div className="settings-field-row">
-          <input
-            id="codex-args"
-            className="settings-input"
-            value={codexArgsDraft}
-            placeholder="--profile personal"
-            onChange={(event) => onSetCodexArgsDraft(event.target.value)}
-          />
-          <button
-            type="button"
-            className="ghost"
-            onClick={() => onSetCodexArgsDraft("")}
-          >
-            {m.action_clear({}, { locale })}
-          </button>
-        </div>
-        <div className="settings-help">
-          {m.settings_codex_args_help({}, { locale })}
-        </div>
-        <div className="settings-help">
-          {m.settings_codex_shared_help({}, { locale })}
-        </div>
-        <div className="settings-help">
-          {m.settings_codex_unsupported_flags_help({}, { locale })}
-        </div>
-        <div className="settings-field-actions">
-          {codexDirty && (
-            <button
-              type="button"
-              className="primary"
-              onClick={() => {
-                void onSaveCodexSettings();
-              }}
-              disabled={isSavingSettings}
-            >
-              {isSavingSettings
-                ? m.action_saving({}, { locale })
-                : m.action_save({}, { locale })}
-            </button>
-          )}
-          <button
-            type="button"
-            className="ghost settings-button-compact"
-            onClick={() => {
-              void onRunDoctor();
-            }}
-            disabled={doctorState.status === "running"}
-          >
-            <Stethoscope aria-hidden />
-            {doctorState.status === "running"
-              ? m.settings_codex_running_doctor({}, { locale })
-              : m.settings_codex_run_doctor({}, { locale })}
-          </button>
-          <button
-            type="button"
-            className="ghost settings-button-compact"
-            onClick={() => {
-              void onRunCodexUpdate();
-            }}
-            disabled={codexUpdateState.status === "running"}
-            title={m.settings_codex_update_title({}, { locale })}
-          >
-            <Stethoscope aria-hidden />
-            {codexUpdateState.status === "running"
-              ? m.settings_codex_updating({}, { locale })
-              : m.settings_codex_update({}, { locale })}
-          </button>
-        </div>
-
-        {doctorState.result && (
-          <div className={`settings-doctor ${doctorState.result.ok ? "ok" : "error"}`}>
-            <div className="settings-doctor-title">
-              {doctorState.result.ok
-                ? m.settings_codex_doctor_ok({}, { locale })
-                : m.settings_codex_doctor_issue({}, { locale })}
-            </div>
-            <div className="settings-doctor-body">
-              <div>
-                {m.settings_codex_source({}, { locale })}:{" "}
-                {getDoctorRuntimeSourceLabel(doctorState.result.runtimeSource, locale)}
-              </div>
-              <div>
-                {m.settings_codex_version({}, { locale })}:{" "}
-                {doctorState.result.version ?? m.settings_codex_unknown({}, { locale })}
-              </div>
-              <div>
-                {m.settings_codex_app_server({}, { locale })}:{" "}
-                {doctorState.result.appServerOk
-                  ? m.settings_codex_status_ok({}, { locale })
-                  : m.settings_codex_status_failed({}, { locale })}
-              </div>
-              <div>
-                {m.settings_codex_node({}, { locale })}:{" "}
-                {doctorState.result.runtimeSource === "bundled"
-                  ? m.settings_codex_node_not_required({}, { locale })
-                  : doctorState.result.nodeOk
-                    ? doctorState.result.nodeVersion
-                      ? m.settings_codex_status_ok_with_version(
-                          { version: doctorState.result.nodeVersion },
-                          { locale },
-                        )
-                      : m.settings_codex_status_ok({}, { locale })
-                    : m.settings_codex_node_missing({}, { locale })}
-              </div>
-              {doctorState.result.details && <div>{doctorState.result.details}</div>}
-              {doctorState.result.nodeDetails && <div>{doctorState.result.nodeDetails}</div>}
-              {doctorState.result.path && (
-                <div className="settings-doctor-path">PATH: {doctorState.result.path}</div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {codexUpdateState.result && (
-          <div
-            className={`settings-doctor ${codexUpdateState.result.ok ? "ok" : "error"}`}
-          >
-            <div className="settings-doctor-title">
-              {codexUpdateState.result.ok
-                ? codexUpdateState.result.upgraded
-                  ? m.settings_codex_updated({}, { locale })
-                  : m.settings_codex_up_to_date({}, { locale })
-                : m.settings_codex_update_failed({}, { locale })}
-            </div>
-            <div className="settings-doctor-body">
-              <div>
-                {m.settings_codex_method({}, { locale })}:{" "}
-                {getCodexUpdateMethodLabel(codexUpdateState.result.method, locale)}
-              </div>
-              {codexUpdateState.result.package && (
-                <div>
-                  {m.settings_codex_package({}, { locale })}:{" "}
-                  {codexUpdateState.result.package}
-                </div>
-              )}
-              <div>
-                {m.settings_codex_version({}, { locale })}:{" "}
-                {codexUpdateState.result.afterVersion ??
-                  codexUpdateState.result.beforeVersion ??
-                  m.settings_codex_unknown({}, { locale })}
-              </div>
-              {codexUpdateState.result.details && <div>{codexUpdateState.result.details}</div>}
-              {codexUpdateState.result.output && (
-                <details>
-                  <summary>{m.settings_codex_output({}, { locale })}</summary>
-                  <pre>{codexUpdateState.result.output}</pre>
-                </details>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
-
-      <div className="settings-divider" />
       <div className="settings-field-label settings-field-label--section">
         {m.settings_codex_default_parameters({}, { locale })}
       </div>
@@ -601,7 +320,7 @@ export function SettingsCodexSection({
       </div>
 
       <FileEditorCard
-        title={m.settings_codex_global_agents_title({}, { locale })}
+        title="AGENTS.md"
         meta={globalAgentsMeta}
         error={globalAgentsError}
         value={globalAgentsContent}
@@ -620,41 +339,6 @@ export function SettingsCodexSection({
               { locale },
             )}{" "}
             <code>{globalAgentsResolvedPath}</code>.
-          </>
-        }
-        classNames={{
-          container: "settings-field settings-agents",
-          header: "settings-agents-header",
-          title: "settings-field-label",
-          actions: "settings-agents-actions",
-          meta: "settings-help settings-help-inline",
-          iconButton: "ghost settings-icon-button",
-          error: "settings-agents-error",
-          textarea: "settings-agents-textarea",
-          help: "settings-help",
-        }}
-      />
-
-      <FileEditorCard
-        title={m.settings_codex_global_config_title({}, { locale })}
-        meta={globalConfigMeta}
-        error={globalConfigError}
-        value={globalConfigContent}
-        placeholder={m.settings_codex_global_config_placeholder({}, { locale })}
-        disabled={globalConfigLoading}
-        refreshDisabled={globalConfigRefreshDisabled}
-        saveDisabled={globalConfigSaveDisabled}
-        saveLabel={globalConfigSaveLabel}
-        onChange={onSetGlobalConfigContent}
-        onRefresh={onRefreshGlobalConfig}
-        onSave={onSaveGlobalConfig}
-        helpText={
-          <>
-            {m.settings_codex_global_config_help(
-              { path: globalConfigResolvedPath },
-              { locale },
-            )}{" "}
-            <code>{globalConfigResolvedPath}</code>.
           </>
         }
         classNames={{

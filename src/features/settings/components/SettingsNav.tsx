@@ -19,12 +19,14 @@ import type { CodexSection } from "./settingsTypes";
 type SettingsNavProps = {
   activeSection: CodexSection;
   onSelectSection: (section: CodexSection) => void;
+  serverSectionVisible: boolean;
   showDisclosure?: boolean;
 };
 
 export function SettingsNav({
   activeSection,
   onSelectSection,
+  serverSectionVisible,
   showDisclosure = false,
 }: SettingsNavProps) {
   const locale = useAppLocale();
@@ -103,15 +105,17 @@ export function SettingsNav({
         >
           {m.settings_nav_git({}, { locale })}
         </PanelNavItem>
-        <PanelNavItem
-          className="settings-nav"
-          icon={<ServerCog aria-hidden />}
-          active={activeSection === "server"}
-          showDisclosure={showDisclosure}
-          onClick={() => onSelectSection("server")}
-        >
-          {m.settings_nav_server({}, { locale })}
-        </PanelNavItem>
+        {serverSectionVisible ? (
+          <PanelNavItem
+            className="settings-nav"
+            icon={<ServerCog aria-hidden />}
+            active={activeSection === "server"}
+            showDisclosure={showDisclosure}
+            onClick={() => onSelectSection("server")}
+          >
+            {m.settings_nav_server({}, { locale })}
+          </PanelNavItem>
+        ) : null}
         <PanelNavItem
           className="settings-nav"
           icon={<Bot aria-hidden />}

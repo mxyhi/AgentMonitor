@@ -28,6 +28,17 @@ export type CodexSection =
   | SettingsSection
   | (typeof SETTINGS_EXTRA_SECTION_IDS)[number];
 
+// Temporarily hide server settings while the embedded runtime UX is being simplified.
+export function normalizeCodexSection(
+  section: CodexSection | undefined,
+  serverSectionVisible: boolean,
+): CodexSection | undefined {
+  if (section === "server" && !serverSectionVisible) {
+    return "projects";
+  }
+  return section;
+}
+
 export type ShortcutSettingKey =
   | "composerModelShortcut"
   | "composerAccessShortcut"

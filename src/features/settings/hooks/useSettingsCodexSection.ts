@@ -1,18 +1,9 @@
 import { useEffect, useState } from "react";
-import type { Dispatch, SetStateAction } from "react";
-import { open } from "@tauri-apps/plugin-dialog";
-import type {
-  AppSettings,
-  CodexDoctorResult,
-  CodexUpdateResult,
-  WorkspaceInfo,
-} from "@/types";
+import type { AppSettings, CodexDoctorResult, CodexUpdateResult, WorkspaceInfo } from "@/types";
 import { getCodexConfigPath } from "@services/tauri";
 import { useGlobalAgentsMd } from "./useGlobalAgentsMd";
-import { useGlobalCodexConfigToml } from "./useGlobalCodexConfigToml";
 import { useSettingsDefaultModels } from "./useSettingsDefaultModels";
 import { buildEditorContentMeta } from "@settings/components/settingsViewHelpers";
-import { normalizeCodexArgsInput } from "@/utils/codexArgsInput";
 
 type UseSettingsCodexSectionArgs = {
   appSettings: AppSettings;
@@ -36,20 +27,7 @@ export type SettingsCodexSectionProps = {
   defaultModelsError: string | null;
   defaultModelsConnectedWorkspaceCount: number;
   onRefreshDefaultModels: () => void;
-  codexPathDraft: string;
-  codexArgsDraft: string;
-  codexDirty: boolean;
-  isSavingSettings: boolean;
-  doctorState: {
-    status: "idle" | "running" | "done";
-    result: CodexDoctorResult | null;
-  };
   globalAgentsPath: string | null;
-  codexUpdateState: {
-    status: "idle" | "running" | "done";
-    result: CodexUpdateResult | null;
-  };
-  globalConfigPath: string | null;
   globalAgentsMeta: string;
   globalAgentsError: string | null;
   globalAgentsContent: string;
@@ -57,25 +35,9 @@ export type SettingsCodexSectionProps = {
   globalAgentsRefreshDisabled: boolean;
   globalAgentsSaveDisabled: boolean;
   globalAgentsSaveLabel: string;
-  globalConfigMeta: string;
-  globalConfigError: string | null;
-  globalConfigContent: string;
-  globalConfigLoading: boolean;
-  globalConfigRefreshDisabled: boolean;
-  globalConfigSaveDisabled: boolean;
-  globalConfigSaveLabel: string;
-  onSetCodexPathDraft: Dispatch<SetStateAction<string>>;
-  onSetCodexArgsDraft: Dispatch<SetStateAction<string>>;
   onSetGlobalAgentsContent: (value: string) => void;
-  onSetGlobalConfigContent: (value: string) => void;
-  onBrowseCodex: () => Promise<void>;
-  onSaveCodexSettings: () => Promise<void>;
-  onRunDoctor: () => Promise<void>;
-  onRunCodexUpdate: () => Promise<void>;
   onRefreshGlobalAgents: () => void;
   onSaveGlobalAgents: () => void;
-  onRefreshGlobalConfig: () => void;
-  onSaveGlobalConfig: () => void;
 };
 
 function parentDir(path: string): string | null {
@@ -104,21 +66,10 @@ export const useSettingsCodexSection = ({
   appSettings,
   projects,
   onUpdateAppSettings,
-  onRunDoctor,
-  onRunCodexUpdate,
+  onRunDoctor: _onRunDoctor,
+  onRunCodexUpdate: _onRunCodexUpdate,
 }: UseSettingsCodexSectionArgs): SettingsCodexSectionProps => {
-  const [codexPathDraft, setCodexPathDraft] = useState(appSettings.codexBin ?? "");
-  const [codexArgsDraft, setCodexArgsDraft] = useState(appSettings.codexArgs ?? "");
-  const [isSavingSettings, setIsSavingSettings] = useState(false);
-  const [doctorState, setDoctorState] = useState<{
-    status: "idle" | "running" | "done";
-    result: CodexDoctorResult | null;
-  }>({ status: "idle", result: null });
   const [globalConfigPath, setGlobalConfigPath] = useState<string | null>(null);
-  const [codexUpdateState, setCodexUpdateState] = useState<{
-    status: "idle" | "running" | "done";
-    result: CodexUpdateResult | null;
-  }>({ status: "idle", result: null });
 
   const {
     models: defaultModels,
@@ -141,19 +92,6 @@ export const useSettingsCodexSection = ({
     save: saveGlobalAgents,
   } = useGlobalAgentsMd();
 
-  const {
-    content: globalConfigContent,
-    exists: globalConfigExists,
-    truncated: globalConfigTruncated,
-    isLoading: globalConfigLoading,
-    isSaving: globalConfigSaving,
-    error: globalConfigError,
-    isDirty: globalConfigDirty,
-    setContent: setGlobalConfigContent,
-    refresh: refreshGlobalConfig,
-    save: saveGlobalConfig,
-  } = useGlobalCodexConfigToml();
-
   const globalAgentsEditorMeta = buildEditorContentMeta({
     isLoading: globalAgentsLoading,
     isSaving: globalAgentsSaving,
@@ -161,22 +99,6 @@ export const useSettingsCodexSection = ({
     truncated: globalAgentsTruncated,
     isDirty: globalAgentsDirty,
   });
-
-  const globalConfigEditorMeta = buildEditorContentMeta({
-    isLoading: globalConfigLoading,
-    isSaving: globalConfigSaving,
-    exists: globalConfigExists,
-    truncated: globalConfigTruncated,
-    isDirty: globalConfigDirty,
-  });
-
-  useEffect(() => {
-    setCodexPathDraft(appSettings.codexBin ?? "");
-  }, [appSettings.codexBin]);
-
-  useEffect(() => {
-    setCodexArgsDraft(appSettings.codexArgs ?? "");
-  }, [appSettings.codexArgs]);
 
   useEffect(() => {
     let cancelled = false;
@@ -196,12 +118,6 @@ export const useSettingsCodexSection = ({
       cancelled = true;
     };
   }, []);
-
-  const nextCodexBin = codexPathDraft.trim() ? codexPathDraft.trim() : null;
-  const nextCodexArgs = normalizeCodexArgsInput(codexArgsDraft);
-  const codexDirty =
-    nextCodexBin !== (appSettings.codexBin ?? null) ||
-    nextCodexArgs !== (appSettings.codexArgs ?? null);
   const globalAgentsPath = (() => {
     const directory = globalConfigPath ? parentDir(globalConfigPath) : null;
     if (!directory) {
@@ -209,90 +125,6 @@ export const useSettingsCodexSection = ({
     }
     return joinPath(directory, "AGENTS.md");
   })();
-
-  const handleBrowseCodex = async () => {
-    const selection = await open({ multiple: false, directory: false });
-    if (!selection || Array.isArray(selection)) {
-      return;
-    }
-    setCodexPathDraft(selection);
-  };
-
-  const handleSaveCodexSettings = async () => {
-    setIsSavingSettings(true);
-    try {
-      await onUpdateAppSettings({
-        ...appSettings,
-        codexBin: nextCodexBin,
-        codexArgs: nextCodexArgs,
-      });
-    } finally {
-      setIsSavingSettings(false);
-    }
-  };
-
-  const handleRunDoctor = async () => {
-    setDoctorState({ status: "running", result: null });
-    try {
-      const result = await onRunDoctor(nextCodexBin, nextCodexArgs);
-      setDoctorState({ status: "done", result });
-    } catch (error) {
-      setDoctorState({
-        status: "done",
-        result: {
-          ok: false,
-          codexBin: nextCodexBin,
-          runtimeSource: nextCodexBin ? "custom" : "path",
-          version: null,
-          appServerOk: false,
-          details: error instanceof Error ? error.message : String(error),
-          path: null,
-          nodeOk: false,
-          nodeVersion: null,
-          nodeDetails: null,
-        },
-      });
-    }
-  };
-
-  const handleRunCodexUpdate = async () => {
-    setCodexUpdateState({ status: "running", result: null });
-    try {
-      if (!onRunCodexUpdate) {
-        setCodexUpdateState({
-          status: "done",
-          result: {
-            ok: false,
-            method: "unknown",
-            package: null,
-            beforeVersion: null,
-            afterVersion: null,
-            upgraded: false,
-            output: null,
-            details: "Codex updates are not available in this build.",
-          },
-        });
-        return;
-      }
-
-      const result = await onRunCodexUpdate(nextCodexBin, nextCodexArgs);
-      setCodexUpdateState({ status: "done", result });
-    } catch (error) {
-      setCodexUpdateState({
-        status: "done",
-        result: {
-          ok: false,
-          method: "unknown",
-          package: null,
-          beforeVersion: null,
-          afterVersion: null,
-          upgraded: false,
-          output: null,
-          details: error instanceof Error ? error.message : String(error),
-        },
-      });
-    }
-  };
 
   return {
     appSettings,
@@ -304,14 +136,7 @@ export const useSettingsCodexSection = ({
     onRefreshDefaultModels: () => {
       void refreshDefaultModels();
     },
-    codexPathDraft,
-    codexArgsDraft,
-    codexDirty,
-    isSavingSettings,
-    doctorState,
     globalAgentsPath,
-    codexUpdateState,
-    globalConfigPath,
     globalAgentsMeta: globalAgentsEditorMeta.meta,
     globalAgentsError,
     globalAgentsContent,
@@ -319,32 +144,12 @@ export const useSettingsCodexSection = ({
     globalAgentsRefreshDisabled: globalAgentsEditorMeta.refreshDisabled,
     globalAgentsSaveDisabled: globalAgentsEditorMeta.saveDisabled,
     globalAgentsSaveLabel: globalAgentsEditorMeta.saveLabel,
-    globalConfigMeta: globalConfigEditorMeta.meta,
-    globalConfigError,
-    globalConfigContent,
-    globalConfigLoading,
-    globalConfigRefreshDisabled: globalConfigEditorMeta.refreshDisabled,
-    globalConfigSaveDisabled: globalConfigEditorMeta.saveDisabled,
-    globalConfigSaveLabel: globalConfigEditorMeta.saveLabel,
-    onSetCodexPathDraft: setCodexPathDraft,
-    onSetCodexArgsDraft: setCodexArgsDraft,
     onSetGlobalAgentsContent: setGlobalAgentsContent,
-    onSetGlobalConfigContent: setGlobalConfigContent,
-    onBrowseCodex: handleBrowseCodex,
-    onSaveCodexSettings: handleSaveCodexSettings,
-    onRunDoctor: handleRunDoctor,
-    onRunCodexUpdate: handleRunCodexUpdate,
     onRefreshGlobalAgents: () => {
       void refreshGlobalAgents();
     },
     onSaveGlobalAgents: () => {
       void saveGlobalAgents();
-    },
-    onRefreshGlobalConfig: () => {
-      void refreshGlobalConfig();
-    },
-    onSaveGlobalConfig: () => {
-      void saveGlobalConfig();
     },
   };
 };

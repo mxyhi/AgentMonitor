@@ -1,6 +1,11 @@
 import type { AppLanguage, AppSettings } from "@/types";
 import * as m from "@/i18n/messages";
-import type { CodexSection, ShortcutDraftKey, ShortcutSettingKey } from "./settingsTypes";
+import {
+  normalizeCodexSection,
+  type CodexSection,
+  type ShortcutDraftKey,
+  type ShortcutSettingKey,
+} from "./settingsTypes";
 
 export function getDictationModels(locale: AppLanguage) {
   return [
@@ -100,8 +105,13 @@ export const COMPOSER_PRESET_CONFIGS: Record<
 export const SETTINGS_MOBILE_BREAKPOINT_PX = 720;
 export const DEFAULT_REMOTE_HOST = "127.0.0.1:4732";
 
-export function getSettingsSectionLabel(section: CodexSection, locale: AppLanguage): string {
-  switch (section) {
+export function getSettingsSectionLabel(
+  section: CodexSection,
+  locale: AppLanguage,
+  serverSectionVisible = true,
+): string {
+  const normalizedSection = normalizeCodexSection(section, serverSectionVisible);
+  switch (normalizedSection) {
     case "projects":
       return m.settings_nav_projects({}, { locale });
     case "environments":
@@ -129,6 +139,7 @@ export function getSettingsSectionLabel(section: CodexSection, locale: AppLangua
     case "features":
       return m.settings_nav_features({}, { locale });
   }
+  return m.settings_nav_projects({}, { locale });
 }
 
 export const SHORTCUT_DRAFT_KEY_BY_SETTING: Record<

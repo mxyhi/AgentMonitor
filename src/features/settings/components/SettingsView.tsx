@@ -1,7 +1,9 @@
+import { useEffect, useState } from "react";
 import ChevronLeft from "lucide-react/dist/esm/icons/chevron-left";
 import X from "lucide-react/dist/esm/icons/x";
 import * as m from "@/i18n/messages";
 import { useAppLocale } from "@/i18n/I18nProvider";
+import { getAppBuildType, type AppBuildType } from "@services/tauri";
 import type {
   AppSettings,
   CodexDoctorResult,
@@ -102,13 +104,35 @@ export function SettingsView({
   initialSection,
 }: SettingsViewProps) {
   const locale = useAppLocale();
+  const [appBuildType, setAppBuildType] = useState<AppBuildType | "unknown">("unknown");
+  const serverSectionVisible = appBuildType === "debug";
+
+  useEffect(() => {
+    let active = true;
+    void (async () => {
+      try {
+        const value = await getAppBuildType();
+        if (active) {
+          setAppBuildType(value);
+        }
+      } catch {
+        if (active) {
+          setAppBuildType("unknown");
+        }
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const {
     activeSection,
     showMobileDetail,
     setShowMobileDetail,
     useMobileMasterDetail,
     handleSelectSection,
-  } = useSettingsViewNavigation({ initialSection });
+  } = useSettingsViewNavigation({ initialSection, serverSectionVisible });
 
   const orchestration = useSettingsViewOrchestration({
     workspaceGroups,
@@ -143,7 +167,11 @@ export function SettingsView({
 
   useSettingsViewCloseShortcuts(onClose);
 
-  const activeSectionLabel = getSettingsSectionLabel(activeSection, locale);
+  const activeSectionLabel = getSettingsSectionLabel(
+    activeSection,
+    locale,
+    serverSectionVisible,
+  );
   const settingsBodyClassName = `settings-body${
     useMobileMasterDetail ? " settings-body-mobile-master-detail" : ""
   }${useMobileMasterDetail && showMobileDetail ? " is-detail-visible" : ""}`;
@@ -174,6 +202,7 @@ export function SettingsView({
             <SettingsNav
               activeSection={activeSection}
               onSelectSection={handleSelectSection}
+              serverSectionVisible={serverSectionVisible}
               showDisclosure={useMobileMasterDetail}
             />
           </div>
@@ -197,6 +226,7 @@ export function SettingsView({
             <div className="settings-content">
               <SettingsSectionContainers
                 activeSection={activeSection}
+                serverSectionVisible={serverSectionVisible}
                 orchestration={orchestration}
               />
             </div>
