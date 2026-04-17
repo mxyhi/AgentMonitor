@@ -13,6 +13,7 @@ type UseThreadItemEventsOptions = {
   dispatch: Dispatch<ThreadAction>;
   getCustomName: (workspaceId: string, threadId: string) => string | undefined;
   markProcessing: (threadId: string, isProcessing: boolean) => void;
+  shouldMarkProcessingFromItemEvent?: (threadId: string) => boolean;
   markReviewing: (threadId: string, isReviewing: boolean) => void;
   safeMessageActivity: () => void;
   recordThreadActivity: (
@@ -42,6 +43,7 @@ export function useThreadItemEvents({
   dispatch,
   getCustomName,
   markProcessing,
+  shouldMarkProcessingFromItemEvent,
   markReviewing,
   safeMessageActivity,
   recordThreadActivity,
@@ -58,7 +60,10 @@ export function useThreadItemEvents({
       shouldMarkProcessing: boolean,
     ) => {
       dispatch({ type: "ensureThread", workspaceId, threadId });
-      if (shouldMarkProcessing) {
+      if (
+        shouldMarkProcessing &&
+        (shouldMarkProcessingFromItemEvent?.(threadId) ?? true)
+      ) {
         markProcessing(threadId, true);
       }
       applyCollabThreadLinks(workspaceId, threadId, item);
@@ -107,11 +112,13 @@ export function useThreadItemEvents({
 
   const handleToolOutputDelta = useCallback(
     (threadId: string, itemId: string, delta: string) => {
-      markProcessing(threadId, true);
+      if (shouldMarkProcessingFromItemEvent?.(threadId) ?? true) {
+        markProcessing(threadId, true);
+      }
       dispatch({ type: "appendToolOutput", threadId, itemId, delta });
       safeMessageActivity();
     },
-    [dispatch, markProcessing, safeMessageActivity],
+    [dispatch, markProcessing, safeMessageActivity, shouldMarkProcessingFromItemEvent],
   );
 
   const handleTerminalInteraction = useCallback(
@@ -139,7 +146,9 @@ export function useThreadItemEvents({
       delta: string;
     }) => {
       dispatch({ type: "ensureThread", workspaceId, threadId });
-      markProcessing(threadId, true);
+      if (shouldMarkProcessingFromItemEvent?.(threadId) ?? true) {
+        markProcessing(threadId, true);
+      }
       const hasCustomName = Boolean(getCustomName(workspaceId, threadId));
       dispatch({
         type: "appendAgentDelta",
@@ -150,7 +159,7 @@ export function useThreadItemEvents({
         hasCustomName,
       });
     },
-    [dispatch, getCustomName, markProcessing],
+    [dispatch, getCustomName, markProcessing, shouldMarkProcessingFromItemEvent],
   );
 
   const onAgentMessageCompleted = useCallback(

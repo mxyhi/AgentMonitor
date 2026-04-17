@@ -117,6 +117,7 @@ export function useThreads({
   const itemsByThreadRef = useRef(state.itemsByThread);
   const threadsByWorkspaceRef = useRef(state.threadsByWorkspace);
   const activeTurnIdByThreadRef = useRef(state.activeTurnIdByThread);
+  const threadStatusByIdRef = useRef(state.threadStatusById);
   const subagentThreadByWorkspaceThreadRef = useRef<Record<string, true>>({});
   const threadParentByIdRef = useRef(state.threadParentById);
   const cascadeArchiveSkipRef = useRef<Record<string, number>>({});
@@ -125,6 +126,7 @@ export function useThreads({
   itemsByThreadRef.current = state.itemsByThread;
   threadsByWorkspaceRef.current = state.threadsByWorkspace;
   activeTurnIdByThreadRef.current = state.activeTurnIdByThread;
+  threadStatusByIdRef.current = state.threadStatusById;
   threadParentByIdRef.current = state.threadParentById;
   const rateLimitsByWorkspaceRef = useRef(state.rateLimitsByWorkspace);
   rateLimitsByWorkspaceRef.current = state.rateLimitsByWorkspace;
@@ -278,6 +280,18 @@ export function useThreads({
     [],
   );
 
+  const shouldMarkProcessingFromItemEvent = useCallback((threadId: string) => {
+    const activeTurnId = activeTurnIdByThreadRef.current[threadId] ?? null;
+    if (activeTurnId) {
+      return true;
+    }
+    const threadStatus = threadStatusByIdRef.current[threadId];
+    if (!threadStatus) {
+      return true;
+    }
+    return threadStatus.isProcessing === true;
+  }, []);
+
   const { registerDetachedReviewChild, handleReviewExited } =
     useDetachedReviewTracking({
       activeThreadId,
@@ -416,6 +430,7 @@ export function useThreads({
     isThreadHidden,
     setThreadLoaded,
     markProcessing,
+    shouldMarkProcessingFromItemEvent,
     markReviewing,
     setActiveTurnId,
     getActiveTurnId,

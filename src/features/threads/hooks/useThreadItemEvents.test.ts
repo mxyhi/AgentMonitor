@@ -13,6 +13,7 @@ type ItemPayload = Record<string, unknown>;
 type SetupOverrides = {
   activeThreadId?: string | null;
   getCustomName?: (workspaceId: string, threadId: string) => string | undefined;
+  shouldMarkProcessingFromItemEvent?: (threadId: string) => boolean;
   onUserMessageCreated?: (workspaceId: string, threadId: string, text: string) => void;
   onReviewExited?: (workspaceId: string, threadId: string) => void;
 };
@@ -33,6 +34,7 @@ const makeOptions = (overrides: SetupOverrides = {}) => {
       dispatch,
       getCustomName,
       markProcessing,
+      shouldMarkProcessingFromItemEvent: overrides.shouldMarkProcessingFromItemEvent,
       markReviewing,
       safeMessageActivity,
       recordThreadActivity,
@@ -238,6 +240,39 @@ describe("useThreadItemEvents", () => {
       itemId: "assistant-1",
       delta: "Hello",
       hasCustomName: false,
+    });
+  });
+
+  it("does not re-open processing when item events are outside the live turn window", () => {
+    const { result, dispatch, markProcessing } = makeOptions({
+      shouldMarkProcessingFromItemEvent: () => false,
+    });
+
+    act(() => {
+      result.current.onAgentMessageDelta({
+        workspaceId: "ws-1",
+        threadId: "thread-1",
+        itemId: "assistant-1",
+        delta: "Late hello",
+      });
+      result.current.onCommandOutputDelta("ws-1", "thread-1", "tool-1", "Late output");
+      result.current.onItemStarted("ws-1", "thread-1", { type: "agentMessage", id: "item-1" });
+    });
+
+    expect(markProcessing).not.toHaveBeenCalledWith("thread-1", true);
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "appendAgentDelta",
+      workspaceId: "ws-1",
+      threadId: "thread-1",
+      itemId: "assistant-1",
+      delta: "Late hello",
+      hasCustomName: false,
+    });
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "appendToolOutput",
+      threadId: "thread-1",
+      itemId: "tool-1",
+      delta: "Late output",
     });
   });
 
