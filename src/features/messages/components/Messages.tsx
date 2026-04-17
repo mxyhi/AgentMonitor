@@ -1,4 +1,6 @@
 import { memo, useCallback } from "react";
+import * as m from "@/i18n/messages";
+import { useAppLocale } from "@/i18n/I18nProvider";
 import ChevronDown from "lucide-react/dist/esm/icons/chevron-down";
 import ChevronUp from "lucide-react/dist/esm/icons/chevron-up";
 import type {
@@ -71,6 +73,7 @@ export const Messages = memo(function Messages({
   onOpenThreadLink,
   onQuoteMessage,
 }: MessagesProps) {
+  const locale = useAppLocale();
   const activeUserInputRequestId =
     threadId && userInputRequests.length
       ? (userInputRequests.find(
@@ -294,14 +297,16 @@ export const Messages = memo(function Messages({
         />
         {!items.length && !userInputNode && !isThinking && !isLoadingMessages && (
           <div className="empty messages-empty">
-            {threadId ? "Send a prompt to the agent." : "Send a prompt to start a new agent."}
+            {threadId
+              ? m.messages_empty_existing_agent({}, { locale })
+              : m.messages_empty_new_agent({}, { locale })}
           </div>
         )}
         {!items.length && !userInputNode && !isThinking && isLoadingMessages && (
           <div className="empty messages-empty">
             <div className="messages-loading-indicator" role="status" aria-live="polite">
               <span className="working-spinner" aria-hidden />
-              <span className="messages-loading-label">Loading…</span>
+              <span className="messages-loading-label">{m.common_loading({}, { locale })}</span>
             </div>
           </div>
         )}

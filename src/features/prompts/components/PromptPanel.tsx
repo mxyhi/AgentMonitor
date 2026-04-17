@@ -20,6 +20,8 @@ import MoreHorizontal from "lucide-react/dist/esm/icons/more-horizontal";
 import Plus from "lucide-react/dist/esm/icons/plus";
 import ScrollText from "lucide-react/dist/esm/icons/scroll-text";
 import Search from "lucide-react/dist/esm/icons/search";
+import * as m from "@/i18n/messages";
+import { useAppLocale } from "@/i18n/I18nProvider";
 
 type PromptPanelProps = {
   prompts: CustomPromptOption[];
@@ -85,6 +87,7 @@ export function PromptPanel({
   onRevealGeneralPrompts,
   canRevealGeneralPrompts,
 }: PromptPanelProps) {
+  const locale = useAppLocale();
   const [query, setQuery] = useState("");
   const [argsByPrompt, setArgsByPrompt] = useState<Record<string, string>>({});
   const [editor, setEditor] = useState<PromptEditorState | null>(null);
@@ -214,11 +217,11 @@ export function PromptPanel({
     }
     const name = editor.name.trim();
     if (!name) {
-      setEditorError("Name is required.");
+      setEditorError(m.prompt_panel_name_required({}, { locale }));
       return;
     }
     if (/\s/.test(name)) {
-      setEditorError("Name cannot include whitespace.");
+      setEditorError(m.prompt_panel_name_whitespace({}, { locale }));
       return;
     }
     setEditorError(null);
@@ -298,15 +301,18 @@ export function PromptPanel({
     const menu = await Menu.new({
       items: [
         await MenuItem.new({
-          text: "Edit",
+          text: m.action_edit({}, { locale }),
           action: () => startEdit(prompt),
         }),
         await MenuItem.new({
-          text: `Move to ${nextScope === "workspace" ? "workspace" : "general"}`,
+          text:
+            nextScope === "workspace"
+              ? m.prompt_panel_move_to_workspace({}, { locale })
+              : m.prompt_panel_move_to_general({}, { locale }),
           action: () => void handleMove(prompt, nextScope),
         }),
         await MenuItem.new({
-          text: "Delete",
+          text: m.action_delete({}, { locale }),
           action: () => handleDeleteRequest(prompt),
         }),
       ],
@@ -337,10 +343,10 @@ export function PromptPanel({
             <input
               className="prompt-args-input"
               type="text"
-              placeholder={hint ?? "Arguments"}
+              placeholder={hint ?? m.prompt_panel_arguments_placeholder({}, { locale })}
               value={argsValue}
               onChange={(event) => handleArgsChange(key, event.target.value)}
-              aria-label={`Arguments for ${prompt.name}`}
+              aria-label={m.prompt_panel_arguments_for({ name: prompt.name }, { locale })}
             />
           ) : null}
           <button
@@ -353,9 +359,9 @@ export function PromptPanel({
               }
               void onSendPrompt(text);
             }}
-            title="Send to current agent"
+            title={m.prompt_panel_send_current_agent({}, { locale })}
           >
-            Send
+            {m.prompt_panel_send({}, { locale })}
           </button>
           <button
             type="button"
@@ -367,36 +373,36 @@ export function PromptPanel({
               }
               void onSendPromptToNewAgent(text);
             }}
-            title="Send to a new agent"
+            title={m.prompt_panel_send_new_agent({}, { locale })}
           >
-            New agent
+            {m.prompt_panel_new_agent({}, { locale })}
           </button>
           <button
             type="button"
             className="ghost icon-button prompt-action-menu"
             onClick={(event) => void showPromptMenu(event, prompt)}
-            aria-label="Prompt actions"
-            title="Prompt actions"
+            aria-label={m.prompt_panel_actions({}, { locale })}
+            title={m.prompt_panel_actions({}, { locale })}
           >
             <MoreHorizontal aria-hidden />
           </button>
         </div>
         {pendingDeletePath === prompt.path && (
           <div className="prompt-delete-confirm">
-            <span>Delete this prompt?</span>
+            <span>{m.prompt_panel_delete_confirm({}, { locale })}</span>
             <button
               type="button"
               className="ghost prompt-action"
               onClick={() => void handleDeleteConfirm(prompt)}
             >
-              Delete
+              {m.action_delete({}, { locale })}
             </button>
             <button
               type="button"
               className="ghost prompt-action"
               onClick={() => setPendingDeletePath(null)}
             >
-              Cancel
+              {m.action_cancel({}, { locale })}
             </button>
           </div>
         )}
@@ -412,17 +418,21 @@ export function PromptPanel({
       headerClassName="git-panel-header"
       headerRight={
         <PanelMeta className="prompt-panel-meta">
-          {hasPrompts ? `${totalCount} prompt${totalCount === 1 ? "" : "s"}` : "No prompts"}
+          {hasPrompts
+            ? totalCount === 1
+              ? m.prompt_panel_meta_single({}, { locale })
+              : m.prompt_panel_meta_plural({ count: totalCount }, { locale })
+            : m.prompt_panel_meta_empty({}, { locale })}
         </PanelMeta>
       }
       search={
         <PanelSearchField
           className="file-tree-search"
           inputClassName="file-tree-search-input"
-          placeholder="Filter prompts"
+          placeholder={m.prompt_panel_filter({}, { locale })}
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          aria-label="Filter prompts"
+          aria-label={m.prompt_panel_filter({}, { locale })}
           icon={<Search aria-hidden />}
         />
       }
@@ -432,17 +442,17 @@ export function PromptPanel({
           <div className="prompt-editor">
             <div className="prompt-editor-row">
               <label className="prompt-editor-label">
-                Name
+                {m.prompt_panel_name_label({}, { locale })}
                 <input
                   className="prompt-args-input"
                   type="text"
                   value={editor.name}
                   onChange={(event) => updateEditor({ name: event.target.value })}
-                  placeholder="Prompt name"
+                  placeholder={m.prompt_panel_name_placeholder({}, { locale })}
                 />
               </label>
               <label className="prompt-editor-label">
-                Scope
+                {m.prompt_panel_scope_label({}, { locale })}
                 <select
                   className="prompt-scope-select"
                   value={editor.scope}
@@ -453,40 +463,44 @@ export function PromptPanel({
                   }
                   disabled={editor.mode === "edit"}
                 >
-                  <option value="workspace">Workspace</option>
-                  <option value="global">General</option>
+                  <option value="workspace">
+                    {m.prompt_panel_scope_workspace({}, { locale })}
+                  </option>
+                  <option value="global">
+                    {m.prompt_panel_scope_general({}, { locale })}
+                  </option>
                 </select>
               </label>
             </div>
             <div className="prompt-editor-row">
               <label className="prompt-editor-label">
-                Description
+                {m.prompt_panel_description_label({}, { locale })}
                 <input
                   className="prompt-args-input"
                   type="text"
                   value={editor.description}
                   onChange={(event) => updateEditor({ description: event.target.value })}
-                  placeholder="Optional description"
+                  placeholder={m.prompt_panel_description_placeholder({}, { locale })}
                 />
               </label>
               <label className="prompt-editor-label">
-                Argument hint
+                {m.prompt_panel_argument_hint_label({}, { locale })}
                 <input
                   className="prompt-args-input"
                   type="text"
                   value={editor.argumentHint}
                   onChange={(event) => updateEditor({ argumentHint: event.target.value })}
-                  placeholder="Optional argument hint"
+                  placeholder={m.prompt_panel_argument_hint_placeholder({}, { locale })}
                 />
               </label>
             </div>
             <label className="prompt-editor-label">
-              Content
+              {m.prompt_panel_content_label({}, { locale })}
               <textarea
                 className="prompt-editor-textarea"
                 value={editor.content}
                 onChange={(event) => updateEditor({ content: event.target.value })}
-                placeholder="Prompt content"
+                placeholder={m.prompt_panel_content_placeholder({}, { locale })}
                 rows={6}
               />
             </label>
@@ -498,7 +512,7 @@ export function PromptPanel({
                 onClick={() => setEditor(null)}
                 disabled={isSaving}
               >
-                Cancel
+                {m.action_cancel({}, { locale })}
               </button>
               <button
                 type="button"
@@ -506,20 +520,24 @@ export function PromptPanel({
                 onClick={() => void handleSave()}
                 disabled={isSaving}
               >
-                {editor.mode === "create" ? "Create" : "Save"}
+                {editor.mode === "create"
+                  ? m.action_create({}, { locale })
+                  : m.action_save({}, { locale })}
               </button>
             </div>
           </div>
         )}
         <div className="prompt-section">
           <div className="prompt-section-header">
-            <div className="prompt-section-title">Workspace prompts</div>
+            <div className="prompt-section-title">
+              {m.prompt_panel_workspace_title({}, { locale })}
+            </div>
             <button
               type="button"
               className="ghost icon-button prompt-section-add"
               onClick={() => startCreate("workspace")}
-              aria-label="Add workspace prompt"
-              title="Add workspace prompt"
+              aria-label={m.prompt_panel_add_workspace({}, { locale })}
+              title={m.prompt_panel_add_workspace({}, { locale })}
             >
               <Plus aria-hidden />
             </button>
@@ -532,20 +550,22 @@ export function PromptPanel({
             <div className="prompt-empty-card">
               <ScrollText className="prompt-empty-icon" aria-hidden />
               <div className="prompt-empty-text">
-                <div className="prompt-empty-title">No workspace prompts yet</div>
+                <div className="prompt-empty-title">
+                  {m.prompt_panel_workspace_empty_title({}, { locale })}
+                </div>
                 <div className="prompt-empty-subtitle">
-                  Create one here or drop a .md file into the{" "}
+                  {m.prompt_panel_workspace_empty_prefix({}, { locale })}{" "}
                   {workspacePath ? (
                     <button
                       type="button"
                       className="prompt-empty-link"
                       onClick={() => void onRevealWorkspacePrompts()}
                     >
-                      workspace prompts folder
+                      {m.prompt_panel_workspace_empty_link({}, { locale })}
                     </button>
                   ) : (
                     <span className="prompt-empty-link is-disabled">
-                      workspace prompts folder
+                      {m.prompt_panel_workspace_empty_link({}, { locale })}
                     </span>
                   )}
                   .
@@ -556,13 +576,15 @@ export function PromptPanel({
         </div>
         <div className="prompt-section">
           <div className="prompt-section-header">
-            <div className="prompt-section-title">General prompts</div>
+            <div className="prompt-section-title">
+              {m.prompt_panel_general_title({}, { locale })}
+            </div>
             <button
               type="button"
               className="ghost icon-button prompt-section-add"
               onClick={() => startCreate("global")}
-              aria-label="Add general prompt"
-              title="Add general prompt"
+              aria-label={m.prompt_panel_add_general({}, { locale })}
+              title={m.prompt_panel_add_general({}, { locale })}
             >
               <Plus aria-hidden />
             </button>
@@ -575,9 +597,11 @@ export function PromptPanel({
             <div className="prompt-empty-card">
               <ScrollText className="prompt-empty-icon" aria-hidden />
               <div className="prompt-empty-text">
-                <div className="prompt-empty-title">No general prompts yet</div>
+                <div className="prompt-empty-title">
+                  {m.prompt_panel_general_empty_title({}, { locale })}
+                </div>
                 <div className="prompt-empty-subtitle">
-                  Create one here or drop a .md file into{" "}
+                  {m.prompt_panel_general_empty_prefix({}, { locale })}{" "}
                   {canRevealGeneralPrompts ? (
                     <button
                       type="button"

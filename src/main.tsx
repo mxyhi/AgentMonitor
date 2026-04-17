@@ -2,6 +2,8 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import * as Sentry from "@sentry/react";
 import App from "./App";
+import { I18nProvider } from "@/i18n/I18nProvider";
+import { readStoredAppLanguage } from "@/i18n/appLanguage";
 import { isMobilePlatform } from "./utils/platformPaths";
 
 const sentryDsn =
@@ -91,6 +93,8 @@ syncMobileViewportHeight();
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
-    <App />
+    <I18nProvider locale={readStoredAppLanguage()}>
+      <App />
+    </I18nProvider>
   </React.StrictMode>,
 );

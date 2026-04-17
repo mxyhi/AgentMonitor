@@ -1,4 +1,6 @@
 import { useEffect, useRef } from "react";
+import * as m from "@/i18n/messages";
+import { useAppLocale } from "@/i18n/I18nProvider";
 import { ModalShell } from "../../design-system/components/modal/ModalShell";
 
 type ClonePromptProps = {
@@ -30,6 +32,7 @@ export function ClonePrompt({
   onConfirm,
   isBusy = false,
 }: ClonePromptProps) {
+  const locale = useAppLocale();
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -44,19 +47,21 @@ export function ClonePrompt({
   return (
     <ModalShell
       className="clone-modal"
-      ariaLabel="New clone agent"
+      ariaLabel={m.clone_prompt_title({}, { locale })}
       onBackdropClick={() => {
         if (!isBusy) {
           onCancel();
         }
       }}
     >
-      <div className="ds-modal-title clone-modal-title">New clone agent</div>
+      <div className="ds-modal-title clone-modal-title">
+        {m.clone_prompt_title({}, { locale })}
+      </div>
       <div className="ds-modal-subtitle clone-modal-subtitle">
-        Create a new working copy of "{workspaceName}".
+        {m.clone_prompt_subtitle({ value: workspaceName }, { locale })}
       </div>
       <label className="ds-modal-label clone-modal-label" htmlFor="clone-copy-name">
-        Copy name
+        {m.clone_prompt_copy_name({}, { locale })}
       </label>
       <input
         id="clone-copy-name"
@@ -78,14 +83,14 @@ export function ClonePrompt({
         }}
       />
       <label className="ds-modal-label clone-modal-label" htmlFor="clone-copies-folder">
-        Copies folder
+        {m.clone_prompt_copies_folder({}, { locale })}
       </label>
       <div className="clone-modal-folder-row">
         <textarea
           id="clone-copies-folder"
           className="ds-modal-input clone-modal-input clone-modal-input--path"
           value={copiesFolder}
-          placeholder="Not set"
+          placeholder={m.clone_prompt_not_set({}, { locale })}
           readOnly
           rows={1}
           wrap="off"
@@ -128,7 +133,9 @@ export function ClonePrompt({
       </div>
       {showSuggested && (
         <div className="clone-modal-suggested">
-          <div className="clone-modal-suggested-label">Suggested</div>
+          <div className="clone-modal-suggested-label">
+            {m.clone_prompt_suggested({}, { locale })}
+          </div>
           <div className="clone-modal-suggested-row">
             <textarea
               className="ds-modal-input clone-modal-suggested-path clone-modal-input--path"
@@ -136,7 +143,7 @@ export function ClonePrompt({
               readOnly
               rows={1}
               wrap="off"
-              aria-label="Suggested copies folder"
+              aria-label={m.clone_prompt_suggested_copies_folder({}, { locale })}
               title={suggestedCopiesFolder ?? ""}
               onFocus={(event) => {
                 const value = event.currentTarget.value;
@@ -169,7 +176,7 @@ export function ClonePrompt({
               onClick={onUseSuggestedCopiesFolder}
               disabled={isBusy}
             >
-              Use suggested
+              {m.clone_prompt_use_suggested({}, { locale })}
             </button>
           </div>
         </div>

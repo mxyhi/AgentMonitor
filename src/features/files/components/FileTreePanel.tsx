@@ -13,6 +13,8 @@ import File from "lucide-react/dist/esm/icons/file";
 import Folder from "lucide-react/dist/esm/icons/folder";
 import GitBranch from "lucide-react/dist/esm/icons/git-branch";
 import Search from "lucide-react/dist/esm/icons/search";
+import * as m from "@/i18n/messages";
+import { useAppLocale } from "@/i18n/I18nProvider";
 import type { PanelTabId } from "../../layout/components/PanelTabs";
 import { PanelShell } from "../../layout/components/PanelShell";
 import {
@@ -175,6 +177,7 @@ export function FileTreePanel({
   selectedOpenAppId,
   onSelectOpenAppId,
 }: FileTreePanelProps) {
+  const locale = useAppLocale();
   const [filterMode, setFilterMode] = useState<"all" | "modified">("all");
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
   const [query, setQuery] = useState("");
@@ -637,7 +640,7 @@ export function FileTreePanel({
             }}
             disabled={!canInsertText}
             aria-label={`Mention ${node.name}`}
-            title="Mention in chat"
+            title={m.file_tree_mention_in_chat({}, { locale })}
           >
             <Plus size={10} aria-hidden />
           </button>
@@ -657,23 +660,34 @@ export function FileTreePanel({
           <div className="file-tree-count">
             {visibleEntries.length
               ? normalizedQuery
-                ? `${visibleEntries.length} match${visibleEntries.length === 1 ? "" : "es"}`
+                ? m.file_tree_count_matches({ value: String(visibleEntries.length) }, { locale })
                 : filterMode === "modified"
-                  ? `${visibleEntries.length} modified`
-                  : `${visibleEntries.length} file${visibleEntries.length === 1 ? "" : "s"}`
+                  ? m.file_tree_count_modified(
+                      { value: String(visibleEntries.length) },
+                      { locale },
+                    )
+                  : m.file_tree_count_files({ value: String(visibleEntries.length) }, { locale })
               : showLoading
-                ? "Loading files"
+                ? m.file_tree_loading_files({}, { locale })
                 : filterMode === "modified"
-                  ? "No modified"
-                  : "No files"}
+                  ? m.file_tree_no_modified_files({}, { locale })
+                  : m.file_tree_no_files({}, { locale })}
           </div>
           {hasFolders ? (
             <button
               type="button"
               className="ghost icon-button file-tree-toggle"
               onClick={toggleAllFolders}
-              aria-label={allVisibleExpanded ? "Collapse all folders" : "Expand all folders"}
-              title={allVisibleExpanded ? "Collapse all folders" : "Expand all folders"}
+              aria-label={
+                allVisibleExpanded
+                  ? m.file_tree_collapse_all({}, { locale })
+                  : m.file_tree_expand_all({}, { locale })
+              }
+              title={
+                allVisibleExpanded
+                  ? m.file_tree_collapse_all({}, { locale })
+                  : m.file_tree_expand_all({}, { locale })
+              }
             >
               <ChevronsUpDown aria-hidden />
             </button>
@@ -684,10 +698,10 @@ export function FileTreePanel({
         <PanelSearchField
           className="file-tree-search"
           inputClassName="file-tree-search-input"
-          placeholder="Filter files and folders"
+          placeholder={m.file_tree_filter_placeholder({}, { locale })}
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          aria-label="Filter files and folders"
+          aria-label={m.file_tree_filter_placeholder({}, { locale })}
           icon={<Search aria-hidden />}
           trailing={
             <button
@@ -698,9 +712,15 @@ export function FileTreePanel({
               }}
               aria-pressed={filterMode === "modified"}
               aria-label={
-                filterMode === "modified" ? "Show all files" : "Show modified files only"
+                filterMode === "modified"
+                  ? m.file_tree_show_all_files({}, { locale })
+                  : m.file_tree_show_modified_only({}, { locale })
               }
-              title={filterMode === "modified" ? "Show all files" : "Show modified files only"}
+              title={
+                filterMode === "modified"
+                  ? m.file_tree_show_all_files({}, { locale })
+                  : m.file_tree_show_modified_only({}, { locale })
+              }
             >
               <GitBranch size={14} aria-hidden />
             </button>

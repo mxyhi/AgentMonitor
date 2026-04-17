@@ -2,6 +2,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createRef } from "react";
+import { I18nProvider } from "@/i18n/I18nProvider";
 import { Sidebar } from "./Sidebar";
 
 afterEach(() => {
@@ -70,6 +71,16 @@ const baseProps = {
 };
 
 describe("Sidebar", () => {
+  it("renders localized empty states in zh-CN", () => {
+    render(
+      <I18nProvider locale="zh-CN">
+        <Sidebar {...baseProps} />
+      </I18nProvider>,
+    );
+
+    expect(screen.getByText("添加一个工作区后即可开始。")).toBeTruthy();
+  });
+
   it("toggles the search bar from the header icon", () => {
     render(<Sidebar {...baseProps} />);
 
@@ -149,7 +160,7 @@ describe("Sidebar", () => {
       />,
     );
 
-    const creditsLabel = screen.getByText(/^Available credits:/);
+    const creditsLabel = screen.getByText((content) => content.includes("120"));
     expect(creditsLabel.textContent ?? "").toContain("120");
   });
 

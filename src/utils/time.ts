@@ -1,17 +1,10 @@
-export function formatRelativeTime(timestamp: number) {
+export function formatRelativeTime(timestamp: number, locale?: string) {
   const now = Date.now();
   const diffSeconds = Math.round((timestamp - now) / 1000);
   const absSeconds = Math.abs(diffSeconds);
+  const formatter = new Intl.RelativeTimeFormat(locale, { numeric: "auto" });
   if (absSeconds < 5) {
-    return "now";
-  }
-  if (absSeconds < 60) {
-    const value = Math.max(1, Math.round(absSeconds));
-    return diffSeconds < 0 ? `${value}s ago` : `in ${value}s`;
-  }
-  if (absSeconds < 60 * 60) {
-    const value = Math.max(1, Math.round(absSeconds / 60));
-    return diffSeconds < 0 ? `${value}m ago` : `in ${value}m`;
+    return formatter.format(0, "second");
   }
   const ranges: { unit: Intl.RelativeTimeFormatUnit; seconds: number }[] = [
     { unit: "year", seconds: 60 * 60 * 24 * 365 },
@@ -26,10 +19,9 @@ export function formatRelativeTime(timestamp: number) {
     ranges.find((entry) => absSeconds >= entry.seconds) ||
     ranges[ranges.length - 1];
   if (!range) {
-    return "now";
+    return formatter.format(0, "second");
   }
   const value = Math.round(diffSeconds / range.seconds);
-  const formatter = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
   return formatter.format(value, range.unit);
 }
 

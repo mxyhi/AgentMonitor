@@ -6,6 +6,8 @@ import Mic from "lucide-react/dist/esm/icons/mic";
 import Plus from "lucide-react/dist/esm/icons/plus";
 import Square from "lucide-react/dist/esm/icons/square";
 import X from "lucide-react/dist/esm/icons/x";
+import * as m from "@/i18n/messages";
+import { useAppLocale } from "@/i18n/I18nProvider";
 import {
   PopoverMenuItem,
   PopoverSurface,
@@ -46,6 +48,7 @@ export function ComposerMobileActionsMenu({
   setMobileActionsOpen,
   showDictationAction,
 }: ComposerMobileActionsMenuProps) {
+  const locale = useAppLocale();
   return (
     <div
       className={`composer-mobile-menu${mobileActionsOpen ? " is-open" : ""}`}
@@ -58,8 +61,8 @@ export function ComposerMobileActionsMenu({
         disabled={disabled}
         aria-expanded={mobileActionsOpen}
         aria-haspopup="menu"
-        aria-label="More actions"
-        title="More actions"
+        aria-label={m.composer_more_actions({}, { locale })}
+        title={m.composer_more_actions({}, { locale })}
       >
         <Plus size={14} aria-hidden />
       </button>
@@ -70,7 +73,7 @@ export function ComposerMobileActionsMenu({
             disabled={disabled || !onAddAttachment}
             icon={<ImagePlus size={14} />}
           >
-            Add image
+            {m.composer_add_image({}, { locale })}
           </PopoverMenuItem>
           {onToggleExpand && (
             <PopoverMenuItem
@@ -80,7 +83,9 @@ export function ComposerMobileActionsMenu({
                 isExpanded ? <ChevronDown size={14} /> : <ChevronUp size={14} />
               }
             >
-              {isExpanded ? "Collapse input" : "Expand input"}
+              {isExpanded
+                ? m.composer_collapse_input({}, { locale })
+                : m.composer_expand_input({}, { locale })}
             </PopoverMenuItem>
           )}
           {showDictationAction && (

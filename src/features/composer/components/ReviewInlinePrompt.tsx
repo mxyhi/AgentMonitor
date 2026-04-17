@@ -1,4 +1,6 @@
 import { memo, useMemo } from "react";
+import * as m from "@/i18n/messages";
+import { useAppLocale } from "@/i18n/I18nProvider";
 import type {
   ReviewPromptState,
   ReviewPromptStep,
@@ -40,6 +42,7 @@ const PresetStep = memo(function PresetStep({
   highlightedPresetIndex: number;
   onHighlightPreset: (index: number) => void;
 }) {
+  const locale = useAppLocale();
   const optionClass = (index: number) =>
     `review-inline-option${index === highlightedPresetIndex ? " is-selected" : ""}`;
   return (
@@ -51,8 +54,12 @@ const PresetStep = memo(function PresetStep({
         onMouseEnter={() => onHighlightPreset(0)}
         disabled={isSubmitting}
       >
-        <span className="review-inline-option-title">Review against a base branch</span>
-        <span className="review-inline-option-subtitle">(PR Style)</span>
+        <span className="review-inline-option-title">
+          {m.review_prompt_preset_base_branch({}, { locale })}
+        </span>
+        <span className="review-inline-option-subtitle">
+          {m.review_prompt_preset_pr_style({}, { locale })}
+        </span>
       </button>
       <button
         type="button"
@@ -61,7 +68,9 @@ const PresetStep = memo(function PresetStep({
         onMouseEnter={() => onHighlightPreset(1)}
         disabled={isSubmitting}
       >
-        <span className="review-inline-option-title">Review uncommitted changes</span>
+        <span className="review-inline-option-title">
+          {m.review_prompt_preset_uncommitted({}, { locale })}
+        </span>
       </button>
       <button
         type="button"
@@ -70,7 +79,9 @@ const PresetStep = memo(function PresetStep({
         onMouseEnter={() => onHighlightPreset(2)}
         disabled={isSubmitting}
       >
-        <span className="review-inline-option-title">Review a commit</span>
+        <span className="review-inline-option-title">
+          {m.review_prompt_preset_commit({}, { locale })}
+        </span>
       </button>
       <button
         type="button"
@@ -79,7 +90,9 @@ const PresetStep = memo(function PresetStep({
         onMouseEnter={() => onHighlightPreset(3)}
         disabled={isSubmitting}
       >
-        <span className="review-inline-option-title">Custom review instructions</span>
+        <span className="review-inline-option-title">
+          {m.review_prompt_preset_custom({}, { locale })}
+        </span>
       </button>
     </div>
   );
@@ -102,6 +115,7 @@ const BaseBranchStep = memo(function BaseBranchStep({
   highlightedBranchIndex: number;
   onHighlightBranch: (index: number) => void;
 }) {
+  const locale = useAppLocale();
   const branches = reviewPrompt.branches;
   return (
     <div className="review-inline-section">
@@ -112,7 +126,7 @@ const BaseBranchStep = memo(function BaseBranchStep({
           onClick={onShowPreset}
           disabled={reviewPrompt.isSubmitting}
         >
-          Back
+          {m.review_prompt_back({}, { locale })}
         </button>
         <button
           type="button"
@@ -120,15 +134,25 @@ const BaseBranchStep = memo(function BaseBranchStep({
           onClick={() => void onConfirmBranch()}
           disabled={reviewPrompt.isSubmitting || !reviewPrompt.selectedBranch.trim()}
         >
-          Start review
+          {m.review_prompt_start({}, { locale })}
         </button>
       </div>
-      <div className="review-inline-hint">Pick a recent local branch:</div>
-      <div className="review-inline-list" role="listbox" aria-label="Base branches">
+      <div className="review-inline-hint">
+        {m.review_prompt_pick_local_branch({}, { locale })}
+      </div>
+      <div
+        className="review-inline-list"
+        role="listbox"
+        aria-label={m.review_prompt_base_branches({}, { locale })}
+      >
         {reviewPrompt.isLoadingBranches ? (
-          <div className="review-inline-empty">Loading branches…</div>
+          <div className="review-inline-empty">
+            {m.review_prompt_loading_branches({}, { locale })}
+          </div>
         ) : branches.length === 0 ? (
-          <div className="review-inline-empty">No branches found.</div>
+          <div className="review-inline-empty">
+            {m.review_prompt_no_branches({}, { locale })}
+          </div>
         ) : (
           branches.map((branch, index) => {
             const selected = index === highlightedBranchIndex;
@@ -173,6 +197,7 @@ const CommitStep = memo(function CommitStep({
   highlightedCommitIndex: number;
   onHighlightCommit: (index: number) => void;
 }) {
+  const locale = useAppLocale();
   const commits = reviewPrompt.commits;
   return (
     <div className="review-inline-section">
@@ -183,7 +208,7 @@ const CommitStep = memo(function CommitStep({
           onClick={onShowPreset}
           disabled={reviewPrompt.isSubmitting}
         >
-          Back
+          {m.review_prompt_back({}, { locale })}
         </button>
         <button
           type="button"
@@ -191,15 +216,25 @@ const CommitStep = memo(function CommitStep({
           onClick={() => void onConfirmCommit()}
           disabled={reviewPrompt.isSubmitting || !reviewPrompt.selectedCommitSha}
         >
-          Start review
+          {m.review_prompt_start({}, { locale })}
         </button>
       </div>
-      <div className="review-inline-hint">Select a recent commit:</div>
-      <div className="review-inline-list" role="listbox" aria-label="Commits">
+      <div className="review-inline-hint">
+        {m.review_prompt_pick_commit({}, { locale })}
+      </div>
+      <div
+        className="review-inline-list"
+        role="listbox"
+        aria-label={m.review_prompt_commits({}, { locale })}
+      >
         {reviewPrompt.isLoadingCommits ? (
-          <div className="review-inline-empty">Loading commits…</div>
+          <div className="review-inline-empty">
+            {m.review_prompt_loading_commits({}, { locale })}
+          </div>
         ) : commits.length === 0 ? (
-          <div className="review-inline-empty">No commits found.</div>
+          <div className="review-inline-empty">
+            {m.review_prompt_no_commits({}, { locale })}
+          </div>
         ) : (
           commits.map((commit, index) => {
             const title = commit.summary || commit.sha;
@@ -242,6 +277,7 @@ const CustomStep = memo(function CustomStep({
   onUpdateCustomInstructions: (value: string) => void;
   onConfirmCustom: () => Promise<void>;
 }) {
+  const locale = useAppLocale();
   const canSubmit = reviewPrompt.customInstructions.trim().length > 0;
   return (
     <div className="review-inline-section">
@@ -252,7 +288,7 @@ const CustomStep = memo(function CustomStep({
           onClick={onShowPreset}
           disabled={reviewPrompt.isSubmitting}
         >
-          Back
+          {m.review_prompt_back({}, { locale })}
         </button>
         <button
           type="button"
@@ -260,18 +296,18 @@ const CustomStep = memo(function CustomStep({
           onClick={() => void onConfirmCustom()}
           disabled={reviewPrompt.isSubmitting || !canSubmit}
         >
-          Start review
+          {m.review_prompt_start({}, { locale })}
         </button>
       </div>
       <label className="review-inline-label" htmlFor="review-inline-custom-instructions">
-        Instructions
+        {m.review_prompt_instructions({}, { locale })}
       </label>
       <textarea
         id="review-inline-custom-instructions"
         className="review-inline-textarea"
         value={reviewPrompt.customInstructions}
         onChange={(event) => onUpdateCustomInstructions(event.target.value)}
-        placeholder="Focus on correctness, edge cases, and missing tests."
+        placeholder={m.review_prompt_instructions_placeholder({}, { locale })}
         autoFocus
         rows={6}
       />
@@ -299,21 +335,22 @@ export const ReviewInlinePrompt = memo(function ReviewInlinePrompt({
   onUpdateCustomInstructions,
   onConfirmCustom,
 }: ReviewInlinePromptProps) {
+  const locale = useAppLocale();
   const { step, error, isSubmitting } = reviewPrompt;
 
   const title = useMemo(() => {
     switch (step) {
       case "baseBranch":
-        return "Select a base branch";
+        return m.review_prompt_title_base_branch({}, { locale });
       case "commit":
-        return "Select a commit to review";
+        return m.review_prompt_title_commit({}, { locale });
       case "custom":
-        return "Custom review instructions";
+        return m.review_prompt_title_custom({}, { locale });
       case "preset":
       default:
-        return "Select a review preset";
+        return m.review_prompt_title_preset({}, { locale });
     }
-  }, [step]);
+  }, [locale, step]);
 
   return (
     <div className="review-inline" role="dialog" aria-label={title}>
@@ -362,7 +399,7 @@ export const ReviewInlinePrompt = memo(function ReviewInlinePrompt({
 
       <div className="review-inline-actions">
         <button type="button" className="ghost review-inline-button" onClick={onClose}>
-          Close
+          {m.action_close({}, { locale })}
         </button>
       </div>
     </div>

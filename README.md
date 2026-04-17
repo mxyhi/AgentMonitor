@@ -1,10 +1,10 @@
-# CodexMonitor
+# Agent Monitor
 
 [![gitcgr](https://gitcgr.com/badge/Dimillian/CodexMonitor.svg)](https://gitcgr.com/Dimillian/CodexMonitor)
 
-![CodexMonitor](screenshot.png)
+![Agent Monitor](screenshot.png)
 
-CodexMonitor is a Tauri app for orchestrating multiple Codex agents across local workspaces. It provides a sidebar to manage projects, a home screen for quick actions, and a conversation view backed by the Codex app-server protocol.
+Agent Monitor is a Tauri app for orchestrating multiple Codex agents across local workspaces. It provides a sidebar to manage projects, a home screen for quick actions, and a conversation view backed by the Codex app-server protocol.
 
 ## Features
 
@@ -48,18 +48,17 @@ CodexMonitor is a Tauri app for orchestrating multiple Codex agents across local
 
 ## Requirements
 
-- Node.js + npm
+- Node.js + pnpm
 - Rust toolchain (stable)
 - CMake (required for native dependencies; dictation/Whisper uses it)
 - LLVM/Clang (required on Windows to build dictation dependencies via bindgen)
-- Codex CLI installed and available as `codex` in `PATH` (or configure a custom Codex binary in app/workspace settings)
 - Git CLI (used for worktree operations)
 - GitHub CLI (`gh`) for GitHub Issues/PR integrations (optional)
 
 If you hit native build errors, run:
 
 ```bash
-npm run doctor
+pnpm doctor
 ```
 
 ## Getting Started
@@ -67,13 +66,19 @@ npm run doctor
 Install dependencies:
 
 ```bash
-npm install
+pnpm install
+```
+
+Prepare bundled Codex runtime for local dev (the Tauri scripts do this automatically):
+
+```bash
+pnpm prepare:codex-runtime
 ```
 
 Run in dev mode:
 
 ```bash
-npm run tauri:dev
+pnpm tauri:dev
 ```
 
 ## iOS Support (WIP)
@@ -90,11 +95,11 @@ Use this when connecting the iOS app to a desktop-hosted daemon over your Tailsc
 Canonical runbook: `docs/mobile-ios-tailscale-blueprint.md`.
 
 1. Install and sign in to Tailscale on both desktop and iPhone (same tailnet).
-2. On desktop CodexMonitor, open `Settings > Server`.
+2. On desktop Agent Monitor, open `Settings > Server`.
 3. Set a `Remote backend token`.
 4. Start the desktop daemon with `Start daemon` (in `Mobile access daemon`).
 5. In `Tailscale helper`, use `Detect Tailscale` and note the suggested host (for example `your-mac.your-tailnet.ts.net:4732`).
-6. On iOS CodexMonitor, open `Settings > Server`.
+6. On iOS Agent Monitor, open `Settings > Server`.
 7. Enter the desktop Tailscale host and the same token.
 8. Tap `Connect & test` and confirm it succeeds.
 
@@ -216,8 +221,10 @@ For new setups, copy `.testflight.local.env.example` to `.testflight.local.env` 
 Build the production Tauri bundle:
 
 ```bash
-npm run tauri:build
+pnpm tauri:build
 ```
+
+If `TAURI_SIGNING_PRIVATE_KEY` is not set locally, `pnpm tauri:build` still builds the desktop app and installer bundles, but skips updater artifact generation. CI/release builds keep generating updater artifacts when the signing key is present.
 
 Artifacts will be in `src-tauri/target/release/bundle/` (platform-specific subfolders).
 
@@ -226,7 +233,7 @@ Artifacts will be in `src-tauri/target/release/bundle/` (platform-specific subfo
 Windows builds are opt-in and use a separate Tauri config file to avoid macOS-only window effects.
 
 ```bash
-npm run tauri:build:win
+pnpm tauri:build:win
 ```
 
 Artifacts will be in:
@@ -241,19 +248,19 @@ Note: building from source on Windows requires LLVM/Clang (for `bindgen` / `libc
 Run the TypeScript checker (no emit):
 
 ```bash
-npm run typecheck
+pnpm typecheck
 ```
 
-Note: `npm run build` also runs `tsc` before bundling the frontend.
+Note: `pnpm build` also runs `tsc` before bundling the frontend.
 
 ## Validation
 
 Recommended validation commands:
 
 ```bash
-npm run lint
-npm run test
-npm run typecheck
+pnpm lint
+pnpm test
+pnpm typecheck
 cd src-tauri && cargo check
 ```
 
@@ -291,7 +298,7 @@ src-tauri/
 
 - Workspaces persist to `workspaces.json` under the app data directory.
 - App settings persist to `settings.json` under the app data directory (theme, backend mode/provider, remote endpoints/tokens, Codex path, default access mode, UI scale, follow-up message behavior).
-- Feature settings are supported in the UI and synced to `$CODEX_HOME/config.toml` (or `~/.codex/config.toml`) on load/save. Stable: Collaboration modes (`features.collaboration_modes`), personality (`personality`), and Background terminal (`features.unified_exec`). Experimental: Apps (`features.apps`). Steering capability still follows Codex `features.steer`, but follow-up default behavior is controlled in Settings → Composer.
+- Feature settings are supported in the UI and synced to the active Codex home `config.toml` on load/save. Desktop builds default that Codex home to the app data directory at `codex-home/`, unless you explicitly override `CODEX_HOME`. Stable: Collaboration modes (`features.collaboration_modes`), personality (`personality`), and Background terminal (`features.unified_exec`). Experimental: Apps (`features.apps`). Steering capability still follows Codex `features.steer`, but follow-up default behavior is controlled in Settings → Composer.
 - On launch and on window focus, the app reconnects and refreshes thread lists for each workspace.
 - Threads are restored by filtering `thread/list` results using the workspace `cwd`.
 - Selecting a thread always calls `thread/resume` to refresh messages from disk.
@@ -299,10 +306,10 @@ src-tauri/
 - The app uses `codex app-server` over stdio; see `src-tauri/src/lib.rs` and `src-tauri/src/codex/`.
 - The remote daemon entrypoint is `src-tauri/src/bin/codex_monitor_daemon.rs`; RPC routing lives in `src-tauri/src/bin/codex_monitor_daemon/rpc.rs` and domain handlers in `src-tauri/src/bin/codex_monitor_daemon/rpc/`.
 - Shared domain logic lives in `src-tauri/src/shared/` (notably `src-tauri/src/shared/git_ui_core/` and `src-tauri/src/shared/workspaces_core/`).
-- Codex home resolves from workspace settings (if set), then legacy `.codexmonitor/`, then `$CODEX_HOME`/`~/.codex`.
+- Codex home resolves from an explicit `CODEX_HOME` override first; otherwise the desktop app uses its own app-data `codex-home/` directory so config, prompts, agents, auth, and usage data stay self-contained inside the app.
 - Worktree agents live under the app data directory (`worktrees/<workspace-id>`); legacy `.codex-worktrees/` paths remain supported, and the app no longer edits repo `.gitignore` files.
 - UI state (panel sizes, reduced transparency toggle, recent thread activity) is stored in `localStorage`.
-- Custom prompts load from `$CODEX_HOME/prompts` (or `~/.codex/prompts`) with optional frontmatter description/argument hints.
+- Custom prompts load from the active Codex home `prompts/` directory with optional frontmatter description/argument hints.
 
 ## Tauri IPC Surface
 

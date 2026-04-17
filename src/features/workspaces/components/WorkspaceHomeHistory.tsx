@@ -1,4 +1,6 @@
 import { formatRelativeTime } from "../../../utils/time";
+import * as m from "@/i18n/messages";
+import { useAppLocale } from "@/i18n/I18nProvider";
 import {
   getWorkspaceHomeThreadState,
   type ThreadStatusById,
@@ -34,6 +36,7 @@ function WorkspaceHomeInstanceList({
   threadStatusById,
   onSelectInstance,
 }: WorkspaceHomeInstanceListProps) {
+  const locale = useAppLocale();
   const labelCounts = buildLabelCounts(instances);
 
   return (
@@ -48,6 +51,12 @@ function WorkspaceHomeInstanceList({
           totalForLabel > 1
             ? `${instance.modelLabel} ${instance.sequence}`
             : instance.modelLabel;
+        const statusLabel =
+          status.statusLabel === "Running"
+            ? m.home_latest_running({}, { locale })
+            : status.statusLabel === "Reviewing"
+              ? m.thread_reviewing({}, { locale })
+              : m.workspace_home_status_idle({}, { locale });
 
         return (
           <button
@@ -62,7 +71,7 @@ function WorkspaceHomeInstanceList({
                 status.isRunning ? " is-running" : ""
               }`}
             >
-              {status.statusLabel}
+              {statusLabel}
             </span>
           </button>
         );
@@ -80,15 +89,18 @@ export function WorkspaceHomeHistory({
   threadStatusById,
   onSelectInstance,
 }: WorkspaceHomeHistoryProps) {
+  const locale = useAppLocale();
   return (
     <>
       <div className="workspace-home-runs">
         <div className="workspace-home-section-header">
-          <div className="workspace-home-section-title">Recent runs</div>
+          <div className="workspace-home-section-title">
+            {m.workspace_home_recent_runs({}, { locale })}
+          </div>
         </div>
         {runs.length === 0 ? (
           <div className="workspace-home-empty">
-            Start a run to see its instances tracked here.
+            {m.workspace_home_start_run_empty({}, { locale })}
           </div>
         ) : (
           <div className="workspace-home-run-grid">
@@ -101,10 +113,20 @@ export function WorkspaceHomeHistory({
                     <div>
                       <div className="workspace-home-run-title">{run.title}</div>
                       <div className="workspace-home-run-meta">
-                        {run.mode === "local" ? "Local" : "Worktree"} · {run.instances.length} instance
-                        {run.instances.length === 1 ? "" : "s"}
-                        {run.status === "failed" && " · Failed"}
-                        {run.status === "partial" && " · Partial"}
+                        {run.mode === "local"
+                          ? m.workspace_home_run_mode_local({}, { locale })
+                          : m.workspace_home_run_mode_worktree({}, { locale })}{" "}
+                        ·{" "}
+                        {run.instances.length === 1
+                          ? m.workspace_home_instance_single({}, { locale })
+                          : m.workspace_home_instance_plural(
+                              { count: String(run.instances.length) },
+                              { locale },
+                            )}
+                        {run.status === "failed" &&
+                          ` · ${m.workspace_home_failed({}, { locale })}`}
+                        {run.status === "partial" &&
+                          ` · ${m.workspace_home_partial({}, { locale })}`}
                       </div>
                     </div>
                     <div className="workspace-home-run-time">
@@ -136,13 +158,13 @@ export function WorkspaceHomeHistory({
                     />
                   ) : run.status === "failed" ? (
                     <div className="workspace-home-empty">
-                      No instances were started.
+                      {m.workspace_home_no_instances_started({}, { locale })}
                     </div>
                   ) : (
                     <div className="workspace-home-empty workspace-home-pending">
                       <span className="working-spinner" aria-hidden />
                       <span className="workspace-home-pending-text">
-                        Instances are preparing...
+                        {m.workspace_home_instances_preparing({}, { locale })}
                       </span>
                     </div>
                   )}
@@ -155,21 +177,29 @@ export function WorkspaceHomeHistory({
 
       <div className="workspace-home-runs">
         <div className="workspace-home-section-header">
-          <div className="workspace-home-section-title">Recent threads</div>
+          <div className="workspace-home-section-title">
+            {m.workspace_home_recent_threads({}, { locale })}
+          </div>
         </div>
         {recentThreadInstances.length === 0 ? (
           <div className="workspace-home-empty">
-            Threads from the sidebar will appear here.
+            {m.workspace_home_threads_sidebar_appear({}, { locale })}
           </div>
         ) : (
           <div className="workspace-home-run-grid">
             <div className="workspace-home-run-card">
               <div className="workspace-home-run-header">
                 <div>
-                  <div className="workspace-home-run-title">Agents activity</div>
+                  <div className="workspace-home-run-title">
+                    {m.workspace_home_agents_activity({}, { locale })}
+                  </div>
                   <div className="workspace-home-run-meta">
-                    {recentThreadInstances.length} thread
-                    {recentThreadInstances.length === 1 ? "" : "s"}
+                    {recentThreadInstances.length === 1
+                      ? m.workspace_home_thread_single({}, { locale })
+                      : m.workspace_home_thread_plural(
+                          { count: String(recentThreadInstances.length) },
+                          { locale },
+                        )}
                   </div>
                 </div>
                 {recentThreadsUpdatedAt ? (

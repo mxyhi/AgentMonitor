@@ -1,4 +1,6 @@
 import type { AppSettings, ModelOption } from "@/types";
+import * as m from "@/i18n/messages";
+import { useAppLocale } from "@/i18n/I18nProvider";
 import {
   SettingsSection,
   SettingsToggleRow,
@@ -28,14 +30,15 @@ export function SettingsGitSection({
   onSaveCommitMessagePrompt,
   onResetCommitMessagePrompt,
 }: SettingsGitSectionProps) {
+  const locale = useAppLocale();
   return (
     <SettingsSection
-      title="Git"
-      subtitle="Manage how diffs are loaded in the Git sidebar."
+      title={m.settings_git_title({}, { locale })}
+      subtitle={m.settings_git_subtitle({}, { locale })}
     >
       <SettingsToggleRow
-        title="Preload git diffs"
-        subtitle="Make viewing git diff faster."
+        title={m.settings_git_preload_title({}, { locale })}
+        subtitle={m.settings_git_preload_subtitle({}, { locale })}
       >
         <SettingsToggleSwitch
           pressed={appSettings.preloadGitDiffs}
@@ -48,8 +51,8 @@ export function SettingsGitSection({
         />
       </SettingsToggleRow>
       <SettingsToggleRow
-        title="Ignore whitespace changes"
-        subtitle="Hides whitespace-only changes in local and commit diffs."
+        title={m.settings_git_ignore_whitespace_title({}, { locale })}
+        subtitle={m.settings_git_ignore_whitespace_subtitle({}, { locale })}
       >
         <SettingsToggleSwitch
           pressed={appSettings.gitDiffIgnoreWhitespaceChanges}
@@ -62,10 +65,12 @@ export function SettingsGitSection({
         />
       </SettingsToggleRow>
       <div className="settings-field">
-        <div className="settings-field-label">Commit message prompt</div>
+        <div className="settings-field-label">
+          {m.settings_git_commit_prompt_label({}, { locale })}
+        </div>
         <div className="settings-help">
-          Used when generating commit messages. Include <code>{"{diff}"}</code> to insert the
-          git diff.
+          {m.settings_git_commit_prompt_help({}, { locale })}{" "}
+          <code>{"{diff}"}</code> {m.settings_git_commit_prompt_help_suffix({}, { locale })}
         </div>
         <textarea
           className="settings-agents-textarea"
@@ -83,7 +88,7 @@ export function SettingsGitSection({
             }}
             disabled={commitMessagePromptSaving || !commitMessagePromptDirty}
           >
-            Reset
+            {m.action_reset({}, { locale })}
           </button>
           <button
             type="button"
@@ -93,18 +98,19 @@ export function SettingsGitSection({
             }}
             disabled={commitMessagePromptSaving || !commitMessagePromptDirty}
           >
-            {commitMessagePromptSaving ? "Saving..." : "Save"}
+            {commitMessagePromptSaving
+              ? m.action_saving({}, { locale })
+              : m.action_save({}, { locale })}
           </button>
         </div>
       </div>
       {models.length > 0 && (
         <div className="settings-field">
           <label className="settings-field-label" htmlFor="commit-message-model-select">
-            Commit message model
+            {m.settings_git_commit_model_label({}, { locale })}
           </label>
           <div className="settings-help">
-            The model used when generating commit messages. Leave on default to use the
-            workspace model.
+            {m.settings_git_commit_model_help({}, { locale })}
           </div>
           <select
             id="commit-message-model-select"
@@ -118,7 +124,7 @@ export function SettingsGitSection({
               });
             }}
           >
-            <option value="">Default</option>
+            <option value="">{m.settings_git_commit_model_default({}, { locale })}</option>
             {models.map((model) => (
               <option key={model.id} value={model.model}>
                 {model.displayName?.trim() || model.model}

@@ -20,13 +20,13 @@ IPA_PATH="${IPA_PATH:-}"
 BUILD_NUMBER="${BUILD_NUMBER:-}"
 LOCALE="${LOCALE:-en-US}"
 BETA_GROUP_NAME="${BETA_GROUP_NAME:-Beta Testers}"
-BETA_DESCRIPTION="${BETA_DESCRIPTION:-Codex Monitor iOS beta build for external testing.}"
+BETA_DESCRIPTION="${BETA_DESCRIPTION:-Agent Monitor iOS beta build for external testing.}"
 FEEDBACK_EMAIL="${FEEDBACK_EMAIL:-}"
 REVIEW_FIRST_NAME="${REVIEW_FIRST_NAME:-}"
 REVIEW_LAST_NAME="${REVIEW_LAST_NAME:-}"
 REVIEW_CONTACT_EMAIL="${REVIEW_CONTACT_EMAIL:-}"
 REVIEW_CONTACT_PHONE="${REVIEW_CONTACT_PHONE:-}"
-REVIEW_NOTES="${REVIEW_NOTES:-Codex Monitor iOS beta build for external testing.}"
+REVIEW_NOTES="${REVIEW_NOTES:-Agent Monitor iOS beta build for external testing.}"
 SKIP_BUILD=0
 SKIP_SUBMIT=0
 TAURI_IOS_LOCAL_CONFIG="src-tauri/tauri.ios.local.conf.json"
@@ -45,7 +45,7 @@ Override the path with TESTFLIGHT_ENV_FILE=/path/to/file.
 Options:
   --app-id <id>              App Store Connect app ID (auto-resolved by bundle id if omitted)
   --bundle-id <id>           Bundle identifier (default: resolved from Tauri iOS config)
-  --ipa <path>               IPA path (default: src-tauri/gen/apple/build/arm64/Codex Monitor.ipa)
+  --ipa <path>               IPA path (default: src-tauri/gen/apple/build/arm64/Agent Monitor.ipa)
   --target <target>          Tauri iOS target (default: aarch64)
   --build-number <number>    Build number used during archive (default: current unix timestamp)
   --skip-build               Skip Tauri archive/export step and reuse existing IPA
@@ -64,7 +64,7 @@ Review metadata (required for external submission if not already set in ASC):
 
 Examples:
   ./scripts/release_testflight_ios.sh
-  ./scripts/release_testflight_ios.sh --skip-build --ipa "src-tauri/gen/apple/build/arm64/Codex Monitor.ipa"
+  ./scripts/release_testflight_ios.sh --skip-build --ipa "src-tauri/gen/apple/build/arm64/Agent Monitor.ipa"
 USAGE
 }
 
@@ -161,13 +161,18 @@ require_cmd() {
   fi
 }
 
-resolve_npm() {
+resolve_package_manager() {
+  if command -v pnpm >/dev/null 2>&1; then
+    command -v pnpm
+    return
+  fi
+
   if command -v npm >/dev/null 2>&1; then
     command -v npm
     return
   fi
 
-  for candidate in /opt/homebrew/bin/npm /usr/local/bin/npm; do
+  for candidate in /opt/homebrew/bin/pnpm /usr/local/bin/pnpm /opt/homebrew/bin/npm /usr/local/bin/npm; do
     if [[ -x "$candidate" ]]; then
       echo "$candidate"
       return
@@ -177,6 +182,10 @@ resolve_npm() {
   if [[ -n "${NVM_DIR:-}" && -s "${NVM_DIR}/nvm.sh" ]]; then
     # shellcheck source=/dev/null
     . "${NVM_DIR}/nvm.sh"
+    if command -v pnpm >/dev/null 2>&1; then
+      command -v pnpm
+      return
+    fi
     if command -v npm >/dev/null 2>&1; then
       command -v npm
       return
@@ -237,7 +246,7 @@ if [[ -z "$BUNDLE_ID" ]]; then
   BUNDLE_ID="$(resolve_ios_bundle_id)"
 fi
 if [[ -z "$BUNDLE_ID" ]]; then
-  BUNDLE_ID="com.dimillian.codexmonitor.ios"
+  BUNDLE_ID="com.mxyhi.agentmonitor"
 fi
 
 log "Checking App Store Connect authentication"
@@ -253,8 +262,9 @@ fi
 log "Using app id: $APP_ID"
 
 if [[ "$SKIP_BUILD" -eq 0 ]]; then
-  NPM_BIN="$(resolve_npm || true)"
-  [[ -n "$NPM_BIN" ]] || fail "Unable to find npm in PATH or common install locations"
+  PACKAGE_MANAGER_BIN="$(resolve_package_manager || true)"
+  [[ -n "$PACKAGE_MANAGER_BIN" ]] || fail "Unable to find pnpm or npm in PATH or common install locations"
+  PACKAGE_MANAGER_NAME="$(basename "$PACKAGE_MANAGER_BIN")"
 
   if [[ -z "$BUILD_NUMBER" ]]; then
     BUILD_NUMBER="$(date +%s)"
@@ -262,11 +272,15 @@ if [[ "$SKIP_BUILD" -eq 0 ]]; then
 
   log "Building iOS archive and exporting IPA (build number: $BUILD_NUMBER)"
   sync_ios_icons
-  "$NPM_BIN" run tauri -- ios build --target "$TARGET" "${TAURI_CONFIG_ARGS[@]}" --export-method app-store-connect --build-number "$BUILD_NUMBER" --ci
+  if [[ "$PACKAGE_MANAGER_NAME" == "pnpm" ]]; then
+    "$PACKAGE_MANAGER_BIN" exec tauri ios build --target "$TARGET" "${TAURI_CONFIG_ARGS[@]}" --export-method app-store-connect --build-number "$BUILD_NUMBER" --ci
+  else
+    "$PACKAGE_MANAGER_BIN" exec -- tauri ios build --target "$TARGET" "${TAURI_CONFIG_ARGS[@]}" --export-method app-store-connect --build-number "$BUILD_NUMBER" --ci
+  fi
 fi
 
 if [[ -z "$IPA_PATH" ]]; then
-  IPA_PATH="src-tauri/gen/apple/build/arm64/Codex Monitor.ipa"
+  IPA_PATH="src-tauri/gen/apple/build/arm64/Agent Monitor.ipa"
 fi
 
 [[ -f "$IPA_PATH" ]] || fail "IPA not found at: $IPA_PATH"

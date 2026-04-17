@@ -1,4 +1,6 @@
 import type { LaunchScriptEntry, LaunchScriptIconId } from "../../../types";
+import * as m from "@/i18n/messages";
+import { useAppLocale } from "@/i18n/I18nProvider";
 import { PopoverSurface } from "../../design-system/components/popover/PopoverPrimitives";
 import { useMenuController } from "../hooks/useMenuController";
 import { LaunchScriptIconPicker } from "./LaunchScriptIconPicker";
@@ -39,6 +41,7 @@ export function LaunchScriptEntryButton({
   onSave,
   onDelete,
 }: LaunchScriptEntryButtonProps) {
+  const locale = useAppLocale();
   const editorMenu = useMenuController({
     open: editorOpen,
     onDismiss: onCloseEditor,
@@ -70,20 +73,20 @@ export function LaunchScriptEntryButton({
       {editorOpen && (
         <PopoverSurface className="launch-script-popover" role="dialog">
           <div className="launch-script-title">
-            {entry.label?.trim() || "Launch script"}
+            {entry.label?.trim() || m.main_header_launch_script_title({}, { locale })}
           </div>
           <LaunchScriptIconPicker value={draftIcon} onChange={onDraftIconChange} />
           <input
             className="launch-script-input"
             type="text"
-            placeholder="Optional label"
+            placeholder={m.main_header_launch_script_optional_label({}, { locale })}
             value={draftLabel}
             onChange={(event) => onDraftLabelChange(event.target.value)}
             data-tauri-drag-region="false"
           />
           <textarea
             className="launch-script-textarea"
-            placeholder="e.g. npm run dev"
+            placeholder={m.main_header_launch_script_example({}, { locale })}
             value={draftScript}
             onChange={(event) => onDraftChange(event.target.value)}
             rows={6}
@@ -97,7 +100,7 @@ export function LaunchScriptEntryButton({
               onClick={onCloseEditor}
               data-tauri-drag-region="false"
             >
-              Cancel
+              {m.action_cancel({}, { locale })}
             </button>
             <button
               type="button"
@@ -105,7 +108,7 @@ export function LaunchScriptEntryButton({
               onClick={onDelete}
               data-tauri-drag-region="false"
             >
-              Delete
+              {m.action_delete({}, { locale })}
             </button>
             <button
               type="button"
@@ -114,7 +117,9 @@ export function LaunchScriptEntryButton({
               disabled={isSaving}
               data-tauri-drag-region="false"
             >
-              {isSaving ? "Saving..." : "Save"}
+              {isSaving
+                ? m.action_saving({}, { locale })
+                : m.action_save({}, { locale })}
             </button>
           </div>
         </PopoverSurface>

@@ -1,5 +1,7 @@
 import type { Dispatch, SetStateAction } from "react";
 import { SettingsSection } from "@/features/design-system/components/settings/SettingsPrimitives";
+import * as m from "@/i18n/messages";
+import { useAppLocale } from "@/i18n/I18nProvider";
 import type { WorkspaceInfo } from "@/types";
 import { pushErrorToast } from "@services/toasts";
 
@@ -44,22 +46,22 @@ export function SettingsEnvironmentsSection({
   onSetWorktreesFolderDraft,
   onSaveEnvironmentSetup,
 }: SettingsEnvironmentsSectionProps) {
+  const locale = useAppLocale();
   const hasAnyChanges =
     environmentDirty || globalWorktreesFolderDirty || worktreesFolderDirty;
   const hasProjects = mainWorkspaces.length > 0;
 
   return (
     <SettingsSection
-      title="Environments"
-      subtitle="Configure per-project setup scripts and worktree locations."
+      title={m.environments_title({}, { locale })}
+      subtitle={m.environments_subtitle({}, { locale })}
     >
       <div className="settings-field">
         <label className="settings-field-label" htmlFor="settings-global-worktrees-folder">
-          Global worktrees root
+          {m.environments_global_root_label({}, { locale })}
         </label>
         <div className="settings-help">
-          Default location for new worktrees when a project does not override it. Each
-          project gets its own subfolder under this root.
+          {m.environments_global_root_help({}, { locale })}
         </div>
         <div className="settings-field-row">
           <input
@@ -68,7 +70,7 @@ export function SettingsEnvironmentsSection({
             className="settings-input"
             value={globalWorktreesFolderDraft}
             onChange={(event) => onSetGlobalWorktreesFolderDraft(event.target.value)}
-            placeholder="/path/to/worktrees-root"
+            placeholder={m.environments_global_root_placeholder({}, { locale })}
             disabled={environmentSaving}
           />
           <button
@@ -80,21 +82,21 @@ export function SettingsEnvironmentsSection({
                 const selected = await open({
                   directory: true,
                   multiple: false,
-                  title: "Select global worktrees root",
+                  title: m.environments_global_root_picker_title({}, { locale }),
                 });
                 if (selected && typeof selected === "string") {
                   onSetGlobalWorktreesFolderDraft(selected);
                 }
               } catch (error) {
                 pushErrorToast({
-                  title: "Failed to open folder picker",
+                  title: m.environments_picker_error_title({}, { locale }),
                   message: error instanceof Error ? error.message : String(error),
                 });
               }
             }}
             disabled={environmentSaving}
           >
-            Browse
+            {m.action_browse({}, { locale })}
           </button>
         </div>
         {!hasProjects ? (
@@ -105,7 +107,7 @@ export function SettingsEnvironmentsSection({
               onClick={() => onSetGlobalWorktreesFolderDraft(_globalWorktreesFolderSaved ?? "")}
               disabled={environmentSaving || !globalWorktreesFolderDirty}
             >
-              Reset
+              {m.action_reset({}, { locale })}
             </button>
             <button
               type="button"
@@ -115,7 +117,9 @@ export function SettingsEnvironmentsSection({
               }}
               disabled={environmentSaving || !globalWorktreesFolderDirty}
             >
-              {environmentSaving ? "Saving..." : "Save"}
+              {environmentSaving
+                ? m.action_saving({}, { locale })
+                : m.action_save({}, { locale })}
             </button>
           </div>
         ) : null}
@@ -125,12 +129,12 @@ export function SettingsEnvironmentsSection({
       </div>
 
       {!hasProjects ? (
-        <div className="settings-empty">No projects yet.</div>
+        <div className="settings-empty">{m.environments_no_projects({}, { locale })}</div>
       ) : (
         <>
           <div className="settings-field">
             <label className="settings-field-label" htmlFor="settings-environment-project">
-              Project
+              {m.environments_project_label({}, { locale })}
             </label>
             <select
               id="settings-environment-project"
@@ -151,9 +155,11 @@ export function SettingsEnvironmentsSection({
           </div>
 
           <div className="settings-field">
-            <div className="settings-field-label">Setup script</div>
+            <div className="settings-field-label">
+              {m.environments_setup_script_label({}, { locale })}
+            </div>
             <div className="settings-help">
-              Runs once in a dedicated terminal after each new worktree is created.
+              {m.environments_setup_script_help({}, { locale })}
             </div>
             {environmentError ? (
               <div className="settings-agents-error">{environmentError}</div>
@@ -162,7 +168,7 @@ export function SettingsEnvironmentsSection({
               className="settings-agents-textarea"
               value={environmentDraftScript}
               onChange={(event) => onSetEnvironmentDraftScript(event.target.value)}
-              placeholder="pnpm install"
+              placeholder={m.environments_setup_script_placeholder({}, { locale })}
               spellCheck={false}
               disabled={environmentSaving}
             />
@@ -174,24 +180,22 @@ export function SettingsEnvironmentsSection({
                   const clipboard = typeof navigator === "undefined" ? null : navigator.clipboard;
                   if (!clipboard?.writeText) {
                     pushErrorToast({
-                      title: "Copy failed",
-                      message:
-                        "Clipboard access is unavailable in this environment. Copy the script manually instead.",
+                      title: m.environments_copy_failed_title({}, { locale }),
+                      message: m.environments_copy_failed_unavailable({}, { locale }),
                     });
                     return;
                   }
 
                   void clipboard.writeText(environmentDraftScript).catch(() => {
                     pushErrorToast({
-                      title: "Copy failed",
-                      message:
-                        "Could not write to the clipboard. Copy the script manually instead.",
+                      title: m.environments_copy_failed_title({}, { locale }),
+                      message: m.environments_copy_failed_write({}, { locale }),
                     });
                   });
                 }}
                 disabled={environmentSaving || environmentDraftScript.length === 0}
               >
-                Copy
+                {m.action_copy({}, { locale })}
               </button>
               <button
                 type="button"
@@ -199,7 +203,7 @@ export function SettingsEnvironmentsSection({
                 onClick={() => onSetEnvironmentDraftScript(environmentSavedScript ?? "")}
                 disabled={environmentSaving || !environmentDirty}
               >
-                Reset
+                {m.action_reset({}, { locale })}
               </button>
               <button
                 type="button"
@@ -209,18 +213,19 @@ export function SettingsEnvironmentsSection({
                 }}
                 disabled={environmentSaving || !hasAnyChanges}
               >
-                {environmentSaving ? "Saving..." : "Save"}
+                {environmentSaving
+                  ? m.action_saving({}, { locale })
+                  : m.action_save({}, { locale })}
               </button>
             </div>
           </div>
 
           <div className="settings-field">
             <label className="settings-field-label" htmlFor="settings-worktrees-folder">
-              Worktrees folder
+              {m.environments_worktrees_folder_label({}, { locale })}
             </label>
             <div className="settings-help">
-              Custom location for this project's worktrees. Leave empty to use the global root or
-              the built-in default.
+              {m.environments_worktrees_folder_help({}, { locale })}
             </div>
             <div className="settings-field-row">
               <input
@@ -229,7 +234,7 @@ export function SettingsEnvironmentsSection({
                 className="settings-input"
                 value={worktreesFolderDraft}
                 onChange={(event) => onSetWorktreesFolderDraft(event.target.value)}
-                placeholder="/path/to/worktrees"
+                placeholder={m.environments_worktrees_folder_placeholder({}, { locale })}
                 disabled={environmentSaving}
               />
               <button
@@ -241,21 +246,21 @@ export function SettingsEnvironmentsSection({
                     const selected = await open({
                       directory: true,
                       multiple: false,
-                      title: "Select worktrees folder",
+                      title: m.environments_worktrees_folder_picker_title({}, { locale }),
                     });
                     if (selected && typeof selected === "string") {
                       onSetWorktreesFolderDraft(selected);
                     }
                   } catch (error) {
                     pushErrorToast({
-                      title: "Failed to open folder picker",
+                      title: m.environments_picker_error_title({}, { locale }),
                       message: error instanceof Error ? error.message : String(error),
                     });
                   }
                 }}
                 disabled={environmentSaving}
               >
-                Browse
+                {m.action_browse({}, { locale })}
               </button>
             </div>
           </div>

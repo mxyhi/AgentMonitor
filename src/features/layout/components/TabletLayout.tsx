@@ -1,4 +1,6 @@
 import type { MouseEvent, ReactNode } from "react";
+import * as m from "@/i18n/messages";
+import { useAppLocale } from "@/i18n/I18nProvider";
 import { MainTopbar } from "../../app/components/MainTopbar";
 import { ChatPane } from "./ChatPane";
 
@@ -41,6 +43,7 @@ export function TabletLayout({
   gitDiffViewerNode,
   debugPanelNode,
 }: TabletLayoutProps) {
+  const locale = useAppLocale();
   return (
     <>
       {tabletNavNode}
@@ -49,7 +52,7 @@ export function TabletLayout({
         className="projects-resizer"
         role="separator"
         aria-orientation="vertical"
-        aria-label="Resize projects"
+        aria-label={m.layout_resize_projects({}, { locale })}
         onMouseDown={onSidebarResizeStart}
       />
       <section className="tablet-main">

@@ -5,6 +5,8 @@ import type { SelectedLineRange } from "@pierre/diffs";
 import { WorkerPoolContextProvider } from "@pierre/diffs/react";
 import GitCommitHorizontal from "lucide-react/dist/esm/icons/git-commit-horizontal";
 import RotateCcw from "lucide-react/dist/esm/icons/rotate-ccw";
+import * as m from "@/i18n/messages";
+import { useAppLocale } from "@/i18n/I18nProvider";
 import type { ParsedDiffLine } from "../../../utils/diff";
 import { workerFactory } from "../../../utils/diffsWorker";
 import type {
@@ -146,6 +148,7 @@ export function GitDiffViewer({
   onActivePathChange,
   onInsertComposerText,
 }: GitDiffViewerProps) {
+  const locale = useAppLocale();
   const containerRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const activePathRef = useRef<string | null>(null);
@@ -453,15 +456,14 @@ export function GitDiffViewer({
 
   const emptyStateCopy = pullRequest
     ? {
-        title: "No file changes in this pull request",
-        subtitle:
-          "The pull request loaded, but there are no diff hunks to render for this selection.",
-        hint: "Try switching to another pull request or commit from the Git panel.",
+        title: m.git_empty_pr_title({}, { locale }),
+        subtitle: m.git_empty_pr_subtitle({}, { locale }),
+        hint: m.git_empty_pr_hint({}, { locale }),
       }
     : {
-        title: "Working tree is clean",
-        subtitle: "No local changes were detected for the current workspace.",
-        hint: "Make an edit, stage a file, or select a commit to inspect changes here.",
+        title: m.git_empty_clean_title({}, { locale }),
+        subtitle: m.git_empty_clean_subtitle({}, { locale }),
+        hint: m.git_empty_clean_hint({}, { locale }),
       };
 
   return (
@@ -511,8 +513,8 @@ export function GitDiffViewer({
                 <button
                   type="button"
                   className="diff-viewer-header-action diff-viewer-header-action--discard"
-                  title="Discard changes in this file"
-                  aria-label="Discard changes in this file"
+                  title={m.git_discard_changes_in_file({}, { locale })}
+                  aria-label={m.git_discard_changes_in_file({}, { locale })}
                   onClick={(event) => {
                     event.preventDefault();
                     event.stopPropagation();
@@ -530,7 +532,7 @@ export function GitDiffViewer({
         {error && <div className="diff-viewer-empty">{error}</div>}
         {!error && isLoading && diffs.length > 0 && (
           <div className="diff-viewer-loading diff-viewer-loading-overlay">
-            Refreshing diff...
+            {m.git_refreshing_diff({}, { locale })}
           </div>
         )}
         {!error && !isLoading && !diffs.length && (

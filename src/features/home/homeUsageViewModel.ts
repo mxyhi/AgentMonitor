@@ -1,5 +1,6 @@
 import type {
   AccountSnapshot,
+  AppLanguage,
   LocalUsageDay,
   LocalUsageSnapshot,
   RateLimitSnapshot,
@@ -7,8 +8,6 @@ import type {
 import { formatRelativeTime } from "../../utils/time";
 import { getUsageLabels } from "../app/utils/usageLabels";
 import {
-  buildWindowCaption,
-  formatAccountTypeLabel,
   formatCompactNumber,
   formatCount,
   formatCreditsBalance,
@@ -17,8 +16,10 @@ import {
   formatDuration,
   formatDurationCompact,
   formatPlanType,
+  formatWindowDuration,
   isUsageDayActive,
 } from "./homeFormatters";
+import * as m from "@/i18n/messages";
 import type { HomeStatCard, UsageMetric } from "./homeTypes";
 
 type HomeUsageViewModel = {
@@ -30,18 +31,51 @@ type HomeUsageViewModel = {
   usageInsights: HomeStatCard[];
 };
 
+function buildWindowCaption({
+  resetLabel,
+  windowDurationMins,
+  fallback,
+  locale,
+}: {
+  resetLabel: string | null;
+  windowDurationMins: number | null | undefined;
+  fallback: string;
+  locale: AppLanguage;
+}) {
+  const parts = [
+    resetLabel,
+    formatWindowDuration(windowDurationMins, locale),
+  ].filter(Boolean);
+  return parts.length > 0 ? parts.join(" · ") : fallback;
+}
+
+function formatAccountLabel(
+  value: AccountSnapshot["type"] | null | undefined,
+  locale: AppLanguage,
+) {
+  if (value === "chatgpt") {
+    return m.home_account_type_chatgpt({}, { locale });
+  }
+  if (value === "apikey") {
+    return m.home_account_type_apikey({}, { locale });
+  }
+  return m.home_account_type_connected({}, { locale });
+}
+
 export function buildHomeUsageViewModel({
   accountInfo,
   accountRateLimits,
   localUsageSnapshot,
   usageMetric,
   usageShowRemaining,
+  locale,
 }: {
   accountInfo: AccountSnapshot | null;
   accountRateLimits: RateLimitSnapshot | null;
   localUsageSnapshot: LocalUsageSnapshot | null;
   usageMetric: UsageMetric;
   usageShowRemaining: boolean;
+  locale: AppLanguage;
 }): HomeUsageViewModel {
   const usageTotals = localUsageSnapshot?.totals ?? null;
   const usageDays = localUsageSnapshot?.days ?? [];
@@ -108,150 +142,215 @@ export function buildHomeUsageViewModel({
     usageMetric === "tokens"
       ? [
           {
-            label: "Today",
+            label: m.home_card_today({}, { locale }),
             value: formatCompactNumber(latestUsageDay?.totalTokens ?? 0),
-            suffix: "tokens",
+            suffix: m.home_suffix_tokens({}, { locale }),
             caption: latestUsageDay
-              ? `${formatDayLabel(latestUsageDay.day)} · ${formatCount(
-                  latestUsageDay.inputTokens,
-                )} in / ${formatCount(latestUsageDay.outputTokens)} out`
-              : "Latest available day",
+              ? m.home_caption_day_breakdown(
+                  {
+                    day: formatDayLabel(latestUsageDay.day, locale),
+                    input: formatCount(latestUsageDay.inputTokens, locale),
+                    output: formatCount(latestUsageDay.outputTokens, locale),
+                  },
+                  { locale },
+                )
+              : m.home_caption_latest_available_day({}, { locale }),
           },
           {
-            label: "Last 7 days",
+            label: m.home_card_last_7_days({}, { locale }),
             value: formatCompactNumber(usageTotals?.last7DaysTokens ?? last7Tokens),
-            suffix: "tokens",
-            caption: `Avg ${formatCompactNumber(usageTotals?.averageDailyTokens)} / day`,
+            suffix: m.home_suffix_tokens({}, { locale }),
+            caption: m.home_caption_avg_per_day(
+              { value: formatCompactNumber(usageTotals?.averageDailyTokens) },
+              { locale },
+            ),
           },
           {
-            label: "Last 30 days",
+            label: m.home_card_last_30_days({}, { locale }),
             value: formatCompactNumber(usageTotals?.last30DaysTokens ?? last7Tokens),
-            suffix: "tokens",
-            caption: `Total ${formatCount(usageTotals?.last30DaysTokens ?? last7Tokens)}`,
+            suffix: m.home_suffix_tokens({}, { locale }),
+            caption: m.home_caption_total(
+              {
+                value: formatCount(
+                  usageTotals?.last30DaysTokens ?? last7Tokens,
+                  locale,
+                ),
+              },
+              { locale },
+            ),
           },
           {
-            label: "Cache hit rate",
+            label: m.home_card_cache_hit_rate({}, { locale }),
             value: usageTotals
               ? `${usageTotals.cacheHitRatePercent.toFixed(1)}%`
               : "--",
-            caption: "Last 7 days",
+            caption: m.home_caption_last_7_days({}, { locale }),
           },
           {
-            label: "Cached tokens",
+            label: m.home_card_cached_tokens({}, { locale }),
             value: formatCompactNumber(last7Cached),
-            suffix: "saved",
+            suffix: m.home_suffix_saved({}, { locale }),
             caption:
               last7Input > 0
-                ? `${((last7Cached / last7Input) * 100).toFixed(1)}% of prompt tokens`
-                : "Last 7 days",
+                ? m.home_caption_prompt_share(
+                    { value: ((last7Cached / last7Input) * 100).toFixed(1) },
+                    { locale },
+                  )
+                : m.home_caption_last_7_days({}, { locale }),
           },
           {
-            label: "Avg / run",
+            label: m.home_card_avg_per_run({}, { locale }),
             value:
               averageTokensPerRun === null
                 ? "--"
                 : formatCompactNumber(averageTokensPerRun),
-            suffix: "tokens",
+            suffix: m.home_suffix_tokens({}, { locale }),
             caption:
               last7AgentRuns > 0
-                ? `${formatCount(last7AgentRuns)} runs in last 7 days`
-                : "No runs yet",
+                ? m.home_caption_runs_last_7_days(
+                    { value: formatCount(last7AgentRuns, locale) },
+                    { locale },
+                  )
+                : m.home_caption_no_runs_yet({}, { locale }),
           },
           {
-            label: "Peak day",
-            value: formatDayLabel(usageTotals?.peakDay),
-            caption: `${formatCompactNumber(usageTotals?.peakDayTokens)} tokens`,
+            label: m.home_card_peak_day({}, { locale }),
+            value: formatDayLabel(usageTotals?.peakDay, locale),
+            caption: m.home_caption_total(
+              { value: formatCount(usageTotals?.peakDayTokens, locale) },
+              { locale },
+            ),
           },
         ]
       : [
           {
-            label: "Last 7 days",
+            label: m.home_card_last_7_days({}, { locale }),
             value: formatDurationCompact(last7AgentMs),
-            suffix: "agent time",
-            caption: `Avg ${formatDurationCompact(averageDailyAgentMs)} / day`,
+            suffix: m.home_suffix_agent_time({}, { locale }),
+            caption: m.home_caption_avg_per_day(
+              { value: formatDurationCompact(averageDailyAgentMs) },
+              { locale },
+            ),
           },
           {
-            label: "Last 30 days",
+            label: m.home_card_last_30_days({}, { locale }),
             value: formatDurationCompact(last30AgentMs),
-            suffix: "agent time",
-            caption: `Total ${formatDuration(last30AgentMs)}`,
+            suffix: m.home_suffix_agent_time({}, { locale }),
+            caption: m.home_caption_total(
+              { value: formatDuration(last30AgentMs) },
+              { locale },
+            ),
           },
           {
-            label: "Runs",
-            value: formatCount(last7AgentRuns),
-            suffix: "runs",
-            caption: `Last 30 days: ${formatCount(last30AgentRuns)} runs`,
+            label: m.home_card_runs({}, { locale }),
+            value: formatCount(last7AgentRuns, locale),
+            suffix: m.home_suffix_runs({}, { locale }),
+            caption: m.home_caption_total(
+              { value: formatCount(last30AgentRuns, locale) },
+              { locale },
+            ),
           },
           {
-            label: "Avg / run",
+            label: m.home_card_avg_per_run({}, { locale }),
             value: formatDurationCompact(averageRunDurationMs),
             caption:
               last7AgentRuns > 0
-                ? `Across ${formatCount(last7AgentRuns)} runs`
-                : "No runs yet",
+                ? m.home_caption_across_runs(
+                    { value: formatCount(last7AgentRuns, locale) },
+                    { locale },
+                  )
+                : m.home_caption_no_runs_yet({}, { locale }),
           },
           {
-            label: "Avg / active day",
+            label: m.home_card_avg_per_active_day({}, { locale }),
             value: formatDurationCompact(averageActiveDayAgentMs),
             caption:
               last7ActiveDays > 0
-                ? `${formatCount(last7ActiveDays)} active days in last 7`
-                : "No active days yet",
+                ? m.home_caption_active_days_last_7(
+                    { value: formatCount(last7ActiveDays, locale) },
+                    { locale },
+                  )
+                : m.home_caption_no_active_days_yet({}, { locale }),
           },
           {
-            label: "Peak day",
-            value: formatDayLabel(peakAgentDay?.day ?? null),
-            caption: `${formatDurationCompact(peakAgentDay?.agentTimeMs ?? 0)} agent time`,
+            label: m.home_card_peak_day({}, { locale }),
+            value: formatDayLabel(peakAgentDay?.day ?? null, locale),
+            caption: m.home_caption_agent_time(
+              { value: formatDurationCompact(peakAgentDay?.agentTimeMs ?? 0) },
+              { locale },
+            ),
           },
         ];
 
   const usageInsights = [
     {
-      label: "Longest streak",
-      value: longestStreak > 0 ? formatDayCount(longestStreak) : "--",
+      label: m.home_card_longest_streak({}, { locale }),
+      value: longestStreak > 0 ? formatDayCount(longestStreak, locale) : "--",
       caption:
         longestStreak > 0
-          ? "Across current usage range"
-          : "No active streak yet",
+          ? m.home_caption_usage_range({}, { locale })
+          : m.home_caption_no_active_streak({}, { locale }),
       compact: true,
     },
     {
-      label: "Active days",
-      value: last7Days.length > 0 ? `${last7ActiveDays} / ${last7Days.length}` : "--",
+      label: m.home_card_active_days({}, { locale }),
+      value:
+        last7Days.length > 0
+          ? `${formatCount(last7ActiveDays, locale)} / ${formatCount(last7Days.length, locale)}`
+          : "--",
       caption:
         usageDays.length > 0
-          ? `${last30ActiveDays} / ${usageDays.length} in current range`
-          : "No activity yet",
+          ? m.home_caption_active_days_range(
+              {
+                active: formatCount(last30ActiveDays, locale),
+                total: formatCount(usageDays.length, locale),
+              },
+              { locale },
+            )
+          : m.home_caption_no_activity_yet({}, { locale }),
       compact: true,
     },
   ] satisfies HomeStatCard[];
 
-  const usagePercentLabels = getUsageLabels(accountRateLimits, usageShowRemaining);
+  const usagePercentLabels = getUsageLabels(
+    accountRateLimits,
+    usageShowRemaining,
+    locale,
+  );
   const planLabel = formatPlanType(accountRateLimits?.planType ?? accountInfo?.planType);
-  const creditsBalance = formatCreditsBalance(accountRateLimits?.credits?.balance);
+  const creditsBalance = formatCreditsBalance(
+    accountRateLimits?.credits?.balance,
+    locale,
+  );
   const accountCards: HomeStatCard[] = [];
 
   if (usagePercentLabels.sessionPercent !== null) {
     accountCards.push({
-      label: usageShowRemaining ? "Session left" : "Session usage",
+      label: usageShowRemaining
+        ? m.home_card_session_left({}, { locale })
+        : m.home_card_session_usage({}, { locale }),
       value: `${usagePercentLabels.sessionPercent}%`,
-      caption: buildWindowCaption(
-        usagePercentLabels.sessionResetLabel,
-        accountRateLimits?.primary?.windowDurationMins,
-        "Current window",
-      ),
+      caption: buildWindowCaption({
+        resetLabel: usagePercentLabels.sessionResetLabel,
+        windowDurationMins: accountRateLimits?.primary?.windowDurationMins,
+        fallback: m.home_caption_current_window({}, { locale }),
+        locale,
+      }),
     });
   }
 
   if (usagePercentLabels.showWeekly && usagePercentLabels.weeklyPercent !== null) {
     accountCards.push({
-      label: usageShowRemaining ? "Weekly left" : "Weekly usage",
+      label: usageShowRemaining
+        ? m.home_card_weekly_left({}, { locale })
+        : m.home_card_weekly_usage({}, { locale }),
       value: `${usagePercentLabels.weeklyPercent}%`,
-      caption: buildWindowCaption(
-        usagePercentLabels.weeklyResetLabel,
-        accountRateLimits?.secondary?.windowDurationMins,
-        "Longer window",
-      ),
+      caption: buildWindowCaption({
+        resetLabel: usagePercentLabels.weeklyResetLabel,
+        windowDurationMins: accountRateLimits?.secondary?.windowDurationMins,
+        fallback: m.home_caption_longer_window({}, { locale }),
+        locale,
+      }),
     });
   }
 
@@ -259,24 +358,24 @@ export function buildHomeUsageViewModel({
     accountCards.push(
       accountRateLimits.credits.unlimited
         ? {
-            label: "Credits",
-            value: "Unlimited",
-            caption: "Available balance",
+            label: m.home_card_credits({}, { locale }),
+            value: m.home_value_unlimited({}, { locale }),
+            caption: m.home_caption_available_balance({}, { locale }),
           }
         : {
-            label: "Credits",
+            label: m.home_card_credits({}, { locale }),
             value: creditsBalance ?? "--",
-            suffix: creditsBalance ? "credits" : null,
-            caption: "Available balance",
+            suffix: creditsBalance ? m.home_suffix_credits({}, { locale }) : null,
+            caption: m.home_caption_available_balance({}, { locale }),
           },
     );
   }
 
   if (planLabel) {
     accountCards.push({
-      label: "Plan",
+      label: m.home_card_plan({}, { locale }),
       value: planLabel,
-      caption: formatAccountTypeLabel(accountInfo?.type),
+      caption: formatAccountLabel(accountInfo?.type, locale),
     });
   }
 
@@ -284,7 +383,10 @@ export function buildHomeUsageViewModel({
     accountCards,
     accountMeta: accountInfo?.email ?? null,
     updatedLabel: localUsageSnapshot
-      ? `Updated ${formatRelativeTime(localUsageSnapshot.updatedAt)}`
+      ? m.home_updated(
+          { value: formatRelativeTime(localUsageSnapshot.updatedAt, locale) },
+          { locale },
+        )
       : null,
     usageCards,
     usageDays,

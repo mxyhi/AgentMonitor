@@ -45,3 +45,51 @@ fn macos_private_api_feature_matches_config() {
         );
     }
 }
+
+#[test]
+fn bundled_codex_sidecar_is_declared_in_desktop_config() {
+    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let config_path = manifest_dir.join("tauri.conf.json");
+    let config_contents = fs::read_to_string(&config_path)
+        .unwrap_or_else(|error| panic!("Failed to read {config_path:?}: {error}"));
+    let config: Value = serde_json::from_str(&config_contents)
+        .unwrap_or_else(|error| panic!("Failed to parse tauri.conf.json: {error}"));
+    let external_bin = config
+        .get("bundle")
+        .and_then(|bundle| bundle.get("externalBin"))
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+
+    assert!(
+        external_bin
+            .iter()
+            .any(|value| value.as_str() == Some("binaries/codex-bundled")),
+        "tauri.conf.json bundle.externalBin must include bundled Codex sidecar"
+    );
+}
+
+#[test]
+fn mobile_access_daemon_sidecars_are_declared_in_desktop_config() {
+    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let config_path = manifest_dir.join("tauri.conf.json");
+    let config_contents = fs::read_to_string(&config_path)
+        .unwrap_or_else(|error| panic!("Failed to read {config_path:?}: {error}"));
+    let config: Value = serde_json::from_str(&config_contents)
+        .unwrap_or_else(|error| panic!("Failed to parse tauri.conf.json: {error}"));
+    let external_bin = config
+        .get("bundle")
+        .and_then(|bundle| bundle.get("externalBin"))
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+
+    for required_sidecar in ["binaries/codex_monitor_daemon", "binaries/codex_monitor_daemonctl"] {
+        assert!(
+            external_bin
+                .iter()
+                .any(|value| value.as_str() == Some(required_sidecar)),
+            "tauri.conf.json bundle.externalBin must include {required_sidecar}"
+        );
+    }
+}

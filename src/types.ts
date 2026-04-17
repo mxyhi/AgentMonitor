@@ -10,6 +10,8 @@ export type WorkspaceSettings = {
   worktreesFolder?: string | null;
 };
 
+export type AppLanguage = "en" | "zh-CN";
+
 export type LaunchScriptIconId =
   | "play"
   | "build"
@@ -239,6 +241,7 @@ export type AppSettings = {
   codexBin: string | null;
   codexArgs: string | null;
   backendMode: BackendMode;
+  appLanguage: AppLanguage;
   remoteBackendProvider: RemoteBackendProvider;
   remoteBackendHost: string;
   remoteBackendToken: string | null;
@@ -362,6 +365,7 @@ export type TailscaleDaemonCommandPreview = {
 export type CodexDoctorResult = {
   ok: boolean;
   codexBin: string | null;
+  runtimeSource: "custom" | "bundled" | "path";
   version: string | null;
   appServerOk: boolean;
   details: string | null;
@@ -371,7 +375,12 @@ export type CodexDoctorResult = {
   nodeDetails: string | null;
 };
 
-export type CodexUpdateMethod = "brew_formula" | "brew_cask" | "npm" | "unknown";
+export type CodexUpdateMethod =
+  | "brew_formula"
+  | "brew_cask"
+  | "npm"
+  | "bundled"
+  | "unknown";
 
 export type CodexUpdateResult = {
   ok: boolean;

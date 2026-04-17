@@ -23,6 +23,7 @@ import { DEFAULT_COMMIT_MESSAGE_PROMPT } from "@utils/commitMessagePrompt";
 const allowedThemes = new Set(["system", "light", "dark", "dim"]);
 const allowedPersonality = new Set(["friendly", "pragmatic"]);
 const allowedFollowUpMessageBehavior = new Set(["queue", "steer"]);
+const allowedAppLanguages = new Set(["en", "zh-CN"]);
 const DEFAULT_REMOTE_BACKEND_HOST = "127.0.0.1:4732";
 const DEFAULT_REMOTE_BACKEND_ID = "remote-default";
 const DEFAULT_REMOTE_BACKEND_NAME = "Primary remote";
@@ -137,6 +138,7 @@ function buildDefaultSettings(): AppSettings {
     codexBin: null,
     codexArgs: null,
     backendMode: isMobile ? "remote" : "local",
+    appLanguage: "en",
     remoteBackendProvider: defaultRemote.provider,
     remoteBackendHost: defaultRemote.host,
     remoteBackendToken: null,
@@ -247,6 +249,9 @@ function normalizeAppSettings(settings: AppSettings): AppSettings {
     codexArgs: settings.codexArgs?.trim() ? settings.codexArgs.trim() : null,
     uiScale: clampUiScale(settings.uiScale),
     theme: allowedThemes.has(settings.theme) ? settings.theme : "system",
+    appLanguage: allowedAppLanguages.has(settings.appLanguage)
+      ? settings.appLanguage
+      : "en",
     uiFontFamily: normalizeFontFamily(
       settings.uiFontFamily,
       DEFAULT_UI_FONT_FAMILY,

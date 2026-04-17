@@ -1,4 +1,6 @@
 import type { CodexFeature } from "@/types";
+import * as m from "@/i18n/messages";
+import { useAppLocale } from "@/i18n/I18nProvider";
 import {
   SettingsSection,
   SettingsSubsection,
@@ -93,14 +95,18 @@ export function SettingsFeaturesSection({
   onToggleCodexFeature,
   onUpdateAppSettings,
 }: SettingsFeaturesSectionProps) {
+  const locale = useAppLocale();
   return (
     <SettingsSection
-      title="Features"
-      subtitle="Manage stable and experimental Codex features."
+      title={m.settings_features_title({}, { locale })}
+      subtitle={m.settings_features_subtitle({}, { locale })}
     >
       <SettingsToggleRow
-        title="Config file"
-        subtitle={`Open the Codex config in ${fileManagerName()}.`}
+        title={m.settings_features_config_title({}, { locale })}
+        subtitle={m.settings_features_config_subtitle(
+          { value: fileManagerName() },
+          { locale },
+        )}
       >
         <button type="button" className="ghost" onClick={onOpenConfig}>
           {openInFileManagerLabel()}
@@ -108,15 +114,14 @@ export function SettingsFeaturesSection({
       </SettingsToggleRow>
       {openConfigError && <div className="settings-help">{openConfigError}</div>}
       <SettingsSubsection
-        title="Stable Features"
-        subtitle="Production-ready features enabled by default."
+        title={m.settings_features_stable_title({}, { locale })}
+        subtitle={m.settings_features_stable_subtitle({}, { locale })}
       />
       <SettingsToggleRow
-        title="Personality"
+        title={m.settings_features_personality_title({}, { locale })}
         subtitle={
           <>
-            Choose Codex communication style (writes top-level <code>personality</code> in
-            config.toml).
+            {m.settings_features_personality_subtitle({}, { locale })}
           </>
         }
       >
@@ -130,15 +135,15 @@ export function SettingsFeaturesSection({
               personality: event.target.value as (typeof appSettings)["personality"],
             })
           }
-          aria-label="Personality"
+          aria-label={m.settings_features_personality_aria({}, { locale })}
         >
-          <option value="friendly">Friendly</option>
-          <option value="pragmatic">Pragmatic</option>
+          <option value="friendly">{m.settings_features_personality_friendly({}, { locale })}</option>
+          <option value="pragmatic">{m.settings_features_personality_pragmatic({}, { locale })}</option>
         </select>
       </SettingsToggleRow>
       <SettingsToggleRow
-        title="Pause queued messages when a response is required"
-        subtitle="Keep queued messages paused while Codex is waiting for plan accept/changes or your answers."
+        title={m.settings_features_pause_queue_title({}, { locale })}
+        subtitle={m.settings_features_pause_queue_subtitle({}, { locale })}
       >
         <SettingsToggleSwitch
           pressed={appSettings.pauseQueuedMessagesWhenResponseRequired}
@@ -168,11 +173,11 @@ export function SettingsFeaturesSection({
         !featuresLoading &&
         !featureError &&
         stableFeatures.length === 0 && (
-        <div className="settings-help">No stable feature flags returned by Codex.</div>
+        <div className="settings-help">{m.settings_features_none_stable({}, { locale })}</div>
       )}
       <SettingsSubsection
-        title="Experimental Features"
-        subtitle="Preview and under-development features."
+        title={m.settings_features_experimental_title({}, { locale })}
+        subtitle={m.settings_features_experimental_subtitle({}, { locale })}
       />
       {experimentalFeatures.map((feature) => (
         <SettingsToggleRow
@@ -193,15 +198,15 @@ export function SettingsFeaturesSection({
         hasDynamicFeatureRows &&
         experimentalFeatures.length === 0 && (
           <div className="settings-help">
-            No preview or under-development feature flags returned by Codex.
+            {m.settings_features_none_experimental({}, { locale })}
           </div>
         )}
       {featuresLoading && (
-        <div className="settings-help">Loading Codex feature flags...</div>
+        <div className="settings-help">{m.settings_features_loading({}, { locale })}</div>
       )}
       {!hasFeatureWorkspace && !featuresLoading && (
         <div className="settings-help">
-          Connect a workspace to load Codex feature flags.
+          {m.settings_features_connect_workspace({}, { locale })}
         </div>
       )}
       {featureError && <div className="settings-help">{featureError}</div>}

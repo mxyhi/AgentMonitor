@@ -1,4 +1,5 @@
-import type { RateLimitSnapshot } from "../../../types";
+import type { AppLanguage, RateLimitSnapshot } from "../../../types";
+import * as m from "@/i18n/messages";
 import { formatRelativeTime } from "../../../utils/time";
 
 type UsageLabels = {
@@ -10,25 +11,31 @@ type UsageLabels = {
   showWeekly: boolean;
 };
 
-const clampPercent = (value: number) =>
-  Math.min(Math.max(Math.round(value), 0), 100);
+const clampPercent = (value: number) => Math.min(Math.max(Math.round(value), 0), 100);
 
-function formatResetLabel(resetsAt?: number | null) {
+function formatResetLabel(resetsAt?: number | null, locale?: AppLanguage) {
   if (typeof resetsAt !== "number" || !Number.isFinite(resetsAt)) {
     return null;
   }
   const resetMs = resetsAt > 1_000_000_000_000 ? resetsAt : resetsAt * 1000;
-  const relative = formatRelativeTime(resetMs).replace(/^in\s+/i, "");
-  return `Resets ${relative}`;
+  const relative = formatRelativeTime(resetMs, locale);
+  const normalizedRelative =
+    locale === undefined || locale === "en"
+      ? relative.replace(/^in\s+/i, "")
+      : relative;
+  return m.usage_resets({ value: normalizedRelative }, { locale });
 }
 
-function formatCreditsLabel(accountRateLimits: RateLimitSnapshot | null) {
+function formatCreditsLabel(
+  accountRateLimits: RateLimitSnapshot | null,
+  locale?: AppLanguage,
+) {
   const credits = accountRateLimits?.credits ?? null;
   if (!credits?.hasCredits) {
     return null;
   }
   if (credits.unlimited) {
-    return "Available credits: Unlimited";
+    return m.usage_available_credits_unlimited({}, { locale });
   }
   const balance = credits.balance?.trim() ?? "";
   if (!balance) {
@@ -36,12 +43,14 @@ function formatCreditsLabel(accountRateLimits: RateLimitSnapshot | null) {
   }
   const intValue = Number.parseInt(balance, 10);
   if (Number.isFinite(intValue) && intValue > 0) {
-    return `Available credits: ${intValue}`;
+    return m.usage_available_credits({ value: String(intValue) }, { locale });
   }
   const floatValue = Number.parseFloat(balance);
   if (Number.isFinite(floatValue) && floatValue > 0) {
     const rounded = Math.round(floatValue);
-    return rounded > 0 ? `Available credits: ${rounded}` : null;
+    return rounded > 0
+      ? m.usage_available_credits({ value: String(rounded) }, { locale })
+      : null;
   }
   return null;
 }
@@ -49,6 +58,7 @@ function formatCreditsLabel(accountRateLimits: RateLimitSnapshot | null) {
 export function getUsageLabels(
   accountRateLimits: RateLimitSnapshot | null,
   showRemaining: boolean,
+  locale?: AppLanguage,
 ): UsageLabels {
   const usagePercent = accountRateLimits?.primary?.usedPercent;
   const globalUsagePercent = accountRateLimits?.secondary?.usedPercent;
@@ -68,9 +78,9 @@ export function getUsageLabels(
   return {
     sessionPercent,
     weeklyPercent,
-    sessionResetLabel: formatResetLabel(accountRateLimits?.primary?.resetsAt),
-    weeklyResetLabel: formatResetLabel(accountRateLimits?.secondary?.resetsAt),
-    creditsLabel: formatCreditsLabel(accountRateLimits),
+    sessionResetLabel: formatResetLabel(accountRateLimits?.primary?.resetsAt, locale),
+    weeklyResetLabel: formatResetLabel(accountRateLimits?.secondary?.resetsAt, locale),
+    creditsLabel: formatCreditsLabel(accountRateLimits, locale),
     showWeekly: Boolean(accountRateLimits?.secondary),
   };
 }

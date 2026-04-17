@@ -1,6 +1,8 @@
 import { useMemo } from "react";
 import type { CSSProperties, MouseEvent } from "react";
 import X from "lucide-react/dist/esm/icons/x";
+import * as m from "@/i18n/messages";
+import { useAppLocale } from "@/i18n/I18nProvider";
 import { highlightLine, languageFromPath } from "../../../utils/syntax";
 import { OpenAppMenu } from "../../app/components/OpenAppMenu";
 import { PopoverSurface } from "../../design-system/components/popover/PopoverPrimitives";
@@ -57,6 +59,7 @@ export function FilePreviewPopover({
   isLoading = false,
   error = null,
 }: FilePreviewPopoverProps) {
+  const locale = useAppLocale();
   const isImagePreview = previewKind === "image";
   const lines = useMemo(
     () => (isImagePreview ? [] : content.split("\n")),
@@ -64,10 +67,13 @@ export function FilePreviewPopover({
   );
   const language = useMemo(() => languageFromPath(path), [path]);
   const selectionLabel = selection
-    ? `Lines ${selection.start + 1}-${selection.end + 1}`
+    ? m.file_preview_lines_range(
+        { start: String(selection.start + 1), end: String(selection.end + 1) },
+        { locale },
+      )
     : isImagePreview
-      ? "Image preview"
-      : "No selection";
+      ? m.file_preview_image_preview({}, { locale })
+      : m.file_preview_no_selection({}, { locale });
   const highlightedLines = useMemo(
     () =>
       isImagePreview
@@ -85,21 +91,23 @@ export function FilePreviewPopover({
         <div className="file-preview-title">
           <span className="file-preview-path">{path}</span>
           {truncated && (
-            <span className="file-preview-warning">Truncated</span>
+            <span className="file-preview-warning">
+              {m.file_preview_truncated({}, { locale })}
+            </span>
           )}
         </div>
         <button
           type="button"
           className="icon-button file-preview-close"
           onClick={onClose}
-          aria-label="Close preview"
-          title="Close preview"
+          aria-label={m.file_preview_close({}, { locale })}
+          title={m.file_preview_close({}, { locale })}
         >
           <X size={14} aria-hidden />
         </button>
       </div>
       {isLoading ? (
-        <div className="file-preview-status">Loading file...</div>
+        <div className="file-preview-status">{m.file_preview_loading({}, { locale })}</div>
       ) : error ? (
         <div className="file-preview-status file-preview-error">{error}</div>
       ) : isImagePreview ? (
@@ -122,7 +130,7 @@ export function FilePreviewPopover({
             </div>
           ) : (
             <div className="file-preview-status file-preview-error">
-              Image preview unavailable.
+              {m.file_preview_image_unavailable({}, { locale })}
             </div>
           )}
         </div>
@@ -132,7 +140,10 @@ export function FilePreviewPopover({
             <div className="file-preview-selection-group">
               <span className="file-preview-selection">{selectionLabel}</span>
               {selectionHints.length > 0 ? (
-                <div className="file-preview-hints" aria-label="Selection hints">
+                <div
+                  className="file-preview-hints"
+                  aria-label={m.file_preview_selection_hints({}, { locale })}
+                >
                   {selectionHints.map((hint) => (
                     <span key={hint} className="file-preview-hint">
                       {hint}
@@ -155,7 +166,7 @@ export function FilePreviewPopover({
                 onClick={onClearSelection}
                 disabled={!selection}
               >
-                Clear
+                {m.file_preview_clear({}, { locale })}
               </button>
               <button
                 type="button"
@@ -163,7 +174,7 @@ export function FilePreviewPopover({
                 onClick={onAddSelection}
                 disabled={!selection || !canInsertText}
               >
-                Add to chat
+                {m.file_preview_add_to_chat({}, { locale })}
               </button>
             </div>
           </div>

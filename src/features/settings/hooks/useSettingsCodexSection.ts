@@ -7,6 +7,7 @@ import type {
   CodexUpdateResult,
   WorkspaceInfo,
 } from "@/types";
+import { getCodexConfigPath } from "@services/tauri";
 import { useGlobalAgentsMd } from "./useGlobalAgentsMd";
 import { useGlobalCodexConfigToml } from "./useGlobalCodexConfigToml";
 import { useSettingsDefaultModels } from "./useSettingsDefaultModels";
@@ -43,10 +44,12 @@ export type SettingsCodexSectionProps = {
     status: "idle" | "running" | "done";
     result: CodexDoctorResult | null;
   };
+  globalAgentsPath: string | null;
   codexUpdateState: {
     status: "idle" | "running" | "done";
     result: CodexUpdateResult | null;
   };
+  globalConfigPath: string | null;
   globalAgentsMeta: string;
   globalAgentsError: string | null;
   globalAgentsContent: string;
@@ -75,6 +78,28 @@ export type SettingsCodexSectionProps = {
   onSaveGlobalConfig: () => void;
 };
 
+function parentDir(path: string): string | null {
+  const trimmed = path.trim();
+  if (!trimmed) {
+    return null;
+  }
+  const lastSeparator = Math.max(trimmed.lastIndexOf("/"), trimmed.lastIndexOf("\\"));
+  if (lastSeparator <= 0) {
+    return null;
+  }
+  return trimmed.slice(0, lastSeparator);
+}
+
+function joinPath(base: string, name: string): string {
+  if (base.endsWith("/") || base.endsWith("\\")) {
+    return `${base}${name}`;
+  }
+  if (base.includes("\\") && !base.includes("/")) {
+    return `${base}\\${name}`;
+  }
+  return `${base}/${name}`;
+}
+
 export const useSettingsCodexSection = ({
   appSettings,
   projects,
@@ -89,6 +114,7 @@ export const useSettingsCodexSection = ({
     status: "idle" | "running" | "done";
     result: CodexDoctorResult | null;
   }>({ status: "idle", result: null });
+  const [globalConfigPath, setGlobalConfigPath] = useState<string | null>(null);
   const [codexUpdateState, setCodexUpdateState] = useState<{
     status: "idle" | "running" | "done";
     result: CodexUpdateResult | null;
@@ -152,11 +178,37 @@ export const useSettingsCodexSection = ({
     setCodexArgsDraft(appSettings.codexArgs ?? "");
   }, [appSettings.codexArgs]);
 
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const path = await getCodexConfigPath();
+        if (!cancelled) {
+          setGlobalConfigPath(path);
+        }
+      } catch {
+        if (!cancelled) {
+          setGlobalConfigPath(null);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const nextCodexBin = codexPathDraft.trim() ? codexPathDraft.trim() : null;
   const nextCodexArgs = normalizeCodexArgsInput(codexArgsDraft);
   const codexDirty =
     nextCodexBin !== (appSettings.codexBin ?? null) ||
     nextCodexArgs !== (appSettings.codexArgs ?? null);
+  const globalAgentsPath = (() => {
+    const directory = globalConfigPath ? parentDir(globalConfigPath) : null;
+    if (!directory) {
+      return null;
+    }
+    return joinPath(directory, "AGENTS.md");
+  })();
 
   const handleBrowseCodex = async () => {
     const selection = await open({ multiple: false, directory: false });
@@ -190,6 +242,7 @@ export const useSettingsCodexSection = ({
         result: {
           ok: false,
           codexBin: nextCodexBin,
+          runtimeSource: nextCodexBin ? "custom" : "path",
           version: null,
           appServerOk: false,
           details: error instanceof Error ? error.message : String(error),
@@ -256,7 +309,9 @@ export const useSettingsCodexSection = ({
     codexDirty,
     isSavingSettings,
     doctorState,
+    globalAgentsPath,
     codexUpdateState,
+    globalConfigPath,
     globalAgentsMeta: globalAgentsEditorMeta.meta,
     globalAgentsError,
     globalAgentsContent,

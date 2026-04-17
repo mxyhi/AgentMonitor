@@ -3,6 +3,8 @@ import {
   MagicSparkleIcon,
   MagicSparkleLoaderIcon,
 } from "@/features/shared/components/MagicSparkleIcon";
+import * as m from "@/i18n/messages";
+import { useAppLocale } from "@/i18n/I18nProvider";
 import Download from "lucide-react/dist/esm/icons/download";
 import RotateCcw from "lucide-react/dist/esm/icons/rotate-ccw";
 import Upload from "lucide-react/dist/esm/icons/upload";
@@ -129,16 +131,17 @@ export function GitDiffModeContent({
   onShowFileMenu,
   onDiffListClick,
 }: GitDiffModeContentProps) {
+  const locale = useAppLocale();
   const normalizedGitRoot = normalizeRootPath(gitRoot);
   const missingRepo = isMissingRepo(error);
   const gitRootNotFound = isGitRootNotFound(error);
   const showInitGitRepo = Boolean(onInitGitRepo) && missingRepo && !gitRootNotFound;
   const gitRootTitle = gitRootNotFound
-    ? "Git root folder not found."
+    ? m.git_root_not_found({}, { locale })
     : missingRepo
-      ? "This workspace isn't a Git repository yet."
-      : "Choose a repo for this workspace.";
-  const generateCommitMessageTooltip = "Generate commit message";
+      ? m.git_root_missing_repo({}, { locale })
+      : m.git_root_choose_repo({}, { locale });
+  const generateCommitMessageTooltip = m.git_generate_commit_message({}, { locale });
   const showWorktreeApplyInUnstaged = showApplyWorktree && unstagedFiles.length > 0;
   const showWorktreeApplyInStaged =
     showApplyWorktree && unstagedFiles.length === 0 && stagedFiles.length > 0;
@@ -158,7 +161,9 @@ export function GitDiffModeContent({
                 }}
                 disabled={initGitRepoLoading || gitRootScanLoading}
               >
-                {initGitRepoLoading ? "Initializing..." : "Initialize Git"}
+                {initGitRepoLoading
+                  ? m.git_initializing({}, { locale })
+                  : m.git_initialize({}, { locale })}
               </button>
             </div>
           )}
@@ -169,10 +174,10 @@ export function GitDiffModeContent({
               onClick={onScanGitRoots}
               disabled={!onScanGitRoots || gitRootScanLoading || initGitRepoLoading}
             >
-              Scan workspace
+              {m.git_scan_workspace({}, { locale })}
             </button>
             <label className="git-root-depth">
-              <span>Depth</span>
+              <span>{m.git_depth({}, { locale })}</span>
               <select
                 className="git-root-select"
                 value={gitRootScanDepth}
@@ -200,7 +205,7 @@ export function GitDiffModeContent({
                 }}
                 disabled={gitRootScanLoading || initGitRepoLoading}
               >
-                Pick folder
+                {m.git_pick_folder({}, { locale })}
               </button>
             )}
             {hasGitRoot && onClearGitRoot && (
@@ -210,18 +215,18 @@ export function GitDiffModeContent({
                 onClick={onClearGitRoot}
                 disabled={gitRootScanLoading || initGitRepoLoading}
               >
-                Use workspace root
+                {m.git_use_workspace_root({}, { locale })}
               </button>
             )}
           </div>
           {gitRootScanLoading && (
-            <div className="diff-empty">Scanning for repositories...</div>
+            <div className="diff-empty">{m.git_scanning_repositories({}, { locale })}</div>
           )}
           {!gitRootScanLoading &&
             !gitRootScanError &&
             gitRootScanHasScanned &&
             gitRootCandidates.length === 0 && (
-              <div className="diff-empty">No repositories found.</div>
+              <div className="diff-empty">{m.git_no_repositories_found({}, { locale })}</div>
             )}
           {gitRootCandidates.length > 0 && (
             <div className="git-root-list">
@@ -236,7 +241,7 @@ export function GitDiffModeContent({
                     onClick={() => onSelectGitRoot?.(path)}
                   >
                     <span className="git-root-path">{path}</span>
-                    {isActive && <span className="git-root-tag">Active</span>}
+                    {isActive && <span className="git-root-tag">{m.git_active({}, { locale })}</span>}
                   </button>
                 );
               })}
@@ -249,7 +254,7 @@ export function GitDiffModeContent({
           <div className="commit-message-input-wrapper">
             <textarea
               className="commit-message-input"
-              placeholder="Commit message..."
+              placeholder={m.git_commit_message_placeholder({}, { locale })}
               value={commitMessage}
               onChange={(event) => onCommitMessageChange?.(event.target.value)}
               disabled={commitMessageLoading}
@@ -269,7 +274,7 @@ export function GitDiffModeContent({
               data-tooltip={generateCommitMessageTooltip}
               data-tooltip-placement="bottom"
               data-tooltip-align="end"
-              aria-label="Generate commit message"
+              aria-label={m.git_generate_commit_message({}, { locale })}
             >
               {commitMessageLoading ? (
                 <MagicSparkleLoaderIcon className="commit-message-loader" />
@@ -296,14 +301,20 @@ export function GitDiffModeContent({
                 className="push-button-secondary"
                 onClick={() => void onPull?.()}
                 disabled={!onPull || pullLoading || syncLoading}
-                title={`Pull ${commitsBehind} commit${commitsBehind > 1 ? "s" : ""}`}
+                title={`${m.action_pull({}, { locale })} ${
+                  commitsBehind > 1
+                    ? m.git_status_commit_count({ count: commitsBehind }, { locale })
+                    : m.git_status_commit_single({}, { locale })
+                }`}
               >
                 {pullLoading ? (
                   <span className="commit-button-spinner" aria-hidden />
                 ) : (
                   <Download size={14} aria-hidden />
                 )}
-                <span>{pullLoading ? "Pulling..." : "Pull"}</span>
+                <span>
+                  {pullLoading ? `${m.action_pull({}, { locale })}...` : m.action_pull({}, { locale })}
+                </span>
                 <span className="push-count">{commitsBehind}</span>
               </button>
             )}
@@ -315,8 +326,14 @@ export function GitDiffModeContent({
                 disabled={!onPush || pushLoading || commitsBehind > 0}
                 title={
                   commitsBehind > 0
-                    ? "Remote is ahead. Pull first, or use Sync."
-                    : `Push ${commitsAhead} commit${commitsAhead > 1 ? "s" : ""}`
+                    ? `${m.action_pull({}, { locale })} first, or use ${m.action_sync({}, {
+                        locale,
+                      })}.`
+                    : `${m.git_push({}, { locale })} ${
+                        commitsAhead > 1
+                          ? m.git_status_commit_count({ count: commitsAhead }, { locale })
+                          : m.git_status_commit_single({}, { locale })
+                      }`
                 }
               >
                 {pushLoading ? (
@@ -324,7 +341,7 @@ export function GitDiffModeContent({
                 ) : (
                   <Upload size={14} aria-hidden />
                 )}
-                <span>Push</span>
+                <span>{m.git_push({}, { locale })}</span>
                 <span className="push-count">{commitsAhead}</span>
               </button>
             )}
@@ -335,14 +352,20 @@ export function GitDiffModeContent({
               className="push-button-secondary"
               onClick={() => void onSync?.()}
               disabled={!onSync || syncLoading || pullLoading}
-              title="Pull latest changes and push your local commits"
+              title={m.git_pull_and_push_local_commits({}, { locale })}
             >
               {syncLoading ? (
                 <span className="commit-button-spinner" aria-hidden />
               ) : (
                 <RotateCcw size={14} aria-hidden />
               )}
-              <span>{syncLoading ? "Syncing..." : "Sync (pull then push)"}</span>
+              <span>
+                {syncLoading
+                  ? `${m.action_sync({}, { locale })}...`
+                  : `${m.action_sync({}, { locale })} (${m.action_pull({}, { locale })} then ${
+                      m.git_push({}, { locale })
+                    })`}
+              </span>
             </button>
           )}
         </div>
@@ -351,12 +374,14 @@ export function GitDiffModeContent({
         !stagedFiles.length &&
         !unstagedFiles.length &&
         commitsAhead === 0 &&
-        commitsBehind === 0 && <div className="diff-empty">No changes detected.</div>}
+        commitsBehind === 0 && (
+          <div className="diff-empty">{m.git_no_changes_detected({}, { locale })}</div>
+        )}
       {(stagedFiles.length > 0 || unstagedFiles.length > 0) && (
         <>
           {stagedFiles.length > 0 && (
             <DiffSection
-              title="Staged"
+              title={m.git_staged({}, { locale })}
               files={stagedFiles}
               section="staged"
               selectedFiles={selectedFiles}
@@ -376,7 +401,7 @@ export function GitDiffModeContent({
           )}
           {unstagedFiles.length > 0 && (
             <DiffSection
-              title="Unstaged"
+              title={m.git_unstaged({}, { locale })}
               files={unstagedFiles}
               section="unstaged"
               selectedFiles={selectedFiles}

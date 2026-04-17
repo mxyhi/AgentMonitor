@@ -10,6 +10,8 @@ import GitBranch from "lucide-react/dist/esm/icons/git-branch";
 import ScrollText from "lucide-react/dist/esm/icons/scroll-text";
 import Search from "lucide-react/dist/esm/icons/search";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import * as m from "@/i18n/messages";
+import { useAppLocale } from "@/i18n/I18nProvider";
 import type { PanelTabId } from "../../layout/components/PanelTabs";
 import { PanelShell } from "../../layout/components/PanelShell";
 import { pushErrorToast } from "../../../services/toasts";
@@ -233,6 +235,7 @@ export function GitDiffPanel({
   syncError = null,
   commitsAhead = 0,
 }: GitDiffPanelProps) {
+  const locale = useAppLocale();
   const [dismissedErrorSignatures, setDismissedErrorSignatures] = useState<Set<string>>(
     new Set(),
   );
@@ -528,12 +531,20 @@ export function GitDiffPanel({
   );
 
   const logCountLabel = logTotal
-    ? `${logTotal} commit${logTotal === 1 ? "" : "s"}`
+    ? logTotal === 1
+      ? m.git_status_commit_single({}, { locale })
+      : m.git_status_commit_count({ count: logTotal }, { locale })
     : logEntries.length
-      ? `${logEntries.length} commit${logEntries.length === 1 ? "" : "s"}`
-      : "No commits";
-  const logSyncLabel = logUpstream ? `↑${logAhead} ↓${logBehind}` : "No upstream configured";
-  const logUpstreamLabel = logUpstream ? `Upstream ${logUpstream}` : "";
+      ? logEntries.length === 1
+        ? m.git_status_commit_single({}, { locale })
+        : m.git_status_commit_count({ count: logEntries.length }, { locale })
+      : m.git_status_no_commits({}, { locale });
+  const logSyncLabel = logUpstream
+    ? `↑${logAhead} ↓${logBehind}`
+    : m.git_status_no_upstream({}, { locale });
+  const logUpstreamLabel = logUpstream
+    ? m.git_status_upstream({ value: logUpstream }, { locale })
+    : "";
   const showAheadSection = Boolean(logUpstream && logAhead > 0);
   const showBehindSection = Boolean(logUpstream && logBehind > 0);
   const hasDiffTotals = totalAdditions > 0 || totalDeletions > 0;
@@ -541,7 +552,10 @@ export function GitDiffPanel({
     (total, group) => total + group.edits.length,
     0,
   );
-  const perFileDiffStatusLabel = `${perFileDiffGroups.length} files · ${perFileEditCount} edits`;
+  const perFileDiffStatusLabel = m.git_status_files_and_edits(
+    { files: perFileDiffGroups.length, edits: perFileEditCount },
+    { locale },
+  );
   const diffTotalsLabel = `+${totalAdditions} / -${totalDeletions}`;
   const diffStatusLabel = hasDiffTotals
     ? [logUpstream ? logSyncLabel : null, diffTotalsLabel].filter(Boolean).join(" · ")
@@ -643,7 +657,7 @@ export function GitDiffPanel({
       onFilePanelModeChange={onFilePanelModeChange}
       headerClassName="git-panel-header"
       headerRight={
-        <div className="git-panel-actions" role="group" aria-label="Git panel">
+        <div className="git-panel-actions" role="group" aria-label={m.git_panel_label({}, { locale })}>
           <div className="git-panel-select">
             <span className="git-panel-select-icon" aria-hidden>
               <ModeIcon />
@@ -652,13 +666,13 @@ export function GitDiffPanel({
               className="git-panel-select-input"
               value={mode}
               onChange={(event) => onModeChange(event.target.value as GitDiffPanelProps["mode"])}
-              aria-label="Git panel view"
+              aria-label={m.git_panel_view({}, { locale })}
             >
-              <option value="diff">Diff</option>
-              <option value="perFile">Agent edits</option>
-              <option value="log">Log</option>
-              <option value="issues">Issues</option>
-              <option value="prs">PRs</option>
+              <option value="diff">{m.git_mode_diff({}, { locale })}</option>
+              <option value="perFile">{m.git_mode_agent_edits({}, { locale })}</option>
+              <option value="log">{m.git_mode_log({}, { locale })}</option>
+              <option value="issues">{m.git_mode_issues({}, { locale })}</option>
+              <option value="prs">{m.git_mode_prs({}, { locale })}</option>
             </select>
           </div>
         </div>

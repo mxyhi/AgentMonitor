@@ -1,6 +1,8 @@
 import type { CSSProperties } from "react";
 import { BrainCog, SlidersHorizontal, Zap } from "lucide-react";
 import type { AccessMode, ServiceTier, ThreadTokenUsage } from "../../../types";
+import * as m from "@/i18n/messages";
+import { useAppLocale } from "@/i18n/I18nProvider";
 import type { CodexArgsOption } from "../../threads/utils/codexArgsProfiles";
 
 type ComposerMetaBarProps = {
@@ -44,10 +46,13 @@ export function ComposerMetaBar({
   onSelectCodexArgsOverride,
   contextUsage = null,
 }: ComposerMetaBarProps) {
+  const locale = useAppLocale();
   const selectedModel =
     models.find((model) => model.id === selectedModelId) ?? null;
   const selectedModelLabel =
-    selectedModel?.displayName || selectedModel?.model || "No models";
+    selectedModel?.displayName ||
+    selectedModel?.model ||
+    m.composer_meta_no_models({}, { locale });
   const modelSelectStyle = {
     "--composer-model-select-width": `${Math.max(selectedModelLabel.length + 2, 8)}ch`,
   } as CSSProperties;
@@ -80,7 +85,10 @@ export function ComposerMetaBar({
         {collaborationModes.length > 0 && (
           canUsePlanToggle ? (
             <div className="composer-select-wrap composer-plan-toggle-wrap">
-              <label className="composer-plan-toggle" aria-label="Plan mode">
+              <label
+                className="composer-plan-toggle"
+                aria-label={m.composer_meta_plan_mode({}, { locale })}
+              >
                 <input
                   className="composer-plan-toggle-input"
                   type="checkbox"
@@ -106,7 +114,7 @@ export function ComposerMetaBar({
                   </svg>
                 </span>
                 <span className="composer-plan-toggle-label">
-                  {planMode?.label || "Plan"}
+                  {planMode?.label || m.plan_panel_title({}, { locale })}
                 </span>
               </label>
             </div>
@@ -125,7 +133,7 @@ export function ComposerMetaBar({
             </span>
               <select
                 className="composer-select composer-select--model composer-select--collab"
-                aria-label="Collaboration mode"
+                aria-label={m.composer_meta_collaboration_mode({}, { locale })}
                 value={selectedCollaborationModeId ?? ""}
                 onChange={(event) =>
                   onSelectCollaborationMode(event.target.value || null)
@@ -174,13 +182,15 @@ export function ComposerMetaBar({
           </span>
           <select
             className="composer-select composer-select--model"
-            aria-label="Model"
+            aria-label={m.composer_meta_model({}, { locale })}
             value={selectedModelId ?? ""}
             onChange={(event) => onSelectModel(event.target.value)}
             disabled={disabled}
             style={modelSelectStyle}
           >
-            {models.length === 0 && <option value="">No models</option>}
+            {models.length === 0 && (
+              <option value="">{m.composer_meta_no_models({}, { locale })}</option>
+            )}
             {models.map((model) => (
               <option key={model.id} value={model.id}>
                 {model.displayName || model.model}
@@ -191,8 +201,8 @@ export function ComposerMetaBar({
             <span
               className="composer-fast-indicator"
               role="status"
-              aria-label="Fast mode enabled"
-              title="Fast mode enabled"
+              aria-label={m.composer_meta_fast_mode_enabled({}, { locale })}
+              title={m.composer_meta_fast_mode_enabled({}, { locale })}
             >
               <Zap size={12} strokeWidth={1.8} />
             </span>
@@ -204,12 +214,14 @@ export function ComposerMetaBar({
           </span>
           <select
             className="composer-select composer-select--effort"
-            aria-label="Thinking mode"
+            aria-label={m.composer_meta_thinking_mode({}, { locale })}
             value={selectedEffort ?? ""}
             onChange={(event) => onSelectEffort(event.target.value)}
             disabled={disabled || !reasoningSupported}
           >
-            {reasoningOptions.length === 0 && <option value="">Default</option>}
+            {reasoningOptions.length === 0 && (
+              <option value="">{m.composer_meta_default({}, { locale })}</option>
+            )}
             {reasoningOptions.map((effort) => (
               <option key={effort} value={effort}>
                 {effort}
@@ -224,7 +236,7 @@ export function ComposerMetaBar({
             </span>
             <select
               className="composer-select composer-select--approval"
-              aria-label="Codex args profile"
+              aria-label={m.composer_meta_codex_args_profile({}, { locale })}
               disabled={disabled}
               value={selectedCodexArgsOverride ?? ""}
               onChange={(event) =>
@@ -259,16 +271,16 @@ export function ComposerMetaBar({
           </span>
           <select
             className="composer-select composer-select--approval"
-            aria-label="Agent access"
+            aria-label={m.composer_meta_agent_access({}, { locale })}
             disabled={disabled}
             value={accessMode}
             onChange={(event) =>
               onSelectAccessMode(event.target.value as AccessMode)
             }
           >
-            <option value="read-only">Read only</option>
-            <option value="current">On-Request</option>
-            <option value="full-access">Full access</option>
+            <option value="read-only">{m.composer_meta_access_read_only({}, { locale })}</option>
+            <option value="current">{m.composer_meta_access_on_request({}, { locale })}</option>
+            <option value="full-access">{m.composer_meta_access_full_access({}, { locale })}</option>
           </select>
         </div>
       </div>
@@ -277,13 +289,19 @@ export function ComposerMetaBar({
           className="composer-context-ring"
           data-tooltip={
             contextFreePercent === null
-              ? "Context free --"
-              : `Context free ${Math.round(contextFreePercent)}%`
+              ? m.composer_meta_context_free_unknown({}, { locale })
+              : m.composer_meta_context_free_percent(
+                  { value: String(Math.round(contextFreePercent)) },
+                  { locale },
+                )
           }
           aria-label={
             contextFreePercent === null
-              ? "Context free --"
-              : `Context free ${Math.round(contextFreePercent)}%`
+              ? m.composer_meta_context_free_unknown({}, { locale })
+              : m.composer_meta_context_free_percent(
+                  { value: String(Math.round(contextFreePercent)) },
+                  { locale },
+                )
           }
           style={
             {

@@ -1,4 +1,6 @@
 import type { MouseEvent as ReactMouseEvent, ReactNode } from "react";
+import * as m from "@/i18n/messages";
+import { useAppLocale } from "@/i18n/I18nProvider";
 import type { TerminalTab } from "../hooks/useTerminalTabs";
 
 type TerminalDockProps = {
@@ -22,6 +24,7 @@ export function TerminalDock({
   onResizeStart,
   terminalNode,
 }: TerminalDockProps) {
+  const locale = useAppLocale();
   if (!isOpen) {
     return null;
   }
@@ -33,12 +36,16 @@ export function TerminalDock({
           className="terminal-panel-resizer"
           role="separator"
           aria-orientation="horizontal"
-          aria-label="Resize terminal panel"
+          aria-label={m.terminal_resize_panel({}, { locale })}
           onMouseDown={onResizeStart}
         />
       )}
       <div className="terminal-header">
-        <div className="terminal-tabs" role="tablist" aria-label="Terminal tabs">
+        <div
+          className="terminal-tabs"
+          role="tablist"
+          aria-label={m.terminal_tabs_aria({}, { locale })}
+        >
           {terminals.map((tab) => (
             <button
               key={tab.id}
@@ -54,7 +61,7 @@ export function TerminalDock({
               <span
                 className="terminal-tab-close"
                 role="button"
-                aria-label={`Close ${tab.title}`}
+                aria-label={m.terminal_close_tab({ value: tab.title }, { locale })}
                 onClick={(event) => {
                   event.stopPropagation();
                   onCloseTerminal(tab.id);
@@ -68,8 +75,8 @@ export function TerminalDock({
             className="terminal-tab-add"
             type="button"
             onClick={onNewTerminal}
-            aria-label="New terminal"
-            title="New terminal"
+            aria-label={m.terminal_new({}, { locale })}
+            title={m.terminal_new({}, { locale })}
           >
             +
           </button>

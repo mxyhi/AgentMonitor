@@ -1,4 +1,6 @@
 import { useEffect, useRef } from "react";
+import * as m from "@/i18n/messages";
+import { useAppLocale } from "@/i18n/I18nProvider";
 import { ModalShell } from "../../design-system/components/modal/ModalShell";
 
 type MobileRemoteWorkspacePromptProps = {
@@ -20,6 +22,7 @@ export function MobileRemoteWorkspacePrompt({
   onCancel,
   onConfirm,
 }: MobileRemoteWorkspacePromptProps) {
+  const locale = useAppLocale();
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const focusTextareaAtEnd = () => {
     const textarea = textareaRef.current;
@@ -37,18 +40,18 @@ export function MobileRemoteWorkspacePrompt({
 
   return (
     <ModalShell
-      ariaLabel="Add remote workspace paths"
+      ariaLabel={m.mobile_remote_workspace_aria({}, { locale })}
       className="mobile-remote-workspace-modal"
       cardClassName="mobile-remote-workspace-modal-card"
       onBackdropClick={onCancel}
     >
       <div className="mobile-remote-workspace-modal-content">
-        <div className="ds-modal-title">Add project directories</div>
+        <div className="ds-modal-title">{m.mobile_remote_workspace_title({}, { locale })}</div>
         <div className="ds-modal-subtitle">
-          Enter directories on the connected server.
+          {m.mobile_remote_workspace_subtitle({}, { locale })}
         </div>
         <label className="ds-modal-label" htmlFor="mobile-remote-workspace-paths">
-          Paths
+          {m.mobile_remote_workspace_paths({}, { locale })}
         </label>
         <textarea
           id="mobile-remote-workspace-paths"
@@ -61,11 +64,13 @@ export function MobileRemoteWorkspacePrompt({
           wrap="off"
         />
         <div className="mobile-remote-workspace-modal-hint">
-          One path per line. Comma and semicolon separators also work. You can use `~/...`.
+          {m.mobile_remote_workspace_hint({}, { locale })}
         </div>
         {recentPaths.length > 0 && (
           <div className="mobile-remote-workspace-modal-recent">
-            <div className="mobile-remote-workspace-modal-recent-title">Recently added</div>
+            <div className="mobile-remote-workspace-modal-recent-title">
+              {m.mobile_remote_workspace_recent({}, { locale })}
+            </div>
             <div className="mobile-remote-workspace-modal-recent-list">
               {recentPaths.map((path) => (
                 <button

@@ -11,10 +11,12 @@ import {
 import type { ComponentProps } from "react";
 import { describe, expect, it, vi } from "vitest";
 import type { AppSettings, WorkspaceInfo } from "@/types";
+import * as m from "@/i18n/messages";
 import {
   connectWorkspace,
   getAppBuildType,
   getAgentsSettings,
+  getCodexConfigPath,
   getConfigModel,
   getExperimentalFeatureList,
   isMobileRuntime,
@@ -37,6 +39,7 @@ vi.mock("@services/tauri", async () => {
     ...actual,
     connectWorkspace: vi.fn(),
     getAppBuildType: vi.fn(),
+    getCodexConfigPath: vi.fn(),
     getModelList: vi.fn(),
     getConfigModel: vi.fn(),
     getExperimentalFeatureList: vi.fn(),
@@ -48,6 +51,7 @@ vi.mock("@services/tauri", async () => {
 
 const connectWorkspaceMock = vi.mocked(connectWorkspace);
 const getAppBuildTypeMock = vi.mocked(getAppBuildType);
+const getCodexConfigPathMock = vi.mocked(getCodexConfigPath);
 const getConfigModelMock = vi.mocked(getConfigModel);
 const getModelListMock = vi.mocked(getModelList);
 const getExperimentalFeatureListMock = vi.mocked(getExperimentalFeatureList);
@@ -56,11 +60,14 @@ const isMobileRuntimeMock = vi.mocked(isMobileRuntime);
 const listWorkspacesMock = vi.mocked(listWorkspaces);
 connectWorkspaceMock.mockResolvedValue(undefined);
 getAppBuildTypeMock.mockResolvedValue("release");
+getCodexConfigPathMock.mockResolvedValue(
+  "/Users/me/Library/Application Support/CodexMonitor/codex-home/config.toml",
+);
 getConfigModelMock.mockResolvedValue(null);
 isMobileRuntimeMock.mockResolvedValue(false);
 listWorkspacesMock.mockResolvedValue([]);
 getAgentsSettingsMock.mockResolvedValue({
-  configPath: "/Users/me/.codex/config.toml",
+  configPath: "/Users/me/Library/Application Support/CodexMonitor/codex-home/config.toml",
   multiAgentEnabled: false,
   maxThreads: 6,
   maxDepth: 1,
@@ -109,6 +116,7 @@ const baseSettings: AppSettings = {
   lastComposerReasoningEffort: null,
   uiScale: 1,
   theme: "system",
+  appLanguage: "en",
   usageShowRemaining: false,
   showMessageFilePath: true,
   chatHistoryScrollbackItems: 200,
@@ -166,6 +174,7 @@ const baseSettings: AppSettings = {
 const createDoctorResult = () => ({
   ok: true,
   codexBin: null,
+  runtimeSource: "path" as const,
   version: null,
   appServerOk: true,
   details: null,
@@ -185,6 +194,8 @@ const createUpdateResult = () => ({
   output: null,
   details: null,
 });
+
+const locale = "en" as const;
 
 const renderDisplaySection = (
   options: {
@@ -522,12 +533,26 @@ describe("SettingsView Display", () => {
     });
   });
 
+  it("updates the app language selection", async () => {
+    const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
+    renderDisplaySection({ onUpdateAppSettings });
+
+    const select = screen.getByLabelText("Language");
+    fireEvent.change(select, { target: { value: "zh-CN" } });
+
+    await waitFor(() => {
+      expect(onUpdateAppSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ appLanguage: "zh-CN" }),
+      );
+    });
+  });
+
   it("toggles remaining limits display", async () => {
     const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
     renderDisplaySection({ onUpdateAppSettings });
 
     const row = screen
-      .getByText("Show remaining Codex limits")
+      .getByText(m.display_usage_remaining_title({}, { locale }))
       .closest(".settings-toggle-row") as HTMLElement | null;
     if (!row) {
       throw new Error("Expected remaining limits row");
@@ -552,7 +577,7 @@ describe("SettingsView Display", () => {
     renderDisplaySection({ onUpdateAppSettings });
 
     const row = screen
-      .getByText("Show file path in messages")
+      .getByText(m.display_show_file_path_title({}, { locale }))
       .closest(".settings-toggle-row") as HTMLElement | null;
     if (!row) {
       throw new Error("Expected file path visibility row");
@@ -577,7 +602,7 @@ describe("SettingsView Display", () => {
     renderDisplaySection({ onUpdateAppSettings });
 
     const row = screen
-      .getByText("Split chat and diff center panes")
+      .getByText(m.display_split_panes_title({}, { locale }))
       .closest(".settings-toggle-row") as HTMLElement | null;
     if (!row) {
       throw new Error("Expected split center panes row");
@@ -600,7 +625,7 @@ describe("SettingsView Display", () => {
     renderDisplaySection({ onToggleTransparency, reduceTransparency: false });
 
     const row = screen
-      .getByText("Reduce transparency")
+      .getByText(m.display_reduce_transparency_title({}, { locale }))
       .closest(".settings-toggle-row") as HTMLElement | null;
     if (!row) {
       throw new Error("Expected reduce transparency row");
@@ -622,7 +647,7 @@ describe("SettingsView Display", () => {
     const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
     renderDisplaySection({ onUpdateAppSettings });
 
-    const scaleInput = screen.getByLabelText("Interface scale");
+    const scaleInput = screen.getByLabelText(m.display_interface_scale_aria({}, { locale }));
 
     fireEvent.change(scaleInput, { target: { value: "500%" } });
     fireEvent.blur(scaleInput);
@@ -647,7 +672,7 @@ describe("SettingsView Display", () => {
     const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
     renderDisplaySection({ onUpdateAppSettings });
 
-    const uiFontInput = screen.getByLabelText("UI font family");
+    const uiFontInput = screen.getByLabelText(m.display_ui_font_label({}, { locale }));
     fireEvent.change(uiFontInput, { target: { value: "Avenir, sans-serif" } });
     fireEvent.blur(uiFontInput);
 
@@ -657,7 +682,7 @@ describe("SettingsView Display", () => {
       );
     });
 
-    const codeFontInput = screen.getByLabelText("Code font family");
+    const codeFontInput = screen.getByLabelText(m.display_code_font_label({}, { locale }));
     fireEvent.change(codeFontInput, {
       target: { value: "JetBrains Mono, monospace" },
     });
@@ -674,7 +699,7 @@ describe("SettingsView Display", () => {
     const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
     renderDisplaySection({ onUpdateAppSettings });
 
-    const resetButtons = screen.getAllByRole("button", { name: "Reset" });
+    const resetButtons = screen.getAllByRole("button", { name: m.action_reset({}, { locale }) });
     fireEvent.click(resetButtons[1]);
     fireEvent.click(resetButtons[2]);
 
@@ -696,7 +721,7 @@ describe("SettingsView Display", () => {
     const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
     renderDisplaySection({ onUpdateAppSettings });
 
-    const slider = screen.getByLabelText("Code font size");
+    const slider = screen.getByLabelText(m.display_code_font_size_label({}, { locale }));
     fireEvent.change(slider, { target: { value: "14" } });
 
     await waitFor(() => {
@@ -714,7 +739,7 @@ describe("SettingsView Display", () => {
     });
 
     const row = screen
-      .getByText("Notification sounds")
+      .getByText(m.display_notification_sounds_title({}, { locale }))
       .closest(".settings-toggle-row") as HTMLElement | null;
     if (!row) {
       throw new Error("Expected notification sounds row");
@@ -736,7 +761,7 @@ describe("SettingsView Display", () => {
     });
 
     const row = screen
-      .getByText("Sub-agent notifications")
+      .getByText(m.display_subagent_notifications_title({}, { locale }))
       .closest(".settings-toggle-row") as HTMLElement | null;
     if (!row) {
       throw new Error("Expected sub-agent notifications row");
@@ -779,10 +804,12 @@ describe("SettingsView Environments", () => {
       appSettings: { globalWorktreesFolder: "I:/existing-worktrees" },
     });
 
-    const input = screen.getByLabelText("Global worktrees root");
+    const input = screen.getByLabelText(m.environments_global_root_label());
     expect(input).toBeTruthy();
     expect((input as HTMLInputElement).value).toBe("I:/existing-worktrees");
-    expect((input as HTMLInputElement).placeholder).toBe("/path/to/worktrees-root");
+    expect((input as HTMLInputElement).placeholder).toBe(
+      m.environments_global_root_placeholder(),
+    );
   });
 
   it("saves the global worktrees root through app settings", async () => {
@@ -793,9 +820,9 @@ describe("SettingsView Environments", () => {
       onUpdateWorkspaceSettings,
     });
 
-    const input = screen.getByLabelText("Global worktrees root");
+    const input = screen.getByLabelText(m.environments_global_root_label());
     fireEvent.change(input, { target: { value: "I:/cm-worktrees" } });
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    fireEvent.click(screen.getByRole("button", { name: m.action_save() }));
 
     await waitFor(() => {
       expect(onUpdateAppSettings).toHaveBeenCalledWith(
@@ -818,7 +845,7 @@ describe("SettingsView Environments", () => {
 
     const textarea = screen.getByPlaceholderText("pnpm install");
     fireEvent.change(textarea, { target: { value: "echo updated" } });
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    fireEvent.click(screen.getByRole("button", { name: m.action_save() }));
 
     await waitFor(() => {
       expect(onUpdateWorkspaceSettings).toHaveBeenCalledWith("w1", {
@@ -841,13 +868,13 @@ describe("SettingsView Environments", () => {
       onUpdateWorkspaceSettings,
     });
 
-    fireEvent.change(screen.getByLabelText("Global worktrees root"), {
+    fireEvent.change(screen.getByLabelText(m.environments_global_root_label()), {
       target: { value: "I:/cm-worktrees" },
     });
     fireEvent.change(screen.getByPlaceholderText("pnpm install"), {
       target: { value: "echo updated" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    fireEvent.click(screen.getByRole("button", { name: m.action_save() }));
 
     expect(
       await screen.findByText("Failed to save workspace settings"),
@@ -855,7 +882,7 @@ describe("SettingsView Environments", () => {
     expect(onUpdateAppSettings).toHaveBeenCalledTimes(1);
     expect(onUpdateWorkspaceSettings).toHaveBeenCalledTimes(1);
 
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    fireEvent.click(screen.getByRole("button", { name: m.action_save() }));
 
     await waitFor(() => {
       expect(onUpdateWorkspaceSettings).toHaveBeenCalledTimes(2);
@@ -870,10 +897,10 @@ describe("SettingsView Environments", () => {
       onUpdateAppSettings,
     });
 
-    expect(screen.getByText("No projects yet.")).toBeTruthy();
-    const input = screen.getByLabelText("Global worktrees root");
+    expect(screen.getByText(m.environments_no_projects())).toBeTruthy();
+    const input = screen.getByLabelText(m.environments_global_root_label());
     fireEvent.change(input, { target: { value: "I:/cm-worktrees" } });
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    fireEvent.click(screen.getByRole("button", { name: m.action_save() }));
 
     await waitFor(() => {
       expect(onUpdateAppSettings).toHaveBeenCalledWith(
@@ -895,22 +922,23 @@ describe("SettingsView Environments", () => {
       onUpdateAppSettings,
     });
 
-    fireEvent.change(screen.getByLabelText("Global worktrees root"), {
+    fireEvent.change(screen.getByLabelText(m.environments_global_root_label()), {
       target: { value: "I:/cm-worktrees" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    fireEvent.click(screen.getByRole("button", { name: m.action_save() }));
 
     await waitFor(() => {
       expect(
-        (screen.getByRole("button", { name: "Saving..." }) as HTMLButtonElement).disabled,
+        (screen.getByRole("button", { name: m.action_saving() }) as HTMLButtonElement)
+          .disabled,
       ).toBe(true);
     });
-    expect((screen.getByLabelText("Global worktrees root") as HTMLInputElement).disabled).toBe(
-      true,
-    );
+    expect(
+      (screen.getByLabelText(m.environments_global_root_label()) as HTMLInputElement).disabled,
+    ).toBe(true);
     expect(onUpdateAppSettings).toHaveBeenCalledTimes(1);
 
-    fireEvent.click(screen.getByRole("button", { name: "Saving..." }));
+    fireEvent.click(screen.getByRole("button", { name: m.action_saving() }));
     expect(onUpdateAppSettings).toHaveBeenCalledTimes(1);
 
     await act(async () => {
@@ -919,9 +947,9 @@ describe("SettingsView Environments", () => {
     });
 
     await waitFor(() => {
-      expect((screen.getByRole("button", { name: "Save" }) as HTMLButtonElement).disabled).toBe(
-        true,
-      );
+      expect(
+        (screen.getByRole("button", { name: m.action_save() }) as HTMLButtonElement).disabled,
+      ).toBe(true);
     });
   });
 
@@ -931,7 +959,7 @@ describe("SettingsView Environments", () => {
       appSettings: { globalWorktreesFolder: null },
     });
 
-    const input = screen.getByLabelText("Global worktrees root");
+    const input = screen.getByLabelText(m.environments_global_root_label());
     fireEvent.change(input, { target: { value: "I:/typing" } });
 
     rerender({
@@ -939,16 +967,18 @@ describe("SettingsView Environments", () => {
       appSettings: { globalWorktreesFolder: "I:/loaded-from-settings" },
     });
 
-    expect((screen.getByLabelText("Global worktrees root") as HTMLInputElement).value).toBe(
+    expect(
+      (screen.getByLabelText(m.environments_global_root_label()) as HTMLInputElement).value,
+    ).toBe(
       "I:/typing",
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Reset" }));
+    fireEvent.click(screen.getByRole("button", { name: m.action_reset() }));
 
     await waitFor(() => {
-      expect((screen.getByLabelText("Global worktrees root") as HTMLInputElement).value).toBe(
-        "I:/loaded-from-settings",
-      );
+      expect(
+        (screen.getByLabelText(m.environments_global_root_label()) as HTMLInputElement).value,
+      ).toBe("I:/loaded-from-settings");
     });
   });
 
@@ -961,9 +991,9 @@ describe("SettingsView Environments", () => {
       onUpdateAppSettings,
     });
 
-    const input = screen.getByLabelText("Global worktrees root");
+    const input = screen.getByLabelText(m.environments_global_root_label());
     fireEvent.change(input, { target: { value: "I:/cm-worktrees" } });
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    fireEvent.click(screen.getByRole("button", { name: m.action_save() }));
 
     expect(
       await screen.findByText("Failed to save global worktrees root"),
@@ -981,11 +1011,11 @@ describe("SettingsView Environments", () => {
       onUpdateWorkspaceSettings,
     });
 
-    const input = screen.getByLabelText("Global worktrees root");
+    const input = screen.getByLabelText(m.environments_global_root_label());
     const textarea = screen.getByPlaceholderText("pnpm install");
     fireEvent.change(input, { target: { value: "I:/cm-worktrees" } });
     fireEvent.change(textarea, { target: { value: "echo updated" } });
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    fireEvent.click(screen.getByRole("button", { name: m.action_save() }));
 
     expect(
       await screen.findByText("Failed to save workspace settings"),
@@ -1126,6 +1156,55 @@ describe("SettingsView Codex section", () => {
     });
   });
 
+  it("shows app-managed codex home paths instead of hard-coded global defaults", async () => {
+    cleanup();
+    render(
+      <SettingsView
+        workspaceGroups={[]}
+        groupedWorkspaces={[]}
+        ungroupedLabel="Ungrouped"
+        onClose={vi.fn()}
+        onMoveWorkspace={vi.fn()}
+        onDeleteWorkspace={vi.fn()}
+        onCreateWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onRenameWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onMoveWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onDeleteWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onAssignWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        reduceTransparency={false}
+        onToggleTransparency={vi.fn()}
+        appSettings={baseSettings}
+        openAppIconById={{}}
+        onUpdateAppSettings={vi.fn().mockResolvedValue(undefined)}
+        onRunDoctor={vi.fn().mockResolvedValue(createDoctorResult())}
+        onRunCodexUpdate={vi.fn().mockResolvedValue(createUpdateResult())}
+        onUpdateWorkspaceSettings={vi.fn().mockResolvedValue(undefined)}
+        scaleShortcutTitle="Scale shortcut"
+        scaleShortcutText="Use Command +/-"
+        onTestNotificationSound={vi.fn()}
+        onTestSystemNotification={vi.fn()}
+        dictationModelStatus={null}
+        onDownloadDictationModel={vi.fn()}
+        onCancelDictationDownload={vi.fn()}
+        onRemoveDictationModel={vi.fn()}
+        initialSection="codex"
+      />,
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("/Users/me/Library/Application Support/CodexMonitor/codex-home/AGENTS.md"),
+      ).toBeTruthy();
+      expect(
+        screen.getByText(
+          "/Users/me/Library/Application Support/CodexMonitor/codex-home/config.toml",
+        ),
+      ).toBeTruthy();
+    });
+    expect(screen.queryByText("~/.codex/AGENTS.md")).toBeNull();
+    expect(screen.queryByText("~/.codex/config.toml")).toBeNull();
+  });
+
   it("renders mobile daemon controls in local backend mode for TCP provider", async () => {
     cleanup();
     render(
@@ -1250,7 +1329,7 @@ describe("SettingsView Codex section", () => {
       expect(screen.queryByRole("button", { name: "Detect Tailscale" })).toBeNull();
       expect(screen.queryByRole("button", { name: "Start Runner" })).toBeNull();
       expect(
-        screen.getByText(/get the tailscale hostname and token from your desktop/i),
+        screen.getByText(/get tailscale hostname and token from desktop agent monitor setup/i),
       ).toBeTruthy();
     } finally {
       if (originalPlatformDescriptor) {
@@ -1804,7 +1883,7 @@ describe("SettingsView Composer", () => {
       },
     });
 
-    const hintTitle = await screen.findByText("Show follow-up hint while processing");
+    const hintTitle = await screen.findByText(m.composer_followup_hint_title());
     const hintRow = hintTitle.closest(".settings-toggle-row");
     expect(hintRow).not.toBeNull();
     fireEvent.click(within(hintRow as HTMLElement).getByRole("button"));
@@ -1848,9 +1927,7 @@ describe("SettingsView Composer", () => {
     const steerOption = screen.getByRole("radio", { name: "Steer" });
     expect(steerOption.hasAttribute("disabled")).toBe(true);
     expect(
-      screen.getByText(
-        "Steer is unavailable in the current Codex config. Follow-ups will queue.",
-      ),
+      screen.getByText(m.composer_followup_unavailable_help()),
     ).not.toBeNull();
 
     fireEvent.click(steerOption);

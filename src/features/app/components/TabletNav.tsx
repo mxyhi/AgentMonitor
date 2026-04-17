@@ -2,6 +2,8 @@ import type { ReactNode } from "react";
 import GitBranch from "lucide-react/dist/esm/icons/git-branch";
 import MessagesSquare from "lucide-react/dist/esm/icons/messages-square";
 import TerminalSquare from "lucide-react/dist/esm/icons/terminal-square";
+import { useAppLocale } from "@/i18n/I18nProvider";
+import * as m from "@/i18n/messages";
 
 type TabletNavTab = "codex" | "git" | "log";
 
@@ -10,15 +12,15 @@ type TabletNavProps = {
   onSelect: (tab: TabletNavTab) => void;
 };
 
-const tabs: { id: TabletNavTab; label: string; icon: ReactNode }[] = [
-  { id: "codex", label: "Codex", icon: <MessagesSquare className="tablet-nav-icon" /> },
-  { id: "git", label: "Git", icon: <GitBranch className="tablet-nav-icon" /> },
-  { id: "log", label: "Log", icon: <TerminalSquare className="tablet-nav-icon" /> },
-];
-
 export function TabletNav({ activeTab, onSelect }: TabletNavProps) {
+  const locale = useAppLocale();
+  const tabs: { id: TabletNavTab; label: string; icon: ReactNode }[] = [
+    { id: "codex", label: m.tab_codex({}, { locale }), icon: <MessagesSquare className="tablet-nav-icon" /> },
+    { id: "git", label: m.tab_git({}, { locale }), icon: <GitBranch className="tablet-nav-icon" /> },
+    { id: "log", label: m.tab_log({}, { locale }), icon: <TerminalSquare className="tablet-nav-icon" /> },
+  ];
   return (
-    <nav className="tablet-nav" aria-label="Workspace">
+    <nav className="tablet-nav" aria-label={m.tab_workspace({}, { locale })}>
       <div className="tablet-nav-group">
         {tabs.map((tab) => (
           <button

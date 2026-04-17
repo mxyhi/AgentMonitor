@@ -6,6 +6,7 @@ use tokio::process::Child;
 use tokio::sync::Mutex;
 
 use crate::dictation::DictationState;
+use crate::codex::home::configure_default_codex_home;
 use crate::shared::codex_core::CodexLoginCancelState;
 use crate::storage::{read_settings, read_workspaces};
 use crate::types::{AppSettings, TcpDaemonState, TcpDaemonStatus, WorkspaceEntry};
@@ -49,6 +50,7 @@ impl AppState {
             .path()
             .app_data_dir()
             .unwrap_or_else(|_| std::env::current_dir().unwrap_or_else(|_| ".".into()));
+        configure_default_codex_home(&data_dir);
         let storage_path = data_dir.join("workspaces.json");
         let settings_path = data_dir.join("settings.json");
         let workspaces = read_workspaces(&storage_path).unwrap_or_default();

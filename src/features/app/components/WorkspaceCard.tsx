@@ -1,6 +1,8 @@
 import type { MouseEvent } from "react";
 
 import type { WorkspaceInfo } from "../../../types";
+import * as m from "@/i18n/messages";
+import { useAppLocale } from "@/i18n/I18nProvider";
 
 type WorkspaceCardProps = {
   workspace: WorkspaceInfo;
@@ -38,6 +40,7 @@ export function WorkspaceCard({
   onToggleAddMenu,
   children,
 }: WorkspaceCardProps) {
+  const locale = useAppLocale();
   const contentCollapsedClass = isCollapsed ? " collapsed" : "";
 
   return (
@@ -66,7 +69,11 @@ export function WorkspaceCard({
                   onToggleWorkspaceCollapse(workspace.id, !isCollapsed);
                 }}
                 data-tauri-drag-region="false"
-                aria-label={isCollapsed ? "Show agents" : "Hide agents"}
+                aria-label={
+                  isCollapsed
+                    ? m.sidebar_show_agents({}, { locale })
+                    : m.sidebar_hide_agents({}, { locale })
+                }
                 aria-expanded={!isCollapsed}
               >
                 <span className="workspace-toggle-icon">›</span>
@@ -98,7 +105,7 @@ export function WorkspaceCard({
               );
             }}
             data-tauri-drag-region="false"
-            aria-label="Add agent options"
+            aria-label={m.sidebar_add_agent_options({}, { locale })}
             aria-expanded={addMenuOpen}
           >
             +
@@ -106,13 +113,13 @@ export function WorkspaceCard({
           {!workspace.connected && (
             <span
               className="connect"
-              title="Connect workspace context to the shared Codex server"
+              title={m.sidebar_connect_workspace_context({}, { locale })}
               onClick={(event) => {
                 event.stopPropagation();
                 onConnectWorkspace(workspace);
               }}
             >
-              connect
+              {m.sidebar_connect({}, { locale })}
             </span>
           )}
         </div>

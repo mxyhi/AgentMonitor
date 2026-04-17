@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { I18nProvider } from "@/i18n/I18nProvider";
 import type { UpdateState } from "../hooks/useUpdater";
 import { UpdateToast } from "./UpdateToast";
 
@@ -14,6 +15,31 @@ const openUrlMock = vi.mocked(openUrl);
 describe("UpdateToast", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    cleanup();
+  });
+
+  it("renders simplified chinese copy when locale switches", () => {
+    const onUpdate = vi.fn();
+    const onDismiss = vi.fn();
+    const state: UpdateState = { stage: "available", version: "1.2.3" };
+
+    render(
+      <I18nProvider locale="zh-CN">
+        <UpdateToast state={state} onUpdate={onUpdate} onDismiss={onDismiss} />
+      </I18nProvider>,
+    );
+
+    expect(screen.getAllByText("更新")).toHaveLength(2);
+    expect(screen.getByText("发现新版本。")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "稍后" }));
+    fireEvent.click(screen.getByRole("button", { name: "更新" }));
+
+    expect(onDismiss).toHaveBeenCalledTimes(1);
+    expect(onUpdate).toHaveBeenCalledTimes(1);
   });
 
   it("renders available state and handles actions", () => {
@@ -90,7 +116,7 @@ describe("UpdateToast", () => {
     );
     const scoped = within(container);
 
-    expect(scoped.getByText("You’re up to date.")).toBeTruthy();
+    expect(scoped.getByText("You're up to date.")).toBeTruthy();
     fireEvent.click(scoped.getByRole("button", { name: "Dismiss" }));
     expect(onDismiss).toHaveBeenCalledTimes(1);
   });

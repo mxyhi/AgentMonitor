@@ -2,11 +2,14 @@ import { useEffect, useMemo, useRef } from "react";
 import Stethoscope from "lucide-react/dist/esm/icons/stethoscope";
 import type { Dispatch, SetStateAction } from "react";
 import type {
+  AppLanguage,
   AppSettings,
   CodexDoctorResult,
   CodexUpdateResult,
   ModelOption,
 } from "@/types";
+import * as m from "@/i18n/messages";
+import { useAppLocale } from "@/i18n/I18nProvider";
 import {
   SettingsSection,
   SettingsToggleRow,
@@ -29,10 +32,12 @@ type SettingsCodexSectionProps = {
     status: "idle" | "running" | "done";
     result: CodexDoctorResult | null;
   };
+  globalAgentsPath: string | null;
   codexUpdateState: {
     status: "idle" | "running" | "done";
     result: CodexUpdateResult | null;
   };
+  globalConfigPath: string | null;
   globalAgentsMeta: string;
   globalAgentsError: string | null;
   globalAgentsContent: string;
@@ -105,6 +110,38 @@ const getReasoningOptions = (model: ModelOption | null): string[] => {
   return fallback ? [fallback] : [];
 };
 
+const getDoctorRuntimeSourceLabel = (
+  runtimeSource: CodexDoctorResult["runtimeSource"],
+  locale: AppLanguage,
+) => {
+  switch (runtimeSource) {
+    case "custom":
+      return m.settings_codex_runtime_source_custom({}, { locale });
+    case "bundled":
+      return m.settings_codex_runtime_source_bundled({}, { locale });
+    case "path":
+      return m.settings_codex_runtime_source_path({}, { locale });
+  }
+};
+
+const getCodexUpdateMethodLabel = (
+  method: CodexUpdateResult["method"],
+  locale: AppLanguage,
+) => {
+  switch (method) {
+    case "brew_formula":
+      return m.settings_codex_method_brew_formula({}, { locale });
+    case "brew_cask":
+      return m.settings_codex_method_brew_cask({}, { locale });
+    case "npm":
+      return m.settings_codex_method_npm({}, { locale });
+    case "bundled":
+      return m.settings_codex_method_bundled({}, { locale });
+    case "unknown":
+      return m.settings_codex_method_unknown({}, { locale });
+  }
+};
+
 export function SettingsCodexSection({
   appSettings,
   onUpdateAppSettings,
@@ -118,7 +155,9 @@ export function SettingsCodexSection({
   codexDirty,
   isSavingSettings,
   doctorState,
+  globalAgentsPath,
   codexUpdateState,
+  globalConfigPath,
   globalAgentsMeta,
   globalAgentsError,
   globalAgentsContent,
@@ -146,6 +185,11 @@ export function SettingsCodexSection({
   onRefreshGlobalConfig,
   onSaveGlobalConfig,
 }: SettingsCodexSectionProps) {
+  const locale = useAppLocale();
+  const globalAgentsResolvedPath =
+    globalAgentsPath ?? m.settings_codex_global_agents_managed_path({}, { locale });
+  const globalConfigResolvedPath =
+    globalConfigPath ?? m.settings_codex_global_config_managed_path({}, { locale });
   const latestModelSlug = defaultModels[0]?.model ?? null;
   const savedModelSlug = useMemo(
     () => coerceSavedModelSlug(appSettings.lastComposerModelId, defaultModels),
@@ -229,12 +273,12 @@ export function SettingsCodexSection({
 
   return (
     <SettingsSection
-      title="Codex"
-      subtitle="Configure the Codex CLI used by CodexMonitor and validate the install."
+      title={m.settings_nav_codex({}, { locale })}
+      subtitle={m.settings_codex_subtitle({}, { locale })}
     >
       <div className="settings-field">
         <label className="settings-field-label" htmlFor="codex-path">
-          Default Codex path
+          {m.settings_codex_path_label({}, { locale })}
         </label>
         <div className="settings-field-row">
           <input
@@ -251,19 +295,19 @@ export function SettingsCodexSection({
               void onBrowseCodex();
             }}
           >
-            Browse
+            {m.action_browse({}, { locale })}
           </button>
           <button
             type="button"
             className="ghost"
             onClick={() => onSetCodexPathDraft("")}
           >
-            Use PATH
+            {m.settings_codex_use_path({}, { locale })}
           </button>
         </div>
-        <div className="settings-help">Leave empty to use the system PATH resolution.</div>
+        <div className="settings-help">{m.settings_codex_path_help({}, { locale })}</div>
         <label className="settings-field-label" htmlFor="codex-args">
-          Default Codex args
+          {m.settings_codex_args_label({}, { locale })}
         </label>
         <div className="settings-field-row">
           <input
@@ -278,21 +322,17 @@ export function SettingsCodexSection({
             className="ghost"
             onClick={() => onSetCodexArgsDraft("")}
           >
-            Clear
+            {m.action_clear({}, { locale })}
           </button>
         </div>
         <div className="settings-help">
-          Extra flags passed before <code>app-server</code>. Use quotes for values with spaces.
+          {m.settings_codex_args_help({}, { locale })}
         </div>
         <div className="settings-help">
-          These settings apply to the shared Codex app-server used across all connected workspaces.
+          {m.settings_codex_shared_help({}, { locale })}
         </div>
         <div className="settings-help">
-          Per-thread override processing ignores unsupported flags: <code>-m</code>/
-          <code>--model</code>, <code>-a</code>/<code>--ask-for-approval</code>,{" "}
-          <code>-s</code>/<code>--sandbox</code>, <code>--full-auto</code>,{" "}
-          <code>--dangerously-bypass-approvals-and-sandbox</code>, <code>--oss</code>,{" "}
-          <code>--local-provider</code>, and <code>--no-alt-screen</code>.
+          {m.settings_codex_unsupported_flags_help({}, { locale })}
         </div>
         <div className="settings-field-actions">
           {codexDirty && (
@@ -304,7 +344,9 @@ export function SettingsCodexSection({
               }}
               disabled={isSavingSettings}
             >
-              {isSavingSettings ? "Saving..." : "Save"}
+              {isSavingSettings
+                ? m.action_saving({}, { locale })
+                : m.action_save({}, { locale })}
             </button>
           )}
           <button
@@ -316,7 +358,9 @@ export function SettingsCodexSection({
             disabled={doctorState.status === "running"}
           >
             <Stethoscope aria-hidden />
-            {doctorState.status === "running" ? "Running..." : "Run doctor"}
+            {doctorState.status === "running"
+              ? m.settings_codex_running_doctor({}, { locale })
+              : m.settings_codex_run_doctor({}, { locale })}
           </button>
           <button
             type="button"
@@ -325,26 +369,49 @@ export function SettingsCodexSection({
               void onRunCodexUpdate();
             }}
             disabled={codexUpdateState.status === "running"}
-            title="Update Codex"
+            title={m.settings_codex_update_title({}, { locale })}
           >
             <Stethoscope aria-hidden />
-            {codexUpdateState.status === "running" ? "Updating..." : "Update"}
+            {codexUpdateState.status === "running"
+              ? m.settings_codex_updating({}, { locale })
+              : m.settings_codex_update({}, { locale })}
           </button>
         </div>
 
         {doctorState.result && (
           <div className={`settings-doctor ${doctorState.result.ok ? "ok" : "error"}`}>
             <div className="settings-doctor-title">
-              {doctorState.result.ok ? "Codex looks good" : "Codex issue detected"}
+              {doctorState.result.ok
+                ? m.settings_codex_doctor_ok({}, { locale })
+                : m.settings_codex_doctor_issue({}, { locale })}
             </div>
             <div className="settings-doctor-body">
-              <div>Version: {doctorState.result.version ?? "unknown"}</div>
-              <div>App-server: {doctorState.result.appServerOk ? "ok" : "failed"}</div>
               <div>
-                Node:{" "}
-                {doctorState.result.nodeOk
-                  ? `ok (${doctorState.result.nodeVersion ?? "unknown"})`
-                  : "missing"}
+                {m.settings_codex_source({}, { locale })}:{" "}
+                {getDoctorRuntimeSourceLabel(doctorState.result.runtimeSource, locale)}
+              </div>
+              <div>
+                {m.settings_codex_version({}, { locale })}:{" "}
+                {doctorState.result.version ?? m.settings_codex_unknown({}, { locale })}
+              </div>
+              <div>
+                {m.settings_codex_app_server({}, { locale })}:{" "}
+                {doctorState.result.appServerOk
+                  ? m.settings_codex_status_ok({}, { locale })
+                  : m.settings_codex_status_failed({}, { locale })}
+              </div>
+              <div>
+                {m.settings_codex_node({}, { locale })}:{" "}
+                {doctorState.result.runtimeSource === "bundled"
+                  ? m.settings_codex_node_not_required({}, { locale })
+                  : doctorState.result.nodeOk
+                    ? doctorState.result.nodeVersion
+                      ? m.settings_codex_status_ok_with_version(
+                          { version: doctorState.result.nodeVersion },
+                          { locale },
+                        )
+                      : m.settings_codex_status_ok({}, { locale })
+                    : m.settings_codex_node_missing({}, { locale })}
               </div>
               {doctorState.result.details && <div>{doctorState.result.details}</div>}
               {doctorState.result.nodeDetails && <div>{doctorState.result.nodeDetails}</div>}
@@ -362,25 +429,31 @@ export function SettingsCodexSection({
             <div className="settings-doctor-title">
               {codexUpdateState.result.ok
                 ? codexUpdateState.result.upgraded
-                  ? "Codex updated"
-                  : "Codex already up-to-date"
-                : "Codex update failed"}
+                  ? m.settings_codex_updated({}, { locale })
+                  : m.settings_codex_up_to_date({}, { locale })
+                : m.settings_codex_update_failed({}, { locale })}
             </div>
             <div className="settings-doctor-body">
-              <div>Method: {codexUpdateState.result.method}</div>
+              <div>
+                {m.settings_codex_method({}, { locale })}:{" "}
+                {getCodexUpdateMethodLabel(codexUpdateState.result.method, locale)}
+              </div>
               {codexUpdateState.result.package && (
-                <div>Package: {codexUpdateState.result.package}</div>
+                <div>
+                  {m.settings_codex_package({}, { locale })}:{" "}
+                  {codexUpdateState.result.package}
+                </div>
               )}
               <div>
-                Version:{" "}
+                {m.settings_codex_version({}, { locale })}:{" "}
                 {codexUpdateState.result.afterVersion ??
                   codexUpdateState.result.beforeVersion ??
-                  "unknown"}
+                  m.settings_codex_unknown({}, { locale })}
               </div>
               {codexUpdateState.result.details && <div>{codexUpdateState.result.details}</div>}
               {codexUpdateState.result.output && (
                 <details>
-                  <summary>output</summary>
+                  <summary>{m.settings_codex_output({}, { locale })}</summary>
                   <pre>{codexUpdateState.result.output}</pre>
                 </details>
               )}
@@ -391,23 +464,26 @@ export function SettingsCodexSection({
 
       <div className="settings-divider" />
       <div className="settings-field-label settings-field-label--section">
-        Default parameters
+        {m.settings_codex_default_parameters({}, { locale })}
       </div>
 
       <SettingsToggleRow
         title={
           <label htmlFor="default-model">
-            Model
+            {m.composer_meta_model({}, { locale })}
           </label>
         }
         subtitle={
           defaultModelsConnectedWorkspaceCount === 0
-            ? "Add a workspace to load available models."
+            ? m.settings_codex_default_model_add_workspace({}, { locale })
             : defaultModelsLoading
-              ? "Loading models from the first workspace…"
+              ? m.settings_codex_default_model_loading({}, { locale })
               : defaultModelsError
-                ? `Couldn’t load models: ${defaultModelsError}`
-                : "Sourced from the first workspace and used when there is no thread-specific override."
+                ? m.settings_codex_default_model_error(
+                    { error: defaultModelsError },
+                    { locale },
+                  )
+                : m.settings_codex_default_model_help({}, { locale })
         }
       >
         <div className="settings-field-row">
@@ -422,7 +498,7 @@ export function SettingsCodexSection({
                 lastComposerModelId: event.target.value,
               })
             }
-            aria-label="Model"
+            aria-label={m.composer_meta_model({}, { locale })}
           >
             {defaultModels.map((model) => (
               <option key={model.model} value={model.model}>
@@ -436,7 +512,7 @@ export function SettingsCodexSection({
             onClick={onRefreshDefaultModels}
             disabled={defaultModelsLoading || defaultModelsConnectedWorkspaceCount === 0}
           >
-            Refresh
+            {m.action_refresh({}, { locale })}
           </button>
         </div>
       </SettingsToggleRow>
@@ -444,13 +520,13 @@ export function SettingsCodexSection({
       <SettingsToggleRow
         title={
           <label htmlFor="default-effort">
-            Reasoning effort
+            {m.settings_codex_reasoning_effort({}, { locale })}
           </label>
         }
         subtitle={
           reasoningSupported
-            ? "Available options depend on the selected model."
-            : "The selected model does not expose reasoning effort options."
+            ? m.settings_codex_reasoning_effort_help({}, { locale })
+            : m.settings_codex_reasoning_effort_unavailable({}, { locale })
         }
       >
         <select
@@ -463,10 +539,12 @@ export function SettingsCodexSection({
               lastComposerReasoningEffort: event.target.value,
             })
           }
-          aria-label="Reasoning effort"
+          aria-label={m.settings_codex_reasoning_effort({}, { locale })}
           disabled={!reasoningSupported}
         >
-          {!reasoningSupported && <option value="">not supported</option>}
+          {!reasoningSupported && (
+            <option value="">{m.settings_codex_not_supported({}, { locale })}</option>
+          )}
           {reasoningOptions.map((effort) => (
             <option key={effort} value={effort}>
               {effort}
@@ -478,10 +556,10 @@ export function SettingsCodexSection({
       <SettingsToggleRow
         title={
           <label htmlFor="default-access">
-            Access mode
+            {m.settings_codex_access_mode_title({}, { locale })}
           </label>
         }
-        subtitle="Used when there is no thread-specific override."
+        subtitle={m.settings_codex_access_mode_help({}, { locale })}
       >
         <select
           id="default-access"
@@ -494,14 +572,14 @@ export function SettingsCodexSection({
             })
           }
         >
-          <option value="read-only">Read only</option>
-          <option value="current">On-request</option>
-          <option value="full-access">Full access</option>
+          <option value="read-only">{m.composer_meta_access_read_only({}, { locale })}</option>
+          <option value="current">{m.composer_meta_access_on_request({}, { locale })}</option>
+          <option value="full-access">{m.composer_meta_access_full_access({}, { locale })}</option>
         </select>
       </SettingsToggleRow>
       <div className="settings-field">
         <label className="settings-field-label" htmlFor="review-delivery">
-          Review mode
+          {m.settings_codex_review_mode({}, { locale })}
         </label>
         <select
           id="review-delivery"
@@ -514,21 +592,20 @@ export function SettingsCodexSection({
             })
           }
         >
-          <option value="inline">Inline (same thread)</option>
-          <option value="detached">Detached (new review thread)</option>
+          <option value="inline">{m.settings_codex_review_inline({}, { locale })}</option>
+          <option value="detached">{m.settings_codex_review_detached({}, { locale })}</option>
         </select>
         <div className="settings-help">
-          Choose whether <code>/review</code> runs in the current thread or a detached review
-          thread.
+          {m.settings_codex_review_mode_help({}, { locale })}
         </div>
       </div>
 
       <FileEditorCard
-        title="Global AGENTS.md"
+        title={m.settings_codex_global_agents_title({}, { locale })}
         meta={globalAgentsMeta}
         error={globalAgentsError}
         value={globalAgentsContent}
-        placeholder="Add global instructions for Codex agents…"
+        placeholder={m.settings_codex_global_agents_placeholder({}, { locale })}
         disabled={globalAgentsLoading}
         refreshDisabled={globalAgentsRefreshDisabled}
         saveDisabled={globalAgentsSaveDisabled}
@@ -538,7 +615,11 @@ export function SettingsCodexSection({
         onSave={onSaveGlobalAgents}
         helpText={
           <>
-            Stored at <code>~/.codex/AGENTS.md</code>.
+            {m.settings_codex_global_agents_help(
+              { path: globalAgentsResolvedPath },
+              { locale },
+            )}{" "}
+            <code>{globalAgentsResolvedPath}</code>.
           </>
         }
         classNames={{
@@ -555,11 +636,11 @@ export function SettingsCodexSection({
       />
 
       <FileEditorCard
-        title="Global config.toml"
+        title={m.settings_codex_global_config_title({}, { locale })}
         meta={globalConfigMeta}
         error={globalConfigError}
         value={globalConfigContent}
-        placeholder="Edit the global Codex config.toml…"
+        placeholder={m.settings_codex_global_config_placeholder({}, { locale })}
         disabled={globalConfigLoading}
         refreshDisabled={globalConfigRefreshDisabled}
         saveDisabled={globalConfigSaveDisabled}
@@ -569,7 +650,11 @@ export function SettingsCodexSection({
         onSave={onSaveGlobalConfig}
         helpText={
           <>
-            Stored at <code>~/.codex/config.toml</code>.
+            {m.settings_codex_global_config_help(
+              { path: globalConfigResolvedPath },
+              { locale },
+            )}{" "}
+            <code>{globalConfigResolvedPath}</code>.
           </>
         }
         classNames={{

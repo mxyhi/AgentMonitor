@@ -6,7 +6,7 @@ import { SettingsAgentsSection } from "./SettingsAgentsSection";
 
 const baseProps = (): SettingsAgentsSectionProps => ({
   settings: {
-    configPath: "/Users/me/.codex/config.toml",
+    configPath: "/Users/me/Library/Application Support/CodexMonitor/codex-home/config.toml",
     multiAgentEnabled: false,
     maxThreads: 6,
     maxDepth: 1,
@@ -16,7 +16,8 @@ const baseProps = (): SettingsAgentsSectionProps => ({
         description: "Research-focused role",
         developerInstructions: "Investigate and propose safe changes.",
         configFile: "researcher.toml",
-        resolvedPath: "/Users/me/.codex/agents/researcher.toml",
+        resolvedPath:
+          "/Users/me/Library/Application Support/CodexMonitor/codex-home/agents/researcher.toml",
         managedByApp: true,
         fileExists: true,
       },
@@ -121,7 +122,9 @@ describe("SettingsAgentsSection", () => {
     );
     render(<SettingsAgentsSection {...props} onUpdateAgent={onUpdateAgent} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Edit agent researcher" }),
+    );
     const nameInputs = screen.getAllByLabelText("Name") as HTMLInputElement[];
     fireEvent.change(nameInputs[1], { target: { value: "researcher-v2" } });
     fireEvent.click(screen.getByRole("button", { name: "Save" }));

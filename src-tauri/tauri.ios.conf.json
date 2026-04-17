@@ -1,7 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "identifier": "com.dimillian.codexmonitor.ios",
+  "identifier": "com.mxyhi.agentmonitor",
   "bundle": {
+    "externalBin": [],
     "iOS": {
       "developmentTeam": "Z6P74P6T99"
     }

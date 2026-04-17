@@ -1,6 +1,8 @@
 import { memo } from "react";
 import AlignLeft from "lucide-react/dist/esm/icons/align-left";
 import Columns2 from "lucide-react/dist/esm/icons/columns-2";
+import * as m from "@/i18n/messages";
+import { useAppLocale } from "@/i18n/I18nProvider";
 import type { SidebarToggleProps } from "../../layout/components/SidebarToggleControls";
 import {
   RightPanelCollapseButton,
@@ -24,10 +26,15 @@ export const MainHeaderActions = memo(function MainHeaderActions({
   rightPanelCollapsed,
   sidebarToggleProps,
 }: MainHeaderActionsProps) {
+  const locale = useAppLocale();
   return (
     <>
       {centerMode === "diff" && (
-        <div className="diff-view-toggle" role="group" aria-label="Diff view">
+        <div
+          className="diff-view-toggle"
+          role="group"
+          aria-label={m.layout_diff_view({}, { locale })}
+        >
           <button
             type="button"
             className={`diff-view-toggle-button${
@@ -35,8 +42,8 @@ export const MainHeaderActions = memo(function MainHeaderActions({
             } ds-tooltip-trigger`}
             onClick={() => onSelectDiffViewStyle("split")}
             aria-pressed={gitDiffViewStyle === "split"}
-            title="Dual-panel diff"
-            data-tooltip="Dual-panel diff"
+            title={m.layout_dual_panel_diff({}, { locale })}
+            data-tooltip={m.layout_dual_panel_diff({}, { locale })}
             data-tooltip-placement="bottom"
             data-tauri-drag-region="false"
           >
@@ -49,8 +56,8 @@ export const MainHeaderActions = memo(function MainHeaderActions({
             } ds-tooltip-trigger`}
             onClick={() => onSelectDiffViewStyle("unified")}
             aria-pressed={gitDiffViewStyle === "unified"}
-            title="Single-column diff"
-            data-tooltip="Single-column diff"
+            title={m.layout_single_column_diff({}, { locale })}
+            data-tooltip={m.layout_single_column_diff({}, { locale })}
             data-tooltip-placement="bottom"
             data-tauri-drag-region="false"
           >
