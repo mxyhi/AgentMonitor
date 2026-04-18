@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import {
+  getDefaultCodexSection,
   normalizeCodexSection,
   type CodexSection,
 } from "@settings/components/settingsTypes";
@@ -19,7 +20,11 @@ export const useSettingsViewNavigation = ({
     initialSection,
     serverSectionVisible,
   );
-  const [activeSection, setActiveSection] = useState<CodexSection>("projects");
+  const [activeSection, setActiveSection] = useState<CodexSection>(
+    () =>
+      normalizedInitialSection ??
+      getDefaultCodexSection(serverSectionVisible),
+  );
   const [isNarrowViewport, setIsNarrowViewport] = useState(() =>
     isNarrowSettingsViewport(),
   );

@@ -1461,7 +1461,7 @@ describe("SettingsView Codex section", () => {
     });
   });
 
-  it("falls back to projects when server section is requested directly in release builds", async () => {
+  it("falls back to AI when server section is requested directly in release builds", async () => {
     cleanup();
     render(
       <SettingsView
@@ -1504,6 +1504,55 @@ describe("SettingsView Codex section", () => {
       expect(screen.queryByLabelText("Remote backend token")).toBeNull();
       expect(screen.queryByRole("button", { name: "Start daemon" })).toBeNull();
       expect(screen.queryByRole("button", { name: "Connect & test" })).toBeNull();
+      expect(screen.getByText("Session defaults")).toBeTruthy();
+      expect(screen.getByRole("button", { name: "AI" }).className).toContain("is-active");
+    });
+  });
+
+  it("opens AI settings by default when no initial section is provided", async () => {
+    cleanup();
+
+    render(
+      <SettingsView
+        workspaceGroups={[]}
+        groupedWorkspaces={[]}
+        ungroupedLabel="Ungrouped"
+        onClose={vi.fn()}
+        onMoveWorkspace={vi.fn()}
+        onDeleteWorkspace={vi.fn()}
+        onCreateWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onRenameWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onMoveWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onDeleteWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onAssignWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        reduceTransparency={false}
+        onToggleTransparency={vi.fn()}
+        appSettings={{
+          ...baseSettings,
+          backendMode: "local",
+          remoteBackendProvider: "tcp",
+        }}
+        openAppIconById={{}}
+        onUpdateAppSettings={vi.fn().mockResolvedValue(undefined)}
+        onRunDoctor={vi.fn().mockResolvedValue(createDoctorResult())}
+        onUpdateWorkspaceSettings={vi.fn().mockResolvedValue(undefined)}
+        scaleShortcutTitle="Scale shortcut"
+        scaleShortcutText="Use Command +/-"
+        onTestNotificationSound={vi.fn()}
+        onTestSystemNotification={vi.fn()}
+        dictationModelStatus={null}
+        onDownloadDictationModel={vi.fn()}
+        onCancelDictationDownload={vi.fn()}
+        onRemoveDictationModel={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Session defaults")).toBeTruthy();
+      expect(screen.getByRole("button", { name: "AI" }).className).toContain("is-active");
+      expect(screen.getByRole("button", { name: "Projects" }).className).not.toContain(
+        "is-active",
+      );
     });
   });
 

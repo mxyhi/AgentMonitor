@@ -28,13 +28,46 @@ export type CodexSection =
   | SettingsSection
   | (typeof SETTINGS_EXTRA_SECTION_IDS)[number];
 
+export const SETTINGS_NAV_SECTION_IDS: readonly CodexSection[] = [
+  "codex",
+  "projects",
+  "environments",
+  "display",
+  "composer",
+  "dictation",
+  "shortcuts",
+  "open-apps",
+  "git",
+  "server",
+  "agents",
+  "features",
+  "about",
+];
+
+function isSettingsSectionVisible(
+  section: CodexSection,
+  serverSectionVisible: boolean,
+): boolean {
+  return section !== "server" || serverSectionVisible;
+}
+
+export function getDefaultCodexSection(
+  serverSectionVisible: boolean,
+): CodexSection {
+  return (
+    SETTINGS_NAV_SECTION_IDS.find((section) =>
+      isSettingsSectionVisible(section, serverSectionVisible),
+    ) ?? "codex"
+  );
+}
+
 // Temporarily hide server settings while the embedded runtime UX is being simplified.
 export function normalizeCodexSection(
   section: CodexSection | undefined,
   serverSectionVisible: boolean,
 ): CodexSection | undefined {
   if (section === "server" && !serverSectionVisible) {
-    return "projects";
+    return getDefaultCodexSection(serverSectionVisible);
   }
   return section;
 }
