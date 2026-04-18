@@ -133,6 +133,7 @@ export function buildCurlDownloadArgs(url, destination) {
     "--fail",
     "--retry",
     String(retryConfig.attempts),
+    "--retry-all-errors",
     "--retry-delay",
     String(retryConfig.delaySeconds),
     "--retry-max-time",

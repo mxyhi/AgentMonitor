@@ -33,6 +33,7 @@ test("buildCurlDownloadArgs enables retry for transient failures", () => {
     "--fail",
     "--retry",
     "6",
+    "--retry-all-errors",
     "--retry-delay",
     "2",
     "--retry-max-time",
