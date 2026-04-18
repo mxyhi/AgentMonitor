@@ -302,9 +302,14 @@ jobs:
           - arch: x86_64
             target: x86_64-pc-windows-msvc
             runner: windows-latest
+            bundles: nsis,msi
+            include_msi: true
           - arch: aarch64
             target: aarch64-pc-windows-msvc
             runner: windows-11-arm
+            # WiX MSI bundling currently fails on hosted Windows ARM runners.
+            bundles: nsis
+            include_msi: false
     env:
       CARGO_BUILD_TARGET: ${{ matrix.target }}
       TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
@@ -417,7 +422,7 @@ jobs:
           pnpm doctor:win
           pnpm exec tauri build \
             --target "$CARGO_BUILD_TARGET" \
-            --bundles nsis,msi \
+            --bundles "${{ matrix.bundles }}" \
             --config src-tauri/tauri.windows.conf.json
 
       - name: Normalize Windows artifacts
@@ -437,15 +442,19 @@ jobs:
             echo "Missing NSIS updater artifacts"
             exit 1
           fi
-          if [ -z "$MSI_FILE" ] || [ ! -f "${MSI_FILE}.sig" ]; then
-            echo "Missing MSI updater artifacts"
-            exit 1
-          fi
 
           cp "$NSIS_EXE" "release-artifacts/${BASE_NAME}-setup.exe"
           cp "${NSIS_EXE}.sig" "release-artifacts/${BASE_NAME}-setup.exe.sig"
-          cp "$MSI_FILE" "release-artifacts/${BASE_NAME}.msi"
-          cp "${MSI_FILE}.sig" "release-artifacts/${BASE_NAME}.msi.sig"
+
+          if [ "${{ matrix.include_msi }}" = "true" ]; then
+            if [ -z "$MSI_FILE" ] || [ ! -f "${MSI_FILE}.sig" ]; then
+              echo "Missing MSI updater artifacts"
+              exit 1
+            fi
+
+            cp "$MSI_FILE" "release-artifacts/${BASE_NAME}.msi"
+            cp "${MSI_FILE}.sig" "release-artifacts/${BASE_NAME}.msi.sig"
+          fi
 
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@v4
