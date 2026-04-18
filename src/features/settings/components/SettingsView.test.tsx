@@ -98,7 +98,7 @@ function makeAiSettings(
     sessionDefaults: {
       modelProvider: overrides.modelProvider ?? "airouter",
       model: overrides.model ?? "gpt-5.1",
-      modelReasoningEffort: overrides.modelReasoningEffort ?? "medium",
+      modelReasoningEffort: overrides.modelReasoningEffort ?? "high",
     },
     providers:
       overrides.providers ?? [
@@ -1801,7 +1801,7 @@ describe("SettingsView Codex defaults", () => {
 
     expect(within(modelSelect).queryByRole("option", { name: /default/i })).toBeNull();
     expect(within(effortSelect).queryByRole("option", { name: /default/i })).toBeNull();
-    expect(effortSelect.value).toBe("medium");
+    expect(effortSelect.value).toBe("high");
     expect(updateGlobalAiSessionDefaultsMock).not.toHaveBeenCalled();
   });
 
@@ -1896,7 +1896,7 @@ describe("SettingsView Codex defaults", () => {
       expect(updateGlobalAiSessionDefaultsMock).toHaveBeenCalledWith({
         modelProvider: "airouter",
         model: "gpt-4.1",
-        modelReasoningEffort: "medium",
+        modelReasoningEffort: "high",
       });
     });
 

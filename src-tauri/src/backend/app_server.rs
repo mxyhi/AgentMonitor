@@ -14,6 +14,7 @@ use tokio::time::timeout;
 
 use crate::backend::events::{AppServerEvent, EventSink};
 use crate::codex::args::parse_codex_args;
+use crate::shared::ai_settings_core;
 use crate::shared::codex_runtime_core::{
     codex_runtime_parent_dir, resolve_codex_runtime, CodexRuntimeSource, ResolvedCodexRuntime,
 };
@@ -706,6 +707,17 @@ pub(crate) fn build_codex_command_with_bin(
     Ok(command)
 }
 
+fn build_app_server_launch_args(codex_home: Option<&Path>) -> Result<Vec<String>, String> {
+    let mut args = vec!["app-server".to_string()];
+    if let Some(codex_home) = codex_home {
+        for override_arg in ai_settings_core::load_app_server_runtime_overrides(codex_home)? {
+            args.push("--config".to_string());
+            args.push(override_arg);
+        }
+    }
+    Ok(args)
+}
+
 pub(crate) fn resolve_codex_runtime_for_bin(codex_bin: Option<String>) -> ResolvedCodexRuntime {
     resolve_codex_runtime(codex_bin.as_deref())
 }
@@ -794,11 +806,12 @@ pub(crate) async fn spawn_workspace_session<E: EventSink>(
 ) -> Result<Arc<WorkspaceSession>, String> {
     let codex_bin = default_codex_bin;
     let _ = check_codex_installation(codex_bin.clone()).await?;
+    let app_server_args = build_app_server_launch_args(codex_home.as_deref())?;
 
     let mut command = build_codex_command_with_bin(
         codex_bin,
         codex_args.as_deref(),
-        vec!["app-server".to_string()],
+        app_server_args,
     )?;
     command.current_dir(&entry.path);
     if let Some(path) = codex_home.as_ref() {
@@ -1151,7 +1164,8 @@ pub(crate) async fn spawn_workspace_session<E: EventSink>(
 #[cfg(test)]
 mod tests {
     use super::{
-        build_codex_path_env, build_initialize_params, extract_related_thread_ids,
+        build_app_server_launch_args, build_codex_path_env, build_initialize_params,
+        extract_related_thread_ids,
         extract_thread_entries_from_thread_list_result, extract_thread_id, normalize_root_path,
         resolve_codex_runtime_for_bin, resolve_workspace_for_cwd,
         should_suppress_hidden_thread_event, source_subagent_kind,
@@ -1161,7 +1175,9 @@ mod tests {
     use serde_json::json;
     use std::collections::HashMap;
     use std::env;
+    use std::fs;
     use std::sync::Mutex as StdMutex;
+    use uuid::Uuid;
 
     static ENV_LOCK: StdMutex<()> = StdMutex::new(());
 
@@ -1472,5 +1488,55 @@ mod tests {
             resolve_codex_runtime_for_bin(Some("/tmp/custom-codex".to_string())).source,
             CodexRuntimeSource::Custom,
         );
+    }
+
+    #[test]
+    fn build_app_server_launch_args_force_app_private_ai_overrides() {
+        let codex_home = env::temp_dir().join(format!("codex-monitor-{}", Uuid::new_v4()));
+        fs::create_dir_all(&codex_home).expect("create codex home");
+        fs::write(
+            codex_home.join("config.toml"),
+            r#"
+model_provider = "local"
+model = "gpt-5.4"
+model_reasoning_effort = "high"
+
+[model_providers.local]
+name = "local"
+base_url = "http://127.0.0.1:9208/v1"
+experimental_bearer_token = "sk-888"
+"#,
+        )
+        .expect("write config");
+
+        let args = build_app_server_launch_args(Some(codex_home.as_path())).expect("args");
+        let _ = fs::remove_dir_all(&codex_home);
+
+        assert_eq!(args.first().map(String::as_str), Some("app-server"));
+        assert!(args.windows(2).any(
+            |pair| pair[0] == "--config" && pair[1] == "model_provider=\"local\""
+        ));
+        assert!(args.windows(2).any(
+            |pair| pair[0] == "--config" && pair[1] == "model=\"gpt-5.4\""
+        ));
+        assert!(args.windows(2).any(
+            |pair| pair[0] == "--config" && pair[1] == "model_reasoning_effort=\"high\""
+        ));
+
+        let provider_override = args
+            .windows(2)
+            .find(|pair| pair[0] == "--config" && pair[1].starts_with("model_providers="))
+            .map(|pair| pair[1].clone())
+            .expect("model_providers override");
+        assert!(provider_override.contains(
+            r#"airouter={name="airouter",base_url="https://airouter.mxyhi.com/v1"}"#
+        ));
+        assert!(provider_override.contains(
+            r#"OpenAI={name="OpenAI",base_url="https://api.openai.com/v1"}"#
+        ));
+        assert!(provider_override.contains(
+            r#"local={name="local",base_url="http://127.0.0.1:9208/v1",experimental_bearer_token="sk-888"}"#
+        ));
+        assert!(!provider_override.contains("token_proxy"));
     }
 }

@@ -96,7 +96,7 @@ export function SettingsCodexSection({
   const selectedProviderApiKey = selectedProvider?.apiKey ?? "";
   const [modelDraft, setModelDraft] = useState(aiSettings?.sessionDefaults.model ?? "");
   const [effortDraft, setEffortDraft] = useState(
-    aiSettings?.sessionDefaults.modelReasoningEffort ?? "medium",
+    aiSettings?.sessionDefaults.modelReasoningEffort ?? "high",
   );
   const [providerDraft, setProviderDraft] = useState(resolvedProviderState.providerId);
   const [providerBaseUrlDraft, setProviderBaseUrlDraft] = useState(
@@ -110,7 +110,7 @@ export function SettingsCodexSection({
   const sessionDefaultsDraftRef = useRef({
     modelProvider: resolvedProviderState.providerId,
     model: aiSettings?.sessionDefaults.model ?? "",
-    modelReasoningEffort: aiSettings?.sessionDefaults.modelReasoningEffort ?? "medium",
+    modelReasoningEffort: aiSettings?.sessionDefaults.modelReasoningEffort ?? "high",
   });
 
   useEffect(() => {
@@ -118,7 +118,7 @@ export function SettingsCodexSection({
       modelProvider: resolvedProviderState.providerId,
       model: aiSettings?.sessionDefaults.model ?? "",
       modelReasoningEffort:
-        aiSettings?.sessionDefaults.modelReasoningEffort ?? "medium",
+        aiSettings?.sessionDefaults.modelReasoningEffort ?? "high",
     };
     sessionDefaultsDraftRef.current = nextSessionDefaults;
     setModelDraft(nextSessionDefaults.model);

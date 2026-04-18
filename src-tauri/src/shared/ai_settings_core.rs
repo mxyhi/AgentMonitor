@@ -1,6 +1,6 @@
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use toml_edit::{value, Document, Item, Table};
 
 use crate::codex::home as codex_home;
@@ -80,6 +80,13 @@ pub(crate) fn get_global_ai_settings_core() -> Result<GlobalAiSettingsDto, Strin
     let (_, document) = config_toml_core::load_global_config_document(&codex_home)?;
     let config_path = settings_core::get_codex_config_path_core()?;
     build_global_ai_settings_dto(config_path, &document)
+}
+
+pub(crate) fn load_app_server_runtime_overrides(
+    codex_home: &Path,
+) -> Result<Vec<String>, String> {
+    let (_, document) = config_toml_core::load_global_config_document(codex_home)?;
+    build_app_server_runtime_overrides_from_document(&document)
 }
 
 pub(crate) fn update_global_ai_session_defaults_core(
@@ -162,6 +169,39 @@ fn build_global_ai_settings_dto(
             })
             .collect(),
     })
+}
+
+fn build_app_server_runtime_overrides_from_document(
+    document: &Document,
+) -> Result<Vec<String>, String> {
+    let mut normalized = document.clone();
+    normalize_document(&mut normalized)?;
+    let providers = resolve_provider_states(&normalized)?;
+
+    let mut overrides = Vec::new();
+    if let Some(model_provider) = config_toml_core::read_top_level_string(&normalized, "model_provider")
+    {
+        overrides.push(format!(
+            "model_provider={}",
+            render_toml_string(model_provider.as_str())
+        ));
+    }
+    if let Some(model) = config_toml_core::read_top_level_string(&normalized, "model") {
+        overrides.push(format!("model={}", render_toml_string(model.as_str())));
+    }
+    if let Some(effort) =
+        config_toml_core::read_top_level_string(&normalized, "model_reasoning_effort")
+    {
+        overrides.push(format!(
+            "model_reasoning_effort={}",
+            render_toml_string(effort.as_str())
+        ));
+    }
+    overrides.push(format!(
+        "model_providers={}",
+        render_provider_states_inline_table(&providers)
+    ));
+    Ok(overrides)
 }
 
 fn normalize_document(document: &mut Document) -> Result<(), String> {
@@ -334,6 +374,32 @@ fn build_provider_table(name: &str, base_url: &str, api_key: Option<&str>) -> Ta
         table["experimental_bearer_token"] = value(api_key);
     }
     table
+}
+
+fn render_provider_states_inline_table(providers: &[ProviderState]) -> String {
+    let entries = providers
+        .iter()
+        .map(|provider| format!("{}={}", provider.id, render_provider_state_inline_table(provider)))
+        .collect::<Vec<_>>();
+    format!("{{{}}}", entries.join(","))
+}
+
+fn render_provider_state_inline_table(provider: &ProviderState) -> String {
+    let mut fields = vec![
+        format!("name={}", render_toml_string(provider.name)),
+        format!("base_url={}", render_toml_string(provider.base_url.as_str())),
+    ];
+    if let Some(api_key) = provider.api_key.as_deref() {
+        fields.push(format!(
+            "experimental_bearer_token={}",
+            render_toml_string(api_key)
+        ));
+    }
+    format!("{{{}}}", fields.join(","))
+}
+
+fn render_toml_string(value: &str) -> String {
+    serde_json::to_string(value).expect("string literal")
 }
 
 fn validate_provider_reference(value: Option<&str>) -> Result<(), String> {
@@ -621,5 +687,39 @@ model_provider = "unknown"
             dto.session_defaults.model_reasoning_effort.as_deref(),
             Some("high")
         );
+    }
+
+    #[test]
+    fn app_server_runtime_overrides_pin_fixed_provider_config() {
+        let overrides = build_app_server_runtime_overrides_from_document(&parse(
+            r#"
+model_provider = "local"
+model = "gpt-5.4"
+model_reasoning_effort = "high"
+
+[model_providers.local]
+name = "local"
+base_url = "http://127.0.0.1:9208/v1"
+experimental_bearer_token = "sk-888"
+"#,
+        ))
+        .expect("overrides");
+
+        assert!(overrides.contains(&"model_provider=\"local\"".to_string()));
+        assert!(overrides.contains(&"model=\"gpt-5.4\"".to_string()));
+        assert!(overrides.contains(&"model_reasoning_effort=\"high\"".to_string()));
+        let provider_override = overrides
+            .iter()
+            .find(|override_entry| override_entry.starts_with("model_providers="))
+            .expect("provider override");
+        assert!(provider_override.contains(
+            r#"airouter={name="airouter",base_url="https://airouter.mxyhi.com/v1"}"#
+        ));
+        assert!(provider_override.contains(
+            r#"OpenAI={name="OpenAI",base_url="https://api.openai.com/v1"}"#
+        ));
+        assert!(provider_override.contains(
+            r#"local={name="local",base_url="http://127.0.0.1:9208/v1",experimental_bearer_token="sk-888"}"#
+        ));
     }
 }
