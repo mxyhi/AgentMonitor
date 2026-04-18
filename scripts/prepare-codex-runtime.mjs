@@ -39,11 +39,12 @@ function resolveTargetTriple() {
 const detectedTargetTriple = resolveTargetTriple();
 const destinationDir = path.join(repoRoot, "src-tauri", "binaries");
 const srcTauriDir = path.join(repoRoot, "src-tauri");
-const cargoTargetTriple = process.env.CARGO_BUILD_TARGET?.trim() || detectedTargetTriple;
+const configuredCargoTargetTriple = process.env.CARGO_BUILD_TARGET?.trim() || "";
+const cargoTargetTriple = configuredCargoTargetTriple || detectedTargetTriple;
 const cargoTargetArgs =
   cargoTargetTriple === detectedTargetTriple ? [] : ["--target", cargoTargetTriple];
 const rustReleaseDir =
-  cargoTargetArgs.length > 0
+  configuredCargoTargetTriple
     ? path.join(srcTauriDir, "target", cargoTargetTriple, "release")
     : path.join(srcTauriDir, "target", "release");
 

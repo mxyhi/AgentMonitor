@@ -111,6 +111,8 @@ jobs:
           echo "C:\\Program Files\\LLVM\\bin" >> $env:GITHUB_PATH
       - name: Install JS dependencies
         run: pnpm install --frozen-lockfile
+      - name: Prepare bundled runtime
+        run: pnpm prepare:codex-runtime
       - name: Rust tests
         run: cargo test
         working-directory: src-tauri
