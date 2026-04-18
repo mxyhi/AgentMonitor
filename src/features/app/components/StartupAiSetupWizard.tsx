@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import "../../../styles/startup-ai-setup-wizard.css";
 import X from "lucide-react/dist/esm/icons/x";
-import type { GlobalAiProviderEntry } from "@/types";
+import type { AppLanguage, GlobalAiProviderEntry } from "@/types";
 import * as m from "@/i18n/messages";
 import { useAppLocale } from "@/i18n/I18nProvider";
 import { ModalShell } from "@/features/design-system/components/modal/ModalShell";
@@ -16,6 +16,7 @@ const AIROUTER_BUY_URL = "https://airouter.mxyhi.com";
 
 type StartupAiSetupWizardProps = {
   providers: GlobalAiProviderEntry[];
+  appLanguage: AppLanguage;
   selectedProviderId: string;
   selectedProviderName: string;
   configuredBaseUrl: string | null;
@@ -31,11 +32,13 @@ type StartupAiSetupWizardProps = {
     baseUrl: string | null;
     apiKey: string | null;
   }) => Promise<boolean>;
+  onUpdateAppLanguage: (next: AppLanguage) => Promise<void> | void;
   onDismiss: () => void;
 };
 
 export function StartupAiSetupWizard({
   providers,
+  appLanguage,
   selectedProviderId,
   configuredBaseUrl,
   loginRequired,
@@ -45,6 +48,7 @@ export function StartupAiSetupWizard({
   settingsError,
   onSignIn,
   onSaveSettings,
+  onUpdateAppLanguage,
   onDismiss,
 }: StartupAiSetupWizardProps) {
   const locale = useAppLocale();
@@ -99,6 +103,25 @@ export function StartupAiSetupWizard({
       </div>
 
       <div className="startup-ai-setup-body">
+        <div className="startup-ai-setup-form">
+          <label className="startup-ai-setup-field-label" htmlFor="startup-ai-language">
+            {m.display_language_label({}, { locale })}
+          </label>
+          <select
+            id="startup-ai-language"
+            className="settings-select startup-ai-setup-input"
+            value={appLanguage}
+            onChange={(event) => {
+              const nextLanguage = event.target.value;
+              if (nextLanguage === "en" || nextLanguage === "zh-CN") {
+                void onUpdateAppLanguage(nextLanguage);
+              }
+            }}
+          >
+            <option value="en">{m.display_language_option_en({}, { locale })}</option>
+            <option value="zh-CN">{m.display_language_option_zh_cn({}, { locale })}</option>
+          </select>
+        </div>
         {mode === "summary" ? (
           <>
             <div className="startup-ai-setup-actions">
@@ -142,7 +165,7 @@ export function StartupAiSetupWizard({
         ) : (
           <div className="startup-ai-setup-form">
             <label className="startup-ai-setup-field-label" htmlFor="startup-ai-provider">
-              Provider
+              {m.settings_codex_provider_label({}, { locale })}
             </label>
             <select
               id="startup-ai-provider"
@@ -159,7 +182,7 @@ export function StartupAiSetupWizard({
                 );
                 setApiKeyDraft(nextProvider?.apiKey?.trim() || "");
               }}
-              aria-label="Provider"
+              aria-label={m.settings_codex_provider_aria({}, { locale })}
             >
               {providers.map((provider) => (
                 <option key={provider.id} value={provider.id}>
@@ -199,14 +222,18 @@ export function StartupAiSetupWizard({
               className="settings-input startup-ai-setup-input"
               type="password"
               autoComplete="off"
-              placeholder={providerApiKeyOptional ? "Optional for Local" : undefined}
+              placeholder={
+                providerApiKeyOptional
+                  ? m.ai_provider_api_key_optional_placeholder({}, { locale })
+                  : undefined
+              }
               value={apiKeyDraft}
               onChange={(event) => setApiKeyDraft(event.target.value)}
               aria-label={m.startup_ai_setup_form_api_key_label({}, { locale })}
             />
             {providerApiKeyOptional ? (
               <div className="startup-ai-setup-hint">
-                Local provider can leave API Key empty if your local gateway does not require one.
+                {m.ai_provider_api_key_optional_hint({}, { locale })}
               </div>
             ) : null}
             {settingsError ? (

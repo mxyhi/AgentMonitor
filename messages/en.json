@@ -956,6 +956,8 @@
   "settings_codex_provider_base_url_aria": "Base URL",
   "settings_codex_provider_api_key_label": "API Key",
   "settings_codex_provider_api_key_aria": "API Key",
+  "ai_provider_api_key_optional_placeholder": "Optional if your local gateway does not require one",
+  "ai_provider_api_key_optional_hint": "Leave API Key empty if your local gateway does not require one.",
   "settings_codex_provider_no_base_url": "No base URL",
   "settings_codex_provider_no_api_key": "No API Key",
   "settings_codex_provider_api_key_configured": "API Key configured",

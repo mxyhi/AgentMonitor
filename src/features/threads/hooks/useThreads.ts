@@ -62,6 +62,7 @@ type UseThreadsOptions = {
   chatHistoryScrollbackItems?: number | null;
   customPrompts?: CustomPromptOption[];
   onMessageActivity?: () => void;
+  onRequireAiSetup?: () => void;
   threadSortKey?: ThreadListSortKey;
   onThreadCodexMetadataDetected?: (
     workspaceId: string,
@@ -93,6 +94,7 @@ export function useThreads({
   chatHistoryScrollbackItems,
   customPrompts = [],
   onMessageActivity,
+  onRequireAiSetup,
   threadSortKey = "updated_at",
   onThreadCodexMetadataDetected,
 }: UseThreadsOptions) {
@@ -803,6 +805,7 @@ export function useThreads({
     recordThreadActivity,
     safeMessageActivity,
     onDebug,
+    onRequireAiSetup,
     pushThreadErrorMessage,
     ensureThreadForActiveWorkspace,
     ensureThreadForWorkspace,

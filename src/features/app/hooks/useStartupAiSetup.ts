@@ -65,9 +65,11 @@ function toErrorMessage(error: unknown, fallback: string) {
 export function useStartupAiSetup({
   activeAccount,
   settingsOpen,
+  requestKey = 0,
 }: {
   activeAccount: AccountSnapshot | null;
   settingsOpen: boolean;
+  requestKey?: number;
 }) {
   const [aiSettings, setAiSettings] = useState<GlobalAiSettings | null>(null);
   const [loading, setLoading] = useState(true);
@@ -116,6 +118,12 @@ export function useStartupAiSetup({
     previousSettingsOpenRef.current = settingsOpen;
   }, [refreshAiSettings, settingsOpen]);
 
+  useEffect(() => {
+    if (requestKey > 0) {
+      setDismissedForSession(false);
+    }
+  }, [requestKey]);
+
   const resolvedState = useMemo(
     () =>
       resolveStartupAiSetupState({
@@ -129,6 +137,10 @@ export function useStartupAiSetup({
 
   const dismissWizard = useCallback(() => {
     setDismissedForSession(true);
+  }, []);
+
+  const requestWizard = useCallback(() => {
+    setDismissedForSession(false);
   }, []);
 
   const saveAiProviderSettings = useCallback(
@@ -156,6 +168,7 @@ export function useStartupAiSetup({
     loading,
     error,
     dismissWizard,
+    requestWizard,
     refreshAiSettings,
     savingProviderSettings,
     saveAiProviderSettings,

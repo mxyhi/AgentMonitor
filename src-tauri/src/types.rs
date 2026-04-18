@@ -483,9 +483,15 @@ pub(crate) struct AppSettings {
         rename = "cycleWorkspacePrevShortcut"
     )]
     pub(crate) cycle_workspace_prev_shortcut: Option<String>,
-    #[serde(default, rename = "lastComposerModelId")]
+    #[serde(
+        default = "default_last_composer_model_id",
+        rename = "lastComposerModelId"
+    )]
     pub(crate) last_composer_model_id: Option<String>,
-    #[serde(default, rename = "lastComposerReasoningEffort")]
+    #[serde(
+        default = "default_last_composer_reasoning_effort",
+        rename = "lastComposerReasoningEffort"
+    )]
     pub(crate) last_composer_reasoning_effort: Option<String>,
     #[serde(default = "default_ui_scale", rename = "uiScale")]
     pub(crate) ui_scale: f64,
@@ -678,11 +684,19 @@ impl Default for RemoteBackendProvider {
 }
 
 fn default_access_mode() -> String {
-    "current".to_string()
+    "full-access".to_string()
 }
 
 fn default_review_delivery_mode() -> String {
     "inline".to_string()
+}
+
+fn default_last_composer_model_id() -> Option<String> {
+    Some("gpt-5.4".to_string())
+}
+
+fn default_last_composer_reasoning_effort() -> Option<String> {
+    Some("high".to_string())
 }
 
 fn default_backend_mode() -> BackendMode {
@@ -1139,7 +1153,7 @@ impl Default for AppSettings {
             remote_backends: default_remote_backends(),
             active_remote_backend_id: None,
             keep_daemon_running_after_app_close: false,
-            default_access_mode: "current".to_string(),
+            default_access_mode: default_access_mode(),
             review_delivery_mode: default_review_delivery_mode(),
             composer_model_shortcut: default_composer_model_shortcut(),
             composer_access_shortcut: default_composer_access_shortcut(),
@@ -1158,8 +1172,8 @@ impl Default for AppSettings {
             cycle_agent_prev_shortcut: default_cycle_agent_prev_shortcut(),
             cycle_workspace_next_shortcut: default_cycle_workspace_next_shortcut(),
             cycle_workspace_prev_shortcut: default_cycle_workspace_prev_shortcut(),
-            last_composer_model_id: None,
-            last_composer_reasoning_effort: None,
+            last_composer_model_id: default_last_composer_model_id(),
+            last_composer_reasoning_effort: default_last_composer_reasoning_effort(),
             ui_scale: 1.0,
             theme: default_theme(),
             usage_show_remaining: default_usage_show_remaining(),
@@ -1240,7 +1254,7 @@ mod tests {
         assert!(settings.remote_backends.is_empty());
         assert!(settings.active_remote_backend_id.is_none());
         assert!(!settings.keep_daemon_running_after_app_close);
-        assert_eq!(settings.default_access_mode, "current");
+        assert_eq!(settings.default_access_mode, "full-access");
         assert_eq!(settings.review_delivery_mode, "inline");
         let expected_primary = if cfg!(target_os = "macos") {
             "cmd"
@@ -1325,8 +1339,12 @@ mod tests {
                 "ctrl+alt+shift+up"
             })
         );
-        assert!(settings.last_composer_model_id.is_none());
-        assert!(settings.last_composer_reasoning_effort.is_none());
+        assert_eq!(settings.default_access_mode, "full-access");
+        assert_eq!(settings.last_composer_model_id.as_deref(), Some("gpt-5.4"));
+        assert_eq!(
+            settings.last_composer_reasoning_effort.as_deref(),
+            Some("high")
+        );
         assert!((settings.ui_scale - 1.0).abs() < f64::EPSILON);
         assert_eq!(settings.theme, "system");
         assert!(!settings.usage_show_remaining);

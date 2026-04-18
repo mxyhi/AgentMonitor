@@ -198,6 +198,31 @@ describe("useStartupAiSetup", () => {
     expect(result.current.showWizard).toBe(false);
   });
 
+  it("can reopen the wizard on demand after session dismissal", async () => {
+    getGlobalAiSettingsMock.mockResolvedValue(makeAiSettings());
+
+    const { result } = renderHook(() =>
+      useStartupAiSetup({
+        activeAccount: makeAccount(),
+        settingsOpen: false,
+      }),
+    );
+
+    await waitFor(() => {
+      expect(result.current.showWizard).toBe(true);
+    });
+
+    act(() => {
+      result.current.dismissWizard();
+    });
+    expect(result.current.showWizard).toBe(false);
+
+    act(() => {
+      result.current.requestWizard();
+    });
+    expect(result.current.showWizard).toBe(true);
+  });
+
   it("refetches AI settings after settings close and hides when default provider becomes usable", async () => {
     getGlobalAiSettingsMock
       .mockResolvedValueOnce(makeAiSettings())

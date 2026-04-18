@@ -86,7 +86,7 @@ describe("useThreads UX integration", () => {
         {
           id: "airouter",
           name: "Airouter",
-          baseUrl: "http://127.0.0.1:9208/v1",
+          baseUrl: "https://airouter.mxyhi.com/v1",
           apiKey: "sk-airouter",
           builtIn: true,
         },

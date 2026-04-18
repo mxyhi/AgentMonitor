@@ -1,17 +1,20 @@
 // @vitest-environment jsdom
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { I18nProvider } from "@/i18n/I18nProvider";
+import { setLocale } from "@/i18n/runtime";
 import { StartupAiSetupWizard } from "./StartupAiSetupWizard";
 
 vi.mock("@tauri-apps/plugin-opener", () => ({
   openUrl: vi.fn(),
 }));
 
-afterEach(() => {
+afterEach(async () => {
   cleanup();
   vi.clearAllMocks();
+  await setLocale("en", { reload: false });
 });
 
 const FIXED_PROVIDERS = [
@@ -45,6 +48,7 @@ function renderWizard(selectedProviderId = "airouter") {
     <I18nProvider locale="en">
       <StartupAiSetupWizard
         providers={[...FIXED_PROVIDERS]}
+        appLanguage="en"
         selectedProviderId={selectedProviderId}
         selectedProviderName="Airouter"
         configuredBaseUrl={null}
@@ -56,6 +60,7 @@ function renderWizard(selectedProviderId = "airouter") {
         settingsError={null}
         onSignIn={vi.fn()}
         onSaveSettings={onSaveSettings}
+        onUpdateAppLanguage={vi.fn().mockResolvedValue(undefined)}
         onDismiss={vi.fn()}
       />
     </I18nProvider>,
@@ -72,6 +77,7 @@ describe("StartupAiSetupWizard", () => {
       <I18nProvider locale="en">
         <StartupAiSetupWizard
           providers={[...FIXED_PROVIDERS]}
+          appLanguage="en"
           selectedProviderId="airouter"
           selectedProviderName="Airouter"
           configuredBaseUrl="https://airouter.mxyhi.com/v1"
@@ -83,6 +89,7 @@ describe("StartupAiSetupWizard", () => {
           settingsError={null}
           onSignIn={vi.fn()}
           onSaveSettings={vi.fn().mockResolvedValue(undefined)}
+          onUpdateAppLanguage={vi.fn().mockResolvedValue(undefined)}
           onDismiss={vi.fn()}
         />
       </I18nProvider>,
@@ -139,5 +146,81 @@ describe("StartupAiSetupWizard", () => {
     });
 
     expect(screen.queryByRole("link", { name: "No API key yet? Buy one" })).toBeNull();
+  });
+
+  it("localizes local provider optional API key copy in zh-CN", () => {
+    render(
+      <I18nProvider locale="zh-CN">
+        <StartupAiSetupWizard
+          providers={[...FIXED_PROVIDERS]}
+          appLanguage="zh-CN"
+          selectedProviderId="airouter"
+          selectedProviderName="Airouter"
+          configuredBaseUrl={null}
+          apiKeyConfigured={false}
+          loginRequired
+          loginBusy={false}
+          loginAvailable
+          settingsBusy={false}
+          settingsError={null}
+          onSignIn={vi.fn()}
+          onSaveSettings={vi.fn().mockResolvedValue(undefined)}
+          onUpdateAppLanguage={vi.fn().mockResolvedValue(undefined)}
+          onDismiss={vi.fn()}
+        />
+      </I18nProvider>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "配置 API Key" }));
+    fireEvent.change(screen.getByLabelText("提供方"), {
+      target: { value: "local" },
+    });
+
+    expect(screen.getByPlaceholderText("本地网关无需时可留空")).toBeTruthy();
+    expect(
+      screen.getByText("如果你的本地网关不要求 API Key，这里可以留空。"),
+    ).toBeTruthy();
+  });
+
+  it("switches wizard language immediately from the language selector", async () => {
+    function WizardWithLanguageState() {
+      const [appLanguage, setAppLanguage] = useState<"en" | "zh-CN">("en");
+
+      return (
+        <I18nProvider locale={appLanguage}>
+          <StartupAiSetupWizard
+            providers={[...FIXED_PROVIDERS]}
+            appLanguage={appLanguage}
+            selectedProviderId="airouter"
+            selectedProviderName="Airouter"
+            configuredBaseUrl={null}
+            apiKeyConfigured={false}
+            loginRequired
+            loginBusy={false}
+            loginAvailable
+            settingsBusy={false}
+            settingsError={null}
+            onSignIn={vi.fn()}
+            onSaveSettings={vi.fn().mockResolvedValue(undefined)}
+            onUpdateAppLanguage={async (nextLanguage) => {
+              setAppLanguage(nextLanguage);
+            }}
+            onDismiss={vi.fn()}
+          />
+        </I18nProvider>
+      );
+    }
+
+    render(<WizardWithLanguageState />);
+
+    expect(screen.getByText("Finish AI setup before you start")).toBeTruthy();
+
+    fireEvent.change(screen.getByLabelText("Language"), {
+      target: { value: "zh-CN" },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("先完成 AI 配置再开始使用")).toBeTruthy();
+    });
   });
 });

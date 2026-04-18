@@ -53,6 +53,7 @@ import { useMainAppMobileThreadRefresh } from "@app/hooks/useMainAppMobileThread
 import { useHomeAccount } from "@app/hooks/useHomeAccount";
 import { useStartupAiSetup } from "@app/hooks/useStartupAiSetup";
 import type {
+  AppLanguage,
   ComposerEditorSettings,
   ServiceTier,
   WorkspaceInfo,
@@ -128,6 +129,7 @@ export default function MainApp() {
     threadListOrganizeMode,
     setThreadListOrganizeMode,
   } = useThreadListSortKey();
+  const [startupAiSetupRequestKey, setStartupAiSetupRequestKey] = useState(0);
   const [activeTab, setActiveTab] = useState<
     "home" | "projects" | "codex" | "git" | "log"
   >("codex");
@@ -501,6 +503,9 @@ export default function MainApp() {
     activeWorkspace,
     onWorkspaceConnected: markWorkspaceConnected,
     onDebug: addDebugEntry,
+    onRequireAiSetup: () => {
+      setStartupAiSetupRequestKey((current) => current + 1);
+    },
     model: resolvedModel,
     effort: resolvedEffort,
     serviceTier: selectedServiceTier,
@@ -1031,7 +1036,22 @@ export default function MainApp() {
   const startupAiSetup = useStartupAiSetup({
     activeAccount,
     settingsOpen: appModalsProps.settingsOpen,
+    requestKey: startupAiSetupRequestKey,
   });
+  const handleUpdateStartupWizardAppLanguage = useCallback(
+    async (nextLanguage: AppLanguage) => {
+      if (appSettings.appLanguage === nextLanguage) {
+        return;
+      }
+      const nextSettings = {
+        ...appSettings,
+        appLanguage: nextLanguage,
+      };
+      setAppSettings(nextSettings);
+      await queueSaveSettings(nextSettings);
+    },
+    [appSettings, queueSaveSettings, setAppSettings],
+  );
 
   useBranchSwitcherShortcut({
     shortcut: appSettings.branchSwitcherShortcut,
@@ -1831,6 +1851,7 @@ export default function MainApp() {
       showStartupAiSetupWizard: startupAiSetup.showWizard,
       startupAiSetupWizardProps: {
         providers: startupAiSetup.providers,
+        appLanguage: appSettings.appLanguage,
         selectedProviderId: startupAiSetup.selectedProviderId,
         selectedProviderName: startupAiSetup.selectedProviderName,
         configuredBaseUrl: startupAiSetup.configuredBaseUrl,
@@ -1847,6 +1868,7 @@ export default function MainApp() {
           const saved = await startupAiSetup.saveAiProviderSettings(input);
           return saved;
         },
+        onUpdateAppLanguage: handleUpdateStartupWizardAppLanguage,
         onDismiss: startupAiSetup.dismissWizard,
       },
     },

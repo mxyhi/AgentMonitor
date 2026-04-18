@@ -19,6 +19,8 @@ const LOCAL_PROVIDER_NAME: &str = "Local";
 const DEFAULT_AIROUTER_BASE_URL: &str = "https://airouter.mxyhi.com/v1";
 const DEFAULT_OPENAI_BASE_URL: &str = "https://api.openai.com/v1";
 const DEFAULT_LOCAL_BASE_URL: &str = "http://127.0.0.1:9208/v1";
+const DEFAULT_SESSION_MODEL: &str = "gpt-5.4";
+const DEFAULT_SESSION_REASONING_EFFORT: &str = "high";
 const ALLOWED_REASONING_EFFORTS: &[&str] = &["minimal", "low", "medium", "high", "xhigh"];
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -166,14 +168,12 @@ fn normalize_document(document: &mut Document) -> Result<(), String> {
         document.get("model_provider").and_then(Item::as_str),
     )
     .unwrap_or(AIROUTER_PROVIDER_ID);
-    let normalized_model = normalize_optional_string(
-        document.get("model").and_then(Item::as_str),
-    );
+    let normalized_model = normalize_optional_string(document.get("model").and_then(Item::as_str))
+        .or_else(|| Some(DEFAULT_SESSION_MODEL.to_string()));
     let normalized_effort = normalize_reasoning_effort(
-        document
-            .get("model_reasoning_effort")
-            .and_then(Item::as_str),
-    );
+        document.get("model_reasoning_effort").and_then(Item::as_str),
+    )
+    .or_else(|| Some(DEFAULT_SESSION_REASONING_EFFORT.to_string()));
     let providers = resolve_provider_states(document)?;
 
     config_toml_core::set_top_level_string(document, "model_provider", Some(selected_provider));
@@ -593,6 +593,19 @@ model_provider = "unknown"
         assert_eq!(
             provider(&dto, "local").base_url.as_deref(),
             Some("http://127.0.0.1:9208/v1")
+        );
+    }
+
+    #[test]
+    fn empty_config_defaults_session_defaults_to_gpt_5_4_high() {
+        let dto =
+            build_global_ai_settings_dto("/tmp/config.toml".to_string(), &parse("")).expect("dto");
+
+        assert_eq!(dto.session_defaults.model_provider.as_deref(), Some("airouter"));
+        assert_eq!(dto.session_defaults.model.as_deref(), Some("gpt-5.4"));
+        assert_eq!(
+            dto.session_defaults.model_reasoning_effort.as_deref(),
+            Some("high")
         );
     }
 }

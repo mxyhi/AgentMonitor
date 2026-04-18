@@ -363,7 +363,7 @@ describe("useThreadMessaging telemetry", () => {
         {
           id: "airouter",
           name: "Airouter",
-          baseUrl: "http://127.0.0.1:9000/v1",
+          baseUrl: "https://airouter.mxyhi.com/v1",
           apiKey: "test-key",
           builtIn: true,
         },
@@ -423,6 +423,87 @@ describe("useThreadMessaging telemetry", () => {
     expect(sendUserMessageService).toHaveBeenCalledTimes(1);
     expect(pushThreadErrorMessage).not.toHaveBeenCalled();
     expect(markProcessing).toHaveBeenCalledWith("thread-1", true);
+  });
+
+  it("blocks turn/start and requests AI setup when airouter API key is missing", async () => {
+    const markProcessing = vi.fn();
+    const pushThreadErrorMessage = vi.fn();
+    const safeMessageActivity = vi.fn();
+    const onRequireAiSetup = vi.fn();
+    vi.mocked(getGlobalAiSettingsService).mockResolvedValueOnce({
+      configPath: "/tmp/config.toml",
+      sessionDefaults: {
+        modelProvider: "airouter",
+        model: null,
+        modelReasoningEffort: null,
+      },
+      providers: [
+        {
+          id: "airouter",
+          name: "Airouter",
+          baseUrl: "https://airouter.mxyhi.com/v1",
+          apiKey: null,
+          builtIn: true,
+        },
+      ],
+    });
+    vi.mocked(getAccountInfoService).mockResolvedValueOnce({
+      result: {
+        account: null,
+        requiresOpenaiAuth: true,
+      },
+    } as Awaited<ReturnType<typeof getAccountInfoService>>);
+
+    const { result } = renderHook(() =>
+      useThreadMessaging({
+        activeWorkspace: workspace,
+        activeThreadId: "thread-1",
+        accessMode: "current",
+        model: null,
+        effort: null,
+        collaborationMode: null,
+        reviewDeliveryMode: "inline",
+        steerEnabled: false,
+        customPrompts: [],
+        threadStatusById: {},
+        activeTurnIdByThread: {},
+        rateLimitsByWorkspace: {},
+        pendingInterruptsRef: { current: new Set<string>() },
+        dispatch: vi.fn(),
+        getCustomName: vi.fn(() => undefined),
+        markProcessing,
+        markReviewing: vi.fn(),
+        setActiveTurnId: vi.fn(),
+        recordThreadActivity: vi.fn(),
+        safeMessageActivity,
+        onDebug: vi.fn(),
+        onRequireAiSetup,
+        pushThreadErrorMessage,
+        ensureThreadForActiveWorkspace: vi.fn(async () => "thread-1"),
+        ensureThreadForWorkspace: vi.fn(async () => "thread-1"),
+        refreshThread: vi.fn(async () => null),
+        forkThreadForWorkspace: vi.fn(async () => null),
+        updateThreadParent: vi.fn(),
+      }),
+    );
+
+    await act(async () => {
+      const sendResult = await result.current.sendUserMessageToThread(
+        workspace,
+        "thread-1",
+        "hello",
+        [],
+      );
+      expect(sendResult).toEqual({ status: "blocked" });
+    });
+
+    expect(getAccountInfoService).toHaveBeenCalledWith("ws-1");
+    expect(sendUserMessageService).not.toHaveBeenCalled();
+    expect(markProcessing).not.toHaveBeenCalled();
+    expect(Sentry.metrics.count).not.toHaveBeenCalled();
+    expect(onRequireAiSetup).toHaveBeenCalledTimes(1);
+    expect(pushThreadErrorMessage).not.toHaveBeenCalled();
+    expect(safeMessageActivity).toHaveBeenCalledTimes(1);
   });
 
   it("blocks turn/start when account/read preflight returns an rpc error", async () => {

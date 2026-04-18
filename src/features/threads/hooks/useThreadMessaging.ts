@@ -48,7 +48,11 @@ import {
   requiresOpenaiAuthWithoutAccount,
 } from "./threadAccountSnapshot";
 import { OPENAI_AUTH_REQUIRED_BEFORE_SENDING_ERROR } from "../utils/threadErrorMessages";
-import { selectedGlobalAiProviderRequiresOpenAiAuth } from "@/utils/globalAiProvider";
+import {
+  isGlobalAiProviderConfigured,
+  resolveSelectedGlobalAiProvider,
+  selectedGlobalAiProviderRequiresOpenAiAuth,
+} from "@/utils/globalAiProvider";
 
 type UseThreadMessagingOptions = {
   activeWorkspace: WorkspaceInfo | null;
@@ -86,6 +90,7 @@ type UseThreadMessagingOptions = {
   ) => void;
   safeMessageActivity: () => void;
   onDebug?: (entry: DebugEntry) => void;
+  onRequireAiSetup?: () => void;
   pushThreadErrorMessage: (threadId: string, message: string) => void;
   ensureThreadForActiveWorkspace: () => Promise<string | null>;
   ensureThreadForWorkspace: (workspaceId: string) => Promise<string | null>;
@@ -130,6 +135,7 @@ export function useThreadMessaging({
   recordThreadActivity,
   safeMessageActivity,
   onDebug,
+  onRequireAiSetup,
   pushThreadErrorMessage,
   ensureThreadForActiveWorkspace,
   ensureThreadForWorkspace,
@@ -188,9 +194,9 @@ export function useThreadMessaging({
       });
       if (!shouldSteer) {
         try {
-          const shouldRequireOpenaiAuth = selectedGlobalAiProviderRequiresOpenAiAuth(
-            await getGlobalAiSettingsService(),
-          );
+          const aiSettings = await getGlobalAiSettingsService();
+          const shouldRequireOpenaiAuth =
+            selectedGlobalAiProviderRequiresOpenAiAuth(aiSettings);
           const accountResponse =
             (await getAccountInfoService(workspace.id)) as Record<string, unknown>;
           const accountRpcError = extractRpcErrorMessage(accountResponse);
@@ -208,9 +214,27 @@ export function useThreadMessaging({
             workspaceId: workspace.id,
             account: accountSnapshot,
           });
+          const loginRequired = requiresOpenaiAuthWithoutAccount(accountSnapshot);
+          const { providerId, provider } = resolveSelectedGlobalAiProvider(aiSettings);
+          const providerIncomplete = !isGlobalAiProviderConfigured({
+            providerId,
+            provider,
+            loginRequired,
+          });
+          if (providerIncomplete) {
+            onRequireAiSetup?.();
+            if (!onRequireAiSetup && shouldRequireOpenaiAuth && loginRequired) {
+              pushThreadErrorMessage(
+                threadId,
+                OPENAI_AUTH_REQUIRED_BEFORE_SENDING_ERROR,
+              );
+            }
+            safeMessageActivity();
+            return { status: "blocked" };
+          }
           if (
             shouldRequireOpenaiAuth &&
-            requiresOpenaiAuthWithoutAccount(accountSnapshot)
+            loginRequired
           ) {
             pushThreadErrorMessage(
               threadId,
@@ -408,6 +432,7 @@ export function useThreadMessaging({
       markProcessing,
       model,
       onDebug,
+      onRequireAiSetup,
       pushThreadErrorMessage,
       recordThreadActivity,
       safeMessageActivity,

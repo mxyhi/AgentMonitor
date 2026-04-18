@@ -10,6 +10,8 @@ import {
 } from "@testing-library/react";
 import type { ComponentProps } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { I18nProvider } from "@/i18n/I18nProvider";
+import { setLocale } from "@/i18n/runtime";
 import type { AppSettings, WorkspaceInfo } from "@/types";
 import * as m from "@/i18n/messages";
 import {
@@ -72,8 +74,9 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 
-afterEach(() => {
+afterEach(async () => {
   cleanup();
+  await setLocale("en", { reload: false });
 });
 
 function makeAiSettings(
@@ -1440,6 +1443,54 @@ describe("SettingsView Codex section", () => {
     });
   });
 
+  it("localizes local provider optional API key copy in zh-CN", async () => {
+    render(
+      <I18nProvider locale="zh-CN">
+        <SettingsView
+          workspaceGroups={[]}
+          groupedWorkspaces={[]}
+          ungroupedLabel="Ungrouped"
+          onClose={vi.fn()}
+          onMoveWorkspace={vi.fn()}
+          onDeleteWorkspace={vi.fn()}
+          onCreateWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+          onRenameWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+          onMoveWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+          onDeleteWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+          onAssignWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+          reduceTransparency={false}
+          onToggleTransparency={vi.fn()}
+          appSettings={{ ...baseSettings, appLanguage: "zh-CN" }}
+          openAppIconById={{}}
+          onUpdateAppSettings={vi.fn().mockResolvedValue(undefined)}
+          onRunDoctor={vi.fn().mockResolvedValue(createDoctorResult())}
+          onRunCodexUpdate={vi.fn().mockResolvedValue(createUpdateResult())}
+          onUpdateWorkspaceSettings={vi.fn().mockResolvedValue(undefined)}
+          scaleShortcutTitle="Scale shortcut"
+          scaleShortcutText="Use Command +/-"
+          onTestNotificationSound={vi.fn()}
+          onTestSystemNotification={vi.fn()}
+          dictationModelStatus={null}
+          onDownloadDictationModel={vi.fn()}
+          onCancelDictationDownload={vi.fn()}
+          onRemoveDictationModel={vi.fn()}
+          initialSection="codex"
+        />
+      </I18nProvider>,
+    );
+
+    fireEvent.change(screen.getByLabelText("提供方"), {
+      target: { value: "local" },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText("本地网关无需时可留空")).toBeTruthy();
+    });
+    expect(
+      screen.getByText("如果你的本地网关不要求 API Key，这里可以留空。"),
+    ).toBeTruthy();
+  });
+
   it("hides the server settings entry in release builds", async () => {
     cleanup();
     render(
@@ -1976,7 +2027,9 @@ describe("SettingsView Composer", () => {
       },
     });
 
-    const hintTitle = await screen.findByText(m.composer_followup_hint_title());
+    const hintTitle = await screen.findByText(
+      m.composer_followup_hint_title({}, { locale }),
+    );
     const hintRow = hintTitle.closest(".settings-toggle-row");
     expect(hintRow).not.toBeNull();
     fireEvent.click(within(hintRow as HTMLElement).getByRole("button"));
@@ -2020,7 +2073,7 @@ describe("SettingsView Composer", () => {
     const steerOption = screen.getByRole("radio", { name: "Steer" });
     expect(steerOption.hasAttribute("disabled")).toBe(true);
     expect(
-      screen.getByText(m.composer_followup_unavailable_help()),
+      screen.getByText(m.composer_followup_unavailable_help({}, { locale })),
     ).not.toBeNull();
 
     fireEvent.click(steerOption);

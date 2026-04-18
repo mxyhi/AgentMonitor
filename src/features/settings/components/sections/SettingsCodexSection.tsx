@@ -343,7 +343,11 @@ export function SettingsCodexSection({
       />
 
       <SettingsToggleRow
-        title={<label htmlFor="ai-provider-select">Provider</label>}
+        title={
+          <label htmlFor="ai-provider-select">
+            {m.settings_codex_provider_label({}, { locale })}
+          </label>
+        }
         subtitle={m.settings_codex_provider_id_label({}, { locale })}
       >
         <select
@@ -369,7 +373,7 @@ export function SettingsCodexSection({
             setProviderDraftDirty(false);
             void onUpdateSessionDefaults(nextSessionDefaults);
           }}
-          aria-label="Provider"
+          aria-label={m.settings_codex_provider_aria({}, { locale })}
         >
           {fixedProviders.map((provider) => (
             <option key={provider.id} value={provider.id}>
@@ -418,7 +422,11 @@ export function SettingsCodexSection({
           type="password"
           autoComplete="off"
           value={providerApiKeyDraft}
-          placeholder={providerApiKeyOptional ? "Optional for Local" : undefined}
+          placeholder={
+            providerApiKeyOptional
+              ? m.ai_provider_api_key_optional_placeholder({}, { locale })
+              : undefined
+          }
           onChange={(event) => {
             setProviderApiKeyDraft(event.target.value);
             setProviderDraftDirty(true);
@@ -455,7 +463,7 @@ export function SettingsCodexSection({
         </div>
         {providerApiKeyOptional ? (
           <div className="settings-help">
-            Local provider can leave API Key empty if your local gateway does not require one.
+            {m.ai_provider_api_key_optional_hint({}, { locale })}
           </div>
         ) : null}
       </div>

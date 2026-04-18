@@ -956,6 +956,8 @@
   "settings_codex_provider_base_url_aria": "Base URL",
   "settings_codex_provider_api_key_label": "API Key",
   "settings_codex_provider_api_key_aria": "API Key",
+  "ai_provider_api_key_optional_placeholder": "本地网关无需时可留空",
+  "ai_provider_api_key_optional_hint": "如果你的本地网关不要求 API Key，这里可以留空。",
   "settings_codex_provider_no_base_url": "未设置 Base URL",
   "settings_codex_provider_no_api_key": "未设置 API Key",
   "settings_codex_provider_api_key_configured": "已配置 API Key",
