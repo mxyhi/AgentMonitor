@@ -22,7 +22,7 @@ import {
   buildThreadSummaryFromThread,
   extractThreadFromResponse,
 } from "@threads/utils/threadSummary";
-import { asString } from "@threads/utils/threadNormalize";
+import { asString, extractRpcErrorMessage } from "@threads/utils/threadNormalize";
 import {
   getParentThreadIdFromThread,
   shouldHideSubagentThreadFromSidebar,
@@ -163,6 +163,10 @@ export function useThreadActions({
           label: "thread/start response",
           payload: response,
         });
+        const rpcError = extractRpcErrorMessage(response);
+        if (rpcError) {
+          throw new Error(rpcError);
+        }
         const threadId = extractThreadId(response);
         if (threadId) {
           dispatch({ type: "ensureThread", workspaceId, threadId });

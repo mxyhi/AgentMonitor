@@ -755,9 +755,13 @@ export function useThreads({
       unpinThread(workspaceId, threadId);
       loadedThreadsRef.current[threadId] = false;
       dispatch({ type: "removeThread", workspaceId, threadId });
-      return startThreadForWorkspace(workspaceId, {
-        activate: options?.activate !== false,
-      });
+      try {
+        return await startThreadForWorkspace(workspaceId, {
+          activate: options?.activate !== false,
+        });
+      } catch {
+        return null;
+      }
     },
     [dispatch, loadedThreadsRef, startThreadForWorkspace, unpinThread],
   );

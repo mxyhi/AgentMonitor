@@ -45,7 +45,7 @@ export function resolveStartupAiSetupState({
     providerIncomplete,
     providers,
     selectedProviderId: providerId || AIROUTER_PROVIDER_ID,
-    selectedProviderName: provider?.name?.trim() || "Airouter",
+    selectedProviderName: provider?.name?.trim() || AIROUTER_PROVIDER_ID,
     configuredBaseUrl:
       provider?.baseUrl?.trim() || getDefaultGlobalAiProviderBaseUrl(providerId),
     apiKeyConfigured: Boolean(provider?.apiKey?.trim()),

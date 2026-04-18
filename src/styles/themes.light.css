@@ -1,5 +1,6 @@
 :root[data-theme="light"] {
   color-scheme: light;
+  --ds-modal-backdrop: rgba(236, 240, 246, 0.72);
   --text-primary: #1a1d24;
   --text-strong: #0e1118;
   --text-emphasis: rgba(17, 20, 28, 0.9);
@@ -57,6 +58,7 @@
 }
 
 :root[data-theme="light"] .app.reduced-transparency {
+  --ds-modal-backdrop: rgba(244, 246, 250, 0.9);
   --surface-sidebar: rgba(240, 242, 247, 0.98);
   --surface-sidebar-opaque: rgb(240, 242, 247);
   --surface-topbar: rgba(244, 246, 250, 0.98);

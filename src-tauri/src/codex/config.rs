@@ -3,6 +3,9 @@ use toml_edit::Item;
 
 use crate::shared::config_toml_core;
 
+const OPENAI_PROVIDER_ID: &str = "OpenAI";
+const LEGACY_OPENAI_PROVIDER_ID: &str = "openai";
+
 pub(crate) fn read_steer_enabled() -> Result<Option<bool>, String> {
     read_feature_flag("steer")
 }
@@ -120,16 +123,23 @@ pub(crate) fn read_selected_provider_api_key(
     else {
         return Ok(None);
     };
-    Ok(document
-        .get("model_providers")
-        .and_then(Item::as_table_like)
-        .and_then(|providers| providers.get(provider_id.as_str()))
-        .and_then(Item::as_table_like)
-        .and_then(|provider| provider.get("experimental_bearer_token"))
-        .and_then(Item::as_str)
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-        .map(str::to_string))
+    let providers = document.get("model_providers").and_then(Item::as_table_like);
+    let read_api_key = |provider_key: &str| {
+        providers
+            .and_then(|table| table.get(provider_key))
+            .and_then(Item::as_table_like)
+            .and_then(|provider| provider.get("experimental_bearer_token"))
+            .and_then(Item::as_str)
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(str::to_string)
+    };
+
+    if provider_id.eq_ignore_ascii_case(LEGACY_OPENAI_PROVIDER_ID) {
+        return Ok(read_api_key(OPENAI_PROVIDER_ID).or_else(|| read_api_key(LEGACY_OPENAI_PROVIDER_ID)));
+    }
+
+    Ok(read_api_key(provider_id.as_str()))
 }
 
 fn resolve_default_codex_home() -> Option<PathBuf> {
@@ -209,9 +219,9 @@ mod tests {
     fn read_selected_provider_api_key_from_document_reads_selected_token() {
         let document = config_toml_core::parse_document(
             r#"
-model_provider = "openai"
+model_provider = "OpenAI"
 
-[model_providers.openai]
+[model_providers.OpenAI]
 experimental_bearer_token = "sk-test"
 "#,
         )
@@ -220,7 +230,7 @@ experimental_bearer_token = "sk-test"
         let api_key = document
             .get("model_providers")
             .and_then(Item::as_table_like)
-            .and_then(|providers| providers.get("openai"))
+            .and_then(|providers| providers.get("OpenAI"))
             .and_then(Item::as_table_like)
             .and_then(|provider| provider.get("experimental_bearer_token"))
             .and_then(Item::as_str);

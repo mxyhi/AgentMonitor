@@ -1350,7 +1350,7 @@ describe("SettingsView Codex section", () => {
     const providerSelect = screen.getByLabelText("Provider") as HTMLSelectElement;
     expect(Array.from(providerSelect.options).map((option) => option.value)).toEqual([
       "airouter",
-      "openai",
+      "OpenAI",
       "local",
     ]);
     expect(screen.getByText("AGENTS.md")).toBeTruthy();

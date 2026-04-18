@@ -3,7 +3,7 @@ use serde_json::{Map, Value};
 use std::fs;
 use std::path::PathBuf;
 
-const OPENAI_PROVIDER_ID: &str = "openai";
+const OPENAI_PROVIDER_ID: &str = "OpenAI";
 
 #[derive(Clone, Debug)]
 pub(crate) struct AuthAccount {
@@ -324,7 +324,7 @@ mod tests {
     #[test]
     fn requires_openai_auth_for_selected_provider_skips_openai_with_api_key() {
         assert!(!requires_openai_auth_for_selected_provider(
-            Some("openai"),
+            Some("OpenAI"),
             Some("sk-test"),
             &json!({
                 "requiresOpenaiAuth": true,

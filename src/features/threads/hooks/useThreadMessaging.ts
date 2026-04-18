@@ -23,6 +23,7 @@ import {
   getAppsList as getAppsListService,
   listMcpServerStatus as listMcpServerStatusService,
 } from "@services/tauri";
+import { pushErrorToast } from "@services/toasts";
 import { expandCustomPromptText } from "@utils/customPrompts";
 import {
   asString,
@@ -152,6 +153,50 @@ export function useThreadMessaging({
   registerDetachedReviewChild,
   renameThread,
 }: UseThreadMessagingOptions) {
+  const ensureThreadWithFeedback = useCallback(
+    async (
+      loader: () => Promise<string | null>,
+      debugLabel: string,
+    ): Promise<string | null> => {
+      try {
+        const threadId = await loader();
+        if (threadId) {
+          return threadId;
+        }
+        const message = "Thread start returned no thread id.";
+        onDebug?.({
+          id: `${Date.now()}-client-thread-start-missing-id`,
+          timestamp: Date.now(),
+          source: "error",
+          label: debugLabel,
+          payload: message,
+        });
+        pushErrorToast({
+          title: "Unable to start thread",
+          message,
+        });
+        safeMessageActivity();
+        return null;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        onDebug?.({
+          id: `${Date.now()}-client-thread-start-failed`,
+          timestamp: Date.now(),
+          source: "error",
+          label: debugLabel,
+          payload: message,
+        });
+        pushErrorToast({
+          title: "Unable to start thread",
+          message,
+        });
+        safeMessageActivity();
+        return null;
+      }
+    },
+    [onDebug, safeMessageActivity],
+  );
+
   const sendMessageToThread = useCallback(
     async (
       workspace: WorkspaceInfo,
@@ -537,7 +582,10 @@ export function useThreadMessaging({
         return { status: "blocked" };
       }
       const finalText = promptExpansion?.expanded ?? messageText;
-      const threadId = await ensureThreadForActiveWorkspace();
+      const threadId = await ensureThreadWithFeedback(
+        ensureThreadForActiveWorkspace,
+        "thread/start for send failed",
+      );
       if (!threadId) {
         return { status: "blocked" };
       }
@@ -551,6 +599,7 @@ export function useThreadMessaging({
       activeThreadId,
       activeWorkspace,
       customPrompts,
+      ensureThreadWithFeedback,
       ensureThreadForActiveWorkspace,
       onDebug,
       pushThreadErrorMessage,
@@ -640,8 +689,14 @@ export function useThreadMessaging({
         return false;
       }
       const threadId = workspaceIdOverride
-        ? await ensureThreadForWorkspace(workspaceId)
-        : await ensureThreadForActiveWorkspace();
+        ? await ensureThreadWithFeedback(
+          () => ensureThreadForWorkspace(workspaceId),
+          "thread/start for review failed",
+        )
+        : await ensureThreadWithFeedback(
+          ensureThreadForActiveWorkspace,
+          "thread/start for review failed",
+        );
       if (!threadId) {
         return false;
       }
@@ -722,6 +777,7 @@ export function useThreadMessaging({
     },
     [
       activeWorkspace,
+      ensureThreadWithFeedback,
       ensureThreadForActiveWorkspace,
       ensureThreadForWorkspace,
       getCustomName,
@@ -801,7 +857,10 @@ export function useThreadMessaging({
       if (!activeWorkspace) {
         return;
       }
-      const threadId = await ensureThreadForActiveWorkspace();
+      const threadId = await ensureThreadWithFeedback(
+        ensureThreadForActiveWorkspace,
+        "thread/start for status failed",
+      );
       if (!threadId) {
         return;
       }
@@ -829,6 +888,7 @@ export function useThreadMessaging({
       collaborationMode,
       dispatch,
       effort,
+      ensureThreadWithFeedback,
       ensureThreadForActiveWorkspace,
       model,
       serviceTier,
@@ -843,7 +903,10 @@ export function useThreadMessaging({
       if (!activeWorkspace) {
         return;
       }
-      const threadId = await ensureThreadForActiveWorkspace();
+      const threadId = await ensureThreadWithFeedback(
+        ensureThreadForActiveWorkspace,
+        "thread/start for fast failed",
+      );
       if (!threadId) {
         return;
       }
@@ -882,6 +945,7 @@ export function useThreadMessaging({
     [
       activeWorkspace,
       dispatch,
+      ensureThreadWithFeedback,
       ensureThreadForActiveWorkspace,
       onSelectServiceTier,
       recordThreadActivity,
@@ -895,7 +959,10 @@ export function useThreadMessaging({
       if (!activeWorkspace) {
         return;
       }
-      const threadId = await ensureThreadForActiveWorkspace();
+      const threadId = await ensureThreadWithFeedback(
+        ensureThreadForActiveWorkspace,
+        "thread/start for mcp failed",
+      );
       if (!threadId) {
         return;
       }
@@ -936,6 +1003,7 @@ export function useThreadMessaging({
     [
       activeWorkspace,
       dispatch,
+      ensureThreadWithFeedback,
       ensureThreadForActiveWorkspace,
       recordThreadActivity,
       safeMessageActivity,
@@ -947,7 +1015,10 @@ export function useThreadMessaging({
       if (!activeWorkspace) {
         return;
       }
-      const threadId = await ensureThreadForActiveWorkspace();
+      const threadId = await ensureThreadWithFeedback(
+        ensureThreadForActiveWorkspace,
+        "thread/start for apps failed",
+      );
       if (!threadId) {
         return;
       }
@@ -989,6 +1060,7 @@ export function useThreadMessaging({
     [
       activeWorkspace,
       dispatch,
+      ensureThreadWithFeedback,
       ensureThreadForActiveWorkspace,
       recordThreadActivity,
       safeMessageActivity,
@@ -1028,7 +1100,10 @@ export function useThreadMessaging({
       if (activeThreadId && threadStatusById[activeThreadId]?.isProcessing) {
         return;
       }
-      const threadId = activeThreadId ?? (await ensureThreadForActiveWorkspace());
+      const threadId = activeThreadId ?? (await ensureThreadWithFeedback(
+        ensureThreadForActiveWorkspace,
+        "thread/start for resume failed",
+      ));
       if (!threadId) {
         return;
       }
@@ -1038,6 +1113,7 @@ export function useThreadMessaging({
     [
       activeThreadId,
       activeWorkspace,
+      ensureThreadWithFeedback,
       ensureThreadForActiveWorkspace,
       refreshThread,
       safeMessageActivity,
@@ -1050,7 +1126,10 @@ export function useThreadMessaging({
       if (!activeWorkspace) {
         return;
       }
-      const threadId = activeThreadId ?? (await ensureThreadForActiveWorkspace());
+      const threadId = activeThreadId ?? (await ensureThreadWithFeedback(
+        ensureThreadForActiveWorkspace,
+        "thread/start for compact failed",
+      ));
       if (!threadId) {
         return;
       }
@@ -1070,6 +1149,7 @@ export function useThreadMessaging({
     [
       activeThreadId,
       activeWorkspace,
+      ensureThreadWithFeedback,
       ensureThreadForActiveWorkspace,
       pushThreadErrorMessage,
       safeMessageActivity,

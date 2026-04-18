@@ -1,8 +1,9 @@
 import type { GlobalAiProviderEntry, GlobalAiSettings } from "@/types";
 
 export const AIROUTER_PROVIDER_ID = "airouter";
-export const OPENAI_PROVIDER_ID = "openai";
+export const OPENAI_PROVIDER_ID = "OpenAI";
 export const LOCAL_PROVIDER_ID = "local";
+const LEGACY_OPENAI_PROVIDER_ID = "openai";
 
 export const DEFAULT_AIROUTER_BASE_URL = "https://airouter.mxyhi.com/v1";
 export const DEFAULT_OPENAI_BASE_URL = "https://api.openai.com/v1";
@@ -25,7 +26,7 @@ type FixedProviderDefinition = {
 const FIXED_PROVIDER_DEFINITIONS: FixedProviderDefinition[] = [
   {
     id: AIROUTER_PROVIDER_ID,
-    name: "Airouter",
+    name: AIROUTER_PROVIDER_ID,
     defaultBaseUrl: DEFAULT_AIROUTER_BASE_URL,
     apiKeyOptional: false,
   },
@@ -37,7 +38,7 @@ const FIXED_PROVIDER_DEFINITIONS: FixedProviderDefinition[] = [
   },
   {
     id: LOCAL_PROVIDER_ID,
-    name: "Local",
+    name: LOCAL_PROVIDER_ID,
     defaultBaseUrl: DEFAULT_LOCAL_BASE_URL,
     apiKeyOptional: true,
   },
@@ -63,9 +64,9 @@ export function listFixedGlobalAiProviderDefinitions() {
 export function normalizeGlobalAiProviderId(
   value: string | null | undefined,
 ): FixedGlobalAiProviderId {
-  const normalized = value?.trim().toLowerCase();
-  switch (normalized) {
-    case OPENAI_PROVIDER_ID:
+  const normalized = value?.trim();
+  switch (normalized?.toLowerCase()) {
+    case LEGACY_OPENAI_PROVIDER_ID:
       return OPENAI_PROVIDER_ID;
     case LOCAL_PROVIDER_ID:
     case "ollama":

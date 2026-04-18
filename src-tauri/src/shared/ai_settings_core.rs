@@ -7,14 +7,15 @@ use crate::codex::home as codex_home;
 use crate::shared::{config_toml_core, settings_core};
 
 const AIROUTER_PROVIDER_ID: &str = "airouter";
-const OPENAI_PROVIDER_ID: &str = "openai";
+const OPENAI_PROVIDER_ID: &str = "OpenAI";
 const LOCAL_PROVIDER_ID: &str = "local";
+const LEGACY_OPENAI_PROVIDER_ID: &str = "openai";
 const LEGACY_OLLAMA_PROVIDER_ID: &str = "ollama";
 const LEGACY_LMSTUDIO_PROVIDER_ID: &str = "lmstudio";
 
-const AIROUTER_PROVIDER_NAME: &str = "Airouter";
+const AIROUTER_PROVIDER_NAME: &str = "airouter";
 const OPENAI_PROVIDER_NAME: &str = "OpenAI";
-const LOCAL_PROVIDER_NAME: &str = "Local";
+const LOCAL_PROVIDER_NAME: &str = "local";
 
 const DEFAULT_AIROUTER_BASE_URL: &str = "https://airouter.mxyhi.com/v1";
 const DEFAULT_OPENAI_BASE_URL: &str = "https://api.openai.com/v1";
@@ -208,11 +209,14 @@ fn resolve_provider_states(document: &Document) -> Result<Vec<ProviderState>, St
             default_base_url: DEFAULT_OPENAI_BASE_URL,
             base_url: resolve_provider_base_url(
                 document,
-                &[OPENAI_PROVIDER_ID],
+                &[OPENAI_PROVIDER_ID, LEGACY_OPENAI_PROVIDER_ID],
                 config_toml_core::read_top_level_string(document, "openai_base_url"),
                 DEFAULT_OPENAI_BASE_URL,
             )?,
-            api_key: resolve_provider_api_key(document, &[OPENAI_PROVIDER_ID]),
+            api_key: resolve_provider_api_key(
+                document,
+                &[OPENAI_PROVIDER_ID, LEGACY_OPENAI_PROVIDER_ID],
+            ),
         },
         ProviderState {
             id: LOCAL_PROVIDER_ID,
@@ -360,9 +364,9 @@ fn normalize_selected_provider(value: Option<&str>) -> Option<&'static str> {
 
 fn normalize_provider_reference(value: &str) -> Option<&'static str> {
     match value.trim().to_ascii_lowercase().as_str() {
-        AIROUTER_PROVIDER_ID => Some(AIROUTER_PROVIDER_ID),
-        OPENAI_PROVIDER_ID => Some(OPENAI_PROVIDER_ID),
-        LOCAL_PROVIDER_ID | LEGACY_OLLAMA_PROVIDER_ID | LEGACY_LMSTUDIO_PROVIDER_ID => {
+        "airouter" => Some(AIROUTER_PROVIDER_ID),
+        "openai" => Some(OPENAI_PROVIDER_ID),
+        "local" | LEGACY_OLLAMA_PROVIDER_ID | LEGACY_LMSTUDIO_PROVIDER_ID => {
             Some(LOCAL_PROVIDER_ID)
         }
         _ => None,
@@ -486,6 +490,11 @@ model = "gpt-5.1"
 model_reasoning_effort = "high"
 openai_base_url = "https://api.openai.com/v1"
 
+[model_providers.openai]
+name = "OpenAI"
+base_url = "https://api.openai.com/v1"
+experimental_bearer_token = "sk-openai"
+
 [model_providers.airouter]
 name = "Custom Airouter"
 base_url = "https://airouter.mxyhi.com/v1/"
@@ -506,7 +515,7 @@ experimental_bearer_token = "sk-elsewhere"
         let dto =
             build_global_ai_settings_dto("/tmp/config.toml".to_string(), &document).expect("dto");
 
-        assert_eq!(dto.session_defaults.model_provider.as_deref(), Some("openai"));
+        assert_eq!(dto.session_defaults.model_provider.as_deref(), Some("OpenAI"));
         assert_eq!(dto.session_defaults.model.as_deref(), Some("gpt-5.1"));
         assert_eq!(
             dto.session_defaults.model_reasoning_effort.as_deref(),
@@ -517,7 +526,7 @@ experimental_bearer_token = "sk-elsewhere"
                 .iter()
                 .map(|provider| provider.id.as_str())
                 .collect::<Vec<_>>(),
-            vec!["airouter", "openai", "local"]
+            vec!["airouter", "OpenAI", "local"]
         );
         assert_eq!(
             provider(&dto, "airouter").base_url.as_deref(),
@@ -528,8 +537,12 @@ experimental_bearer_token = "sk-elsewhere"
             Some("sk-airouter")
         );
         assert_eq!(
-            provider(&dto, "openai").base_url.as_deref(),
+            provider(&dto, "OpenAI").base_url.as_deref(),
             Some("https://api.openai.com/v1")
+        );
+        assert_eq!(
+            provider(&dto, "OpenAI").api_key.as_deref(),
+            Some("sk-openai")
         );
         assert_eq!(
             provider(&dto, "local").base_url.as_deref(),
@@ -541,8 +554,9 @@ experimental_bearer_token = "sk-elsewhere"
             .and_then(Item::as_table_like)
             .expect("providers table");
         assert!(providers.contains_key("airouter"));
-        assert!(providers.contains_key("openai"));
+        assert!(providers.contains_key("OpenAI"));
         assert!(providers.contains_key("local"));
+        assert!(!providers.contains_key("openai"));
         assert!(!providers.contains_key("ollama"));
         assert!(!providers.contains_key("somewhere"));
     }
