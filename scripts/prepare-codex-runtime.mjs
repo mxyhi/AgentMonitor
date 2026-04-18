@@ -2,6 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
+import { pathToFileURL } from "node:url";
 import { resolveBundledCodexTargetTriple } from "./codex-runtime-targets.mjs";
 
 const repoRoot = process.cwd();
@@ -25,6 +26,9 @@ function readRustConst(name) {
 const bundledVersion = readRustConst("BUNDLED_CODEX_VERSION");
 const sidecarName = readRustConst("BUNDLED_CODEX_SIDECAR_NAME");
 const releaseTag = `rust-v${bundledVersion}`;
+const defaultDownloadRetryAttempts = 6;
+const defaultDownloadRetryDelaySeconds = 2;
+const defaultDownloadRetryMaxTimeSeconds = 120;
 
 function resolveTargetTriple() {
   return resolveBundledCodexTargetTriple(process.platform, process.arch);
@@ -66,6 +70,33 @@ function run(command, args, options = {}) {
   return result;
 }
 
+function readPositiveIntegerEnv(name, fallback) {
+  const rawValue = process.env[name]?.trim();
+  if (!rawValue) return fallback;
+  const parsed = Number.parseInt(rawValue, 10);
+  if (!Number.isFinite(parsed) || parsed < 1) {
+    return fallback;
+  }
+  return parsed;
+}
+
+export function getDownloadRetryConfig() {
+  return {
+    attempts: readPositiveIntegerEnv(
+      "CODEX_RUNTIME_DOWNLOAD_RETRIES",
+      defaultDownloadRetryAttempts,
+    ),
+    delaySeconds: readPositiveIntegerEnv(
+      "CODEX_RUNTIME_DOWNLOAD_RETRY_DELAY_SECONDS",
+      defaultDownloadRetryDelaySeconds,
+    ),
+    maxTimeSeconds: readPositiveIntegerEnv(
+      "CODEX_RUNTIME_DOWNLOAD_RETRY_MAX_TIME_SECONDS",
+      defaultDownloadRetryMaxTimeSeconds,
+    ),
+  };
+}
+
 function isBundledRuntimeUsable(filePath) {
   if (!fs.existsSync(filePath)) return false;
   const result = spawnSync(filePath, ["--version"], { encoding: "utf8" });
@@ -95,17 +126,65 @@ function isExecutableUsable(filePath, args = ["--help"]) {
   return result.status === 0;
 }
 
+export function buildCurlDownloadArgs(url, destination) {
+  const retryConfig = getDownloadRetryConfig();
+  return [
+    "-L",
+    "--fail",
+    "--retry",
+    String(retryConfig.attempts),
+    "--retry-delay",
+    String(retryConfig.delaySeconds),
+    "--retry-max-time",
+    String(retryConfig.maxTimeSeconds),
+    "--retry-connrefused",
+    "-o",
+    destination,
+    url,
+  ];
+}
+
+function escapePowerShellString(value) {
+  return value.replaceAll("'", "''");
+}
+
+export function buildPowerShellDownloadScript(url, destination) {
+  const retryConfig = getDownloadRetryConfig();
+  const escapedUrl = escapePowerShellString(url);
+  const escapedDestination = escapePowerShellString(destination);
+  return [
+    "$ErrorActionPreference = 'Stop'",
+    "$ProgressPreference = 'SilentlyContinue'",
+    `$uri = '${escapedUrl}'`,
+    `$outFile = '${escapedDestination}'`,
+    `$maxAttempts = ${retryConfig.attempts}`,
+    `$delaySeconds = ${retryConfig.delaySeconds}`,
+    "for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {",
+    "  try {",
+    "    if (Test-Path $outFile) { Remove-Item -Force $outFile }",
+    "    Invoke-WebRequest -UseBasicParsing -Uri $uri -OutFile $outFile",
+    "    exit 0",
+    "  } catch {",
+    "    if ($attempt -ge $maxAttempts) { throw }",
+    "    Start-Sleep -Seconds $delaySeconds",
+    "  }",
+    "}",
+  ].join("; ");
+}
+
 function downloadFile(url, destination) {
   if (process.platform === "win32") {
     run("powershell", [
       "-NoProfile",
       "-Command",
-      `Invoke-WebRequest -UseBasicParsing -Uri "${url}" -OutFile "${destination}"`,
+      buildPowerShellDownloadScript(url, destination),
     ]);
     return;
   }
 
-  run("curl", ["-L", "--fail", "-o", destination, url]);
+  // GitHub Releases asset downloads occasionally return transient 5xx responses in CI.
+  // Retrying here is cheaper and safer than failing the whole Rust matrix on a single CDN blip.
+  run("curl", buildCurlDownloadArgs(url, destination));
 }
 
 function extractArchive(archivePath, outputDir) {
@@ -242,5 +321,15 @@ function ensureInternalDaemonSidecars() {
   }
 }
 
-await ensureBundledRuntime();
-ensureInternalDaemonSidecars();
+export async function main() {
+  await ensureBundledRuntime();
+  ensureInternalDaemonSidecars();
+}
+
+const isDirectExecution = process.argv[1]
+  ? import.meta.url === pathToFileURL(process.argv[1]).href
+  : false;
+
+if (isDirectExecution) {
+  await main();
+}
