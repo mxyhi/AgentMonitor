@@ -31,31 +31,20 @@ pub(crate) fn bundled_codex_version() -> &'static str {
     BUNDLED_CODEX_VERSION
 }
 
+fn bundled_codex_target_triple_for(target_os: &str, target_arch: &str) -> &'static str {
+    match (target_os, target_arch) {
+        ("macos", "aarch64") => "aarch64-apple-darwin",
+        ("macos", "x86_64") => "x86_64-apple-darwin",
+        ("linux", "x86_64") => "x86_64-unknown-linux-gnu",
+        ("linux", "aarch64") => "aarch64-unknown-linux-gnu",
+        ("windows", "x86_64") => "x86_64-pc-windows-msvc",
+        ("windows", "aarch64") => "aarch64-pc-windows-msvc",
+        _ => panic!("Unsupported bundled Codex target: {target_os}/{target_arch}"),
+    }
+}
+
 pub(crate) fn bundled_codex_target_triple() -> &'static str {
-    #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
-    {
-        "aarch64-apple-darwin"
-    }
-    #[cfg(all(target_os = "macos", target_arch = "x86_64"))]
-    {
-        "x86_64-apple-darwin"
-    }
-    #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
-    {
-        "x86_64-unknown-linux-musl"
-    }
-    #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
-    {
-        "aarch64-unknown-linux-musl"
-    }
-    #[cfg(all(target_os = "windows", target_arch = "x86_64"))]
-    {
-        "x86_64-pc-windows-msvc"
-    }
-    #[cfg(all(target_os = "windows", target_arch = "aarch64"))]
-    {
-        "aarch64-pc-windows-msvc"
-    }
+    bundled_codex_target_triple_for(env::consts::OS, env::consts::ARCH)
 }
 
 pub(crate) fn bundled_codex_file_name() -> String {
@@ -186,9 +175,9 @@ pub(crate) fn codex_runtime_parent_dir(program: &str) -> Option<PathBuf> {
 #[cfg(test)]
 mod tests {
     use super::{
-        bundled_candidate_paths_for_exe_dir, bundled_codex_file_name, codex_runtime_requires_node,
-        resolve_bundled_codex_path, resolve_codex_runtime, BUNDLED_CODEX_SIDECAR_NAME,
-        CodexRuntimeSource,
+        bundled_candidate_paths_for_exe_dir, bundled_codex_file_name,
+        bundled_codex_target_triple_for, codex_runtime_requires_node, resolve_bundled_codex_path,
+        resolve_codex_runtime, BUNDLED_CODEX_SIDECAR_NAME, CodexRuntimeSource,
     };
     use std::fs;
     use std::sync::Mutex;
@@ -244,6 +233,18 @@ mod tests {
         assert!(!codex_runtime_requires_node(CodexRuntimeSource::Bundled));
         assert!(codex_runtime_requires_node(CodexRuntimeSource::Path));
         assert!(codex_runtime_requires_node(CodexRuntimeSource::Custom));
+    }
+
+    #[test]
+    fn linux_targets_use_gnu_triples() {
+        assert_eq!(
+            bundled_codex_target_triple_for("linux", "x86_64"),
+            "x86_64-unknown-linux-gnu"
+        );
+        assert_eq!(
+            bundled_codex_target_triple_for("linux", "aarch64"),
+            "aarch64-unknown-linux-gnu"
+        );
     }
 
     #[test]

@@ -2,6 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
+import { resolveBundledCodexTargetTriple } from "./codex-runtime-targets.mjs";
 
 const repoRoot = process.cwd();
 const runtimeCorePath = path.join(
@@ -26,14 +27,7 @@ const sidecarName = readRustConst("BUNDLED_CODEX_SIDECAR_NAME");
 const releaseTag = `rust-v${bundledVersion}`;
 
 function resolveTargetTriple() {
-  const { platform, arch } = process;
-  if (platform === "darwin" && arch === "arm64") return "aarch64-apple-darwin";
-  if (platform === "darwin" && arch === "x64") return "x86_64-apple-darwin";
-  if (platform === "linux" && arch === "x64") return "x86_64-unknown-linux-musl";
-  if (platform === "linux" && arch === "arm64") return "aarch64-unknown-linux-musl";
-  if (platform === "win32" && arch === "x64") return "x86_64-pc-windows-msvc";
-  if (platform === "win32" && arch === "arm64") return "aarch64-pc-windows-msvc";
-  throw new Error(`Unsupported platform/arch for bundled Codex runtime: ${platform}/${arch}`);
+  return resolveBundledCodexTargetTriple(process.platform, process.arch);
 }
 
 const detectedTargetTriple = resolveTargetTriple();
