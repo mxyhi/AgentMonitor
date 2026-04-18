@@ -1,0 +1,167 @@
+name: Release PR
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version, for example 0.7.75"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: release-pr
+  cancel-in-progress: false
+
+jobs:
+  create_release_pr:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Validate requested version
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os
+          import re
+
+          version = os.environ["VERSION"].strip()
+          if not re.fullmatch(r"\d+\.\d+\.\d+", version):
+              raise SystemExit(f"Invalid version: {version}")
+          PY
+
+          git fetch --force --tags origin
+          if git rev-parse -q --verify "refs/tags/v${VERSION}" >/dev/null; then
+            echo "Tag v${VERSION} already exists."
+            exit 1
+          fi
+
+      - name: Prepare release branch
+        env:
+          VERSION: ${{ inputs.version }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          BRANCH="release/v${VERSION}"
+          TITLE="chore(release): cut v${VERSION}"
+          export VERSION
+
+          EXISTING_PR=$(gh pr list --head "$BRANCH" --state open --json number,url --jq '.[0] // empty')
+          if [ -n "$EXISTING_PR" ]; then
+            echo "Release PR already exists for ${VERSION}: $EXISTING_PR"
+            exit 0
+          fi
+
+          if git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null 2>&1; then
+            echo "Remote branch $BRANCH already exists without an open PR. Clean it up or reuse it manually."
+            exit 1
+          fi
+
+          CURRENT_VERSION=$(python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          data = json.loads(Path("src-tauri/tauri.conf.json").read_text())
+          print(data["version"])
+          PY
+          )
+
+          if [ "$CURRENT_VERSION" = "$VERSION" ]; then
+            echo "Repository already set to version ${VERSION}."
+            exit 1
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+
+          python3 - <<'PY'
+          import json
+          import os
+          import plistlib
+          import re
+          from pathlib import Path
+
+          version = os.environ["VERSION"]
+
+          package_json = Path("package.json")
+          package_data = json.loads(package_json.read_text())
+          package_data["version"] = version
+          package_json.write_text(json.dumps(package_data, indent=2) + "\n")
+
+          tauri_json = Path("src-tauri/tauri.conf.json")
+          tauri_data = json.loads(tauri_json.read_text())
+          tauri_data["version"] = version
+          tauri_json.write_text(json.dumps(tauri_data, indent=2) + "\n")
+
+          cargo_toml = Path("src-tauri/Cargo.toml")
+          cargo_content = cargo_toml.read_text()
+          cargo_content, count = re.subn(
+              r'(?m)^version = ".*"$',
+              f'version = "{version}"',
+              cargo_content,
+              count=1,
+          )
+          if count != 1:
+              raise SystemExit("Failed to update src-tauri/Cargo.toml version")
+          cargo_toml.write_text(cargo_content)
+
+          cargo_lock = Path("src-tauri/Cargo.lock")
+          lock_content = cargo_lock.read_text()
+          lock_content, count = re.subn(
+              r'(?ms)(\[\[package\]\]\nname = "codex-monitor"\nversion = ")[^"]+(")',
+              lambda match: f'{match.group(1)}{version}{match.group(2)}',
+              lock_content,
+              count=1,
+          )
+          if count != 1:
+              raise SystemExit("Failed to update codex-monitor version in src-tauri/Cargo.lock")
+          cargo_lock.write_text(lock_content)
+
+          info_plist = Path("src-tauri/gen/apple/codex-monitor_iOS/Info.plist")
+          with info_plist.open("rb") as f:
+              plist = plistlib.load(f)
+          plist["CFBundleShortVersionString"] = version
+          plist["CFBundleVersion"] = version
+          with info_plist.open("wb") as f:
+              plistlib.dump(plist, f, sort_keys=False)
+          PY
+
+          pnpm install --lockfile-only --ignore-scripts
+
+          git add package.json pnpm-lock.yaml src-tauri/Cargo.toml src-tauri/Cargo.lock src-tauri/tauri.conf.json src-tauri/gen/apple/codex-monitor_iOS/Info.plist
+
+          if git diff --cached --quiet; then
+            echo "No version changes to commit."
+            exit 1
+          fi
+
+          git commit -m "$TITLE"
+          git push origin "$BRANCH"
+
+          gh pr create \
+            --title "$TITLE" \
+            --body "Release prep for v${VERSION}. Merge this PR to main to trigger the release workflow." \
+            --base main \
+            --head "$BRANCH"
