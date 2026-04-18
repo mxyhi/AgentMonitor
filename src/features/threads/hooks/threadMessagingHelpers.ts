@@ -11,6 +11,8 @@ import { formatRelativeTime } from "@utils/time";
 
 export type SendMessageOptions = {
   skipPromptExpansion?: boolean;
+  skipTelemetry?: boolean;
+  missingThreadRecoveryAttempted?: boolean;
   model?: string | null;
   effort?: string | null;
   serviceTier?: ServiceTier | null | undefined;
@@ -88,6 +90,14 @@ export function isStaleSteerTurnError(message: string): boolean {
     return true;
   }
   return normalized.includes("active turn") && normalized.includes("not found");
+}
+
+export function isMissingThreadError(message: string): boolean {
+  const normalized = message.trim().toLowerCase();
+  if (!normalized) {
+    return false;
+  }
+  return normalized.includes("thread not found");
 }
 
 export function parseFastCommand(text: string): FastCommandAction {

@@ -278,6 +278,74 @@ describe("useThreads UX integration", () => {
     expect(vi.mocked(sendUserMessageService)).not.toHaveBeenCalled();
   });
 
+  it("drops stale active threads and retries send on a replacement thread", async () => {
+    vi.mocked(resumeThread).mockResolvedValue({
+      result: {
+        thread: {
+          id: "thread-stale",
+          preview: "Stale preview",
+          updated_at: 9999,
+          turns: [],
+        },
+      },
+    } as Awaited<ReturnType<typeof resumeThread>>);
+    vi.mocked(startThread).mockResolvedValue({
+      result: { thread: { id: "thread-recovered" } },
+    } as Awaited<ReturnType<typeof startThread>>);
+    vi.mocked(sendUserMessageService)
+      .mockResolvedValueOnce({
+        error: { message: "thread not found: thread-stale" },
+      } as Awaited<ReturnType<typeof sendUserMessageService>>)
+      .mockResolvedValueOnce({
+        result: { turn: { id: "turn-recovered" } },
+      } as Awaited<ReturnType<typeof sendUserMessageService>>);
+
+    const { result } = renderHook(() =>
+      useThreads({
+        activeWorkspace: workspace,
+        onWorkspaceConnected: vi.fn(),
+      }),
+    );
+
+    act(() => {
+      result.current.setActiveThreadId("thread-stale");
+    });
+
+    await waitFor(() => {
+      expect(vi.mocked(resumeThread)).toHaveBeenCalledWith("ws-1", "thread-stale");
+    });
+
+    await act(async () => {
+      const sendResult = await result.current.sendUserMessageToThread(
+        workspace,
+        "thread-stale",
+        "hello recovered",
+        [],
+      );
+      expect(sendResult).toEqual({ status: "sent" });
+    });
+
+    expect(vi.mocked(startThread)).toHaveBeenCalledWith("ws-1");
+    expect(vi.mocked(sendUserMessageService)).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(sendUserMessageService)).toHaveBeenNthCalledWith(
+      2,
+      "ws-1",
+      "thread-recovered",
+      "hello recovered",
+      expect.any(Object),
+    );
+
+    await waitFor(() => {
+      expect(result.current.activeThreadId).toBe("thread-recovered");
+      expect(result.current.threadsByWorkspace["ws-1"]?.some(
+        (thread) => thread.id === "thread-stale",
+      )).toBe(false);
+      expect(result.current.threadsByWorkspace["ws-1"]?.some(
+        (thread) => thread.id === "thread-recovered",
+      )).toBe(true);
+    });
+  });
+
   it("applies runtime codex args before direct startThreadForWorkspace calls", async () => {
     const ensureWorkspaceRuntimeCodexArgs = vi.fn(async () => undefined);
     vi.mocked(startThread).mockResolvedValue({

@@ -72,7 +72,7 @@ describe("useThreadMessaging telemetry", () => {
   };
 
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
     vi.mocked(getGlobalAiSettingsService).mockResolvedValue({
       configPath: "/tmp/config.toml",
       sessionDefaults: {
@@ -207,7 +207,6 @@ describe("useThreadMessaging telemetry", () => {
         requiresOpenaiAuth: true,
       },
     } as Awaited<ReturnType<typeof getAccountInfoService>>);
-
     const { result } = renderHook(() =>
       useThreadMessaging({
         activeWorkspace: workspace,
@@ -295,13 +294,6 @@ describe("useThreadMessaging telemetry", () => {
         },
       ],
     });
-    vi.mocked(getAccountInfoService).mockResolvedValueOnce({
-      result: {
-        account: null,
-        requiresOpenaiAuth: true,
-      },
-    } as Awaited<ReturnType<typeof getAccountInfoService>>);
-
     const { result } = renderHook(() =>
       useThreadMessaging({
         activeWorkspace: workspace,
@@ -369,13 +361,6 @@ describe("useThreadMessaging telemetry", () => {
         },
       ],
     });
-    vi.mocked(getAccountInfoService).mockResolvedValueOnce({
-      result: {
-        account: null,
-        requiresOpenaiAuth: true,
-      },
-    } as Awaited<ReturnType<typeof getAccountInfoService>>);
-
     const { result } = renderHook(() =>
       useThreadMessaging({
         activeWorkspace: workspace,
@@ -419,7 +404,7 @@ describe("useThreadMessaging telemetry", () => {
     });
 
     expect(getGlobalAiSettingsService).toHaveBeenCalledTimes(1);
-    expect(getAccountInfoService).toHaveBeenCalledWith("ws-1");
+    expect(getAccountInfoService).not.toHaveBeenCalled();
     expect(sendUserMessageService).toHaveBeenCalledTimes(1);
     expect(pushThreadErrorMessage).not.toHaveBeenCalled();
     expect(markProcessing).toHaveBeenCalledWith("thread-1", true);
@@ -447,12 +432,83 @@ describe("useThreadMessaging telemetry", () => {
         },
       ],
     });
-    vi.mocked(getAccountInfoService).mockResolvedValueOnce({
-      result: {
-        account: null,
-        requiresOpenaiAuth: true,
+    const { result } = renderHook(() =>
+      useThreadMessaging({
+        activeWorkspace: workspace,
+        activeThreadId: "thread-1",
+        accessMode: "current",
+        model: null,
+        effort: null,
+        collaborationMode: null,
+        reviewDeliveryMode: "inline",
+        steerEnabled: false,
+        customPrompts: [],
+        threadStatusById: {},
+        activeTurnIdByThread: {},
+        rateLimitsByWorkspace: {},
+        pendingInterruptsRef: { current: new Set<string>() },
+        dispatch: vi.fn(),
+        getCustomName: vi.fn(() => undefined),
+        markProcessing,
+        markReviewing: vi.fn(),
+        setActiveTurnId: vi.fn(),
+        recordThreadActivity: vi.fn(),
+        safeMessageActivity,
+        onDebug: vi.fn(),
+        onRequireAiSetup,
+        pushThreadErrorMessage,
+        ensureThreadForActiveWorkspace: vi.fn(async () => "thread-1"),
+        ensureThreadForWorkspace: vi.fn(async () => "thread-1"),
+        refreshThread: vi.fn(async () => null),
+        forkThreadForWorkspace: vi.fn(async () => null),
+        updateThreadParent: vi.fn(),
+      }),
+    );
+
+    await act(async () => {
+      const sendResult = await result.current.sendUserMessageToThread(
+        workspace,
+        "thread-1",
+        "hello",
+        [],
+      );
+      expect(sendResult).toEqual({ status: "blocked" });
+    });
+
+    expect(getAccountInfoService).not.toHaveBeenCalled();
+    expect(sendUserMessageService).not.toHaveBeenCalled();
+    expect(markProcessing).not.toHaveBeenCalled();
+    expect(Sentry.metrics.count).not.toHaveBeenCalled();
+    expect(onRequireAiSetup).toHaveBeenCalledTimes(1);
+    expect(pushThreadErrorMessage).not.toHaveBeenCalled();
+    expect(safeMessageActivity).toHaveBeenCalledTimes(1);
+  });
+
+  it("still requests AI setup when airouter API key is missing even if account/read throws", async () => {
+    const markProcessing = vi.fn();
+    const pushThreadErrorMessage = vi.fn();
+    const safeMessageActivity = vi.fn();
+    const onRequireAiSetup = vi.fn();
+    vi.mocked(getGlobalAiSettingsService).mockResolvedValueOnce({
+      configPath: "/tmp/config.toml",
+      sessionDefaults: {
+        modelProvider: "airouter",
+        model: null,
+        modelReasoningEffort: null,
       },
-    } as Awaited<ReturnType<typeof getAccountInfoService>>);
+      providers: [
+        {
+          id: "airouter",
+          name: "Airouter",
+          baseUrl: "https://airouter.mxyhi.com/v1",
+          apiKey: null,
+          builtIn: true,
+        },
+      ],
+    });
+    vi.mocked(getAccountInfoService).mockRejectedValueOnce(
+      new Error("account/read exploded"),
+    );
 
     const { result } = renderHook(() =>
       useThreadMessaging({
@@ -497,7 +553,8 @@ describe("useThreadMessaging telemetry", () => {
       expect(sendResult).toEqual({ status: "blocked" });
     });
 
-    expect(getAccountInfoService).toHaveBeenCalledWith("ws-1");
+    expect(getGlobalAiSettingsService).toHaveBeenCalledTimes(1);
+    expect(getAccountInfoService).not.toHaveBeenCalled();
     expect(sendUserMessageService).not.toHaveBeenCalled();
     expect(markProcessing).not.toHaveBeenCalled();
     expect(Sentry.metrics.count).not.toHaveBeenCalled();
@@ -510,6 +567,30 @@ describe("useThreadMessaging telemetry", () => {
     const markProcessing = vi.fn();
     const pushThreadErrorMessage = vi.fn();
     const safeMessageActivity = vi.fn();
+    vi.mocked(getGlobalAiSettingsService).mockResolvedValueOnce({
+      configPath: "/tmp/config.toml",
+      sessionDefaults: {
+        modelProvider: "openai",
+        model: null,
+        modelReasoningEffort: null,
+      },
+      providers: [
+        {
+          id: "airouter",
+          name: "Airouter",
+          baseUrl: "https://airouter.mxyhi.com/v1",
+          apiKey: "sk-airouter",
+          builtIn: true,
+        },
+        {
+          id: "openai",
+          name: "OpenAI",
+          baseUrl: "https://api.openai.com/v1",
+          apiKey: null,
+          builtIn: true,
+        },
+      ],
+    });
     vi.mocked(getAccountInfoService).mockResolvedValueOnce({
       error: {
         code: -32600,
@@ -665,6 +746,77 @@ describe("useThreadMessaging telemetry", () => {
         serviceTier: "fast",
       }),
     );
+  });
+
+  it("replaces missing threads and retries turn/start once", async () => {
+    const replaceMissingThread = vi.fn(async () => "thread-2");
+    const setActiveTurnId = vi.fn();
+    vi.mocked(sendUserMessageService)
+      .mockResolvedValueOnce({
+        error: { message: "thread not found: thread-1" },
+      } as Awaited<ReturnType<typeof sendUserMessageService>>)
+      .mockResolvedValueOnce({
+        result: {
+          turn: { id: "turn-2" },
+        },
+      } as Awaited<ReturnType<typeof sendUserMessageService>>);
+
+    const { result } = renderHook(() =>
+      useThreadMessaging({
+        activeWorkspace: workspace,
+        activeThreadId: "thread-1",
+        accessMode: "current",
+        model: null,
+        effort: null,
+        collaborationMode: null,
+        reviewDeliveryMode: "inline",
+        steerEnabled: false,
+        customPrompts: [],
+        threadStatusById: {},
+        activeTurnIdByThread: {},
+        rateLimitsByWorkspace: {},
+        pendingInterruptsRef: { current: new Set<string>() },
+        dispatch: vi.fn(),
+        getCustomName: vi.fn(() => undefined),
+        markProcessing: vi.fn(),
+        markReviewing: vi.fn(),
+        setActiveTurnId,
+        recordThreadActivity: vi.fn(),
+        safeMessageActivity: vi.fn(),
+        onDebug: vi.fn(),
+        pushThreadErrorMessage: vi.fn(),
+        ensureThreadForActiveWorkspace: vi.fn(async () => "thread-1"),
+        ensureThreadForWorkspace: vi.fn(async () => "thread-1"),
+        refreshThread: vi.fn(async () => null),
+        replaceMissingThread,
+        forkThreadForWorkspace: vi.fn(async () => null),
+        updateThreadParent: vi.fn(),
+      }),
+    );
+
+    await act(async () => {
+      const sendResult = await result.current.sendUserMessageToThread(
+        workspace,
+        "thread-1",
+        "hello",
+        [],
+      );
+      expect(sendResult).toEqual({ status: "sent" });
+    });
+
+    expect(replaceMissingThread).toHaveBeenCalledWith("ws-1", "thread-1", {
+      activate: true,
+    });
+    expect(sendUserMessageService).toHaveBeenCalledTimes(2);
+    expect(sendUserMessageService).toHaveBeenNthCalledWith(
+      2,
+      "ws-1",
+      "thread-2",
+      "hello",
+      expect.any(Object),
+    );
+    expect(setActiveTurnId).toHaveBeenCalledWith("thread-2", "turn-2");
+    expect(Sentry.metrics.count).toHaveBeenCalledTimes(1);
   });
 
   it("omits service tier when no override is selected", async () => {

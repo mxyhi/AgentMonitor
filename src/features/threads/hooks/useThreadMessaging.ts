@@ -38,6 +38,7 @@ import {
   buildReviewThreadTitle,
   buildStatusLines,
   buildTurnStartPayload,
+  isMissingThreadError,
   isStaleSteerTurnError,
   parseFastCommand,
   resolveSendMessageOptions,
@@ -95,6 +96,11 @@ type UseThreadMessagingOptions = {
   ensureThreadForActiveWorkspace: () => Promise<string | null>;
   ensureThreadForWorkspace: (workspaceId: string) => Promise<string | null>;
   refreshThread: (workspaceId: string, threadId: string) => Promise<string | null>;
+  replaceMissingThread?: (
+    workspaceId: string,
+    threadId: string,
+    options?: { activate?: boolean },
+  ) => Promise<string | null>;
   forkThreadForWorkspace: (
     workspaceId: string,
     threadId: string,
@@ -140,6 +146,7 @@ export function useThreadMessaging({
   ensureThreadForActiveWorkspace,
   ensureThreadForWorkspace,
   refreshThread,
+  replaceMissingThread,
   forkThreadForWorkspace,
   updateThreadParent,
   registerDetachedReviewChild,
@@ -192,56 +199,94 @@ export function useThreadMessaging({
           activeTurnId,
         },
       });
+      const recoverMissingThread = async (message: string) => {
+        if (
+          shouldSteer ||
+          options?.missingThreadRecoveryAttempted ||
+          !replaceMissingThread ||
+          !isMissingThreadError(message)
+        ) {
+          return null;
+        }
+        const nextThreadId = await replaceMissingThread(workspace.id, threadId, {
+          activate: activeThreadId === threadId,
+        });
+        if (!nextThreadId || nextThreadId === threadId) {
+          return null;
+        }
+        onDebug?.({
+          id: `${Date.now()}-client-thread-missing-recovery`,
+          timestamp: Date.now(),
+          source: "client",
+          label: "thread/missing recovery",
+          payload: {
+            workspaceId: workspace.id,
+            staleThreadId: threadId,
+            recoveredThreadId: nextThreadId,
+            requestMode,
+          },
+        });
+        return sendMessageToThread(workspace, nextThreadId, finalText, images, {
+          ...options,
+          skipPromptExpansion: true,
+          skipTelemetry: true,
+          missingThreadRecoveryAttempted: true,
+        });
+      };
       if (!shouldSteer) {
+        const blockForAiSetup = (message?: string): SendMessageResult => {
+          onRequireAiSetup?.();
+          if (message) {
+            pushThreadErrorMessage(threadId, message);
+          }
+          safeMessageActivity();
+          return { status: "blocked" };
+        };
         try {
           const aiSettings = await getGlobalAiSettingsService();
+          const { providerId, provider } = resolveSelectedGlobalAiProvider(aiSettings);
           const shouldRequireOpenaiAuth =
             selectedGlobalAiProviderRequiresOpenAiAuth(aiSettings);
-          const accountResponse =
-            (await getAccountInfoService(workspace.id)) as Record<string, unknown>;
-          const accountRpcError = extractRpcErrorMessage(accountResponse);
-          if (accountRpcError) {
-            pushThreadErrorMessage(
-              threadId,
-              `Failed to read account state before sending: ${accountRpcError}`,
-            );
-            safeMessageActivity();
-            return { status: "blocked" };
+          if (!shouldRequireOpenaiAuth) {
+            const providerIncomplete = !isGlobalAiProviderConfigured({
+              providerId,
+              provider,
+            });
+            if (providerIncomplete) {
+              return blockForAiSetup();
+            }
           }
-          const accountSnapshot = normalizeAccountSnapshot(accountResponse);
-          dispatch({
-            type: "setAccountInfo",
-            workspaceId: workspace.id,
-            account: accountSnapshot,
-          });
-          const loginRequired = requiresOpenaiAuthWithoutAccount(accountSnapshot);
-          const { providerId, provider } = resolveSelectedGlobalAiProvider(aiSettings);
+
+          let loginRequired = false;
+          if (shouldRequireOpenaiAuth) {
+            const accountResponse =
+              (await getAccountInfoService(workspace.id)) as Record<string, unknown>;
+            const accountRpcError = extractRpcErrorMessage(accountResponse);
+            if (accountRpcError) {
+              return blockForAiSetup(
+                `Failed to read account state before sending: ${accountRpcError}`,
+              );
+            }
+            const accountSnapshot = normalizeAccountSnapshot(accountResponse);
+            dispatch({
+              type: "setAccountInfo",
+              workspaceId: workspace.id,
+              account: accountSnapshot,
+            });
+            loginRequired = requiresOpenaiAuthWithoutAccount(accountSnapshot);
+          }
+
           const providerIncomplete = !isGlobalAiProviderConfigured({
             providerId,
             provider,
             loginRequired,
           });
           if (providerIncomplete) {
-            onRequireAiSetup?.();
-            if (!onRequireAiSetup && shouldRequireOpenaiAuth && loginRequired) {
-              pushThreadErrorMessage(
-                threadId,
-                OPENAI_AUTH_REQUIRED_BEFORE_SENDING_ERROR,
-              );
-            }
-            safeMessageActivity();
-            return { status: "blocked" };
-          }
-          if (
-            shouldRequireOpenaiAuth &&
-            loginRequired
-          ) {
-            pushThreadErrorMessage(
-              threadId,
-              OPENAI_AUTH_REQUIRED_BEFORE_SENDING_ERROR,
+            return blockForAiSetup(
+              !onRequireAiSetup && shouldRequireOpenaiAuth && loginRequired
+                ? OPENAI_AUTH_REQUIRED_BEFORE_SENDING_ERROR
+                : undefined,
             );
-            safeMessageActivity();
-            return { status: "blocked" };
           }
         } catch (error) {
           onDebug?.({
@@ -255,21 +300,30 @@ export function useThreadMessaging({
               error: error instanceof Error ? error.message : String(error),
             },
           });
+          return blockForAiSetup(
+            !onRequireAiSetup
+              ? `Failed to verify AI setup before sending: ${
+                error instanceof Error ? error.message : String(error)
+              }`
+              : undefined,
+          );
         }
       }
-      Sentry.metrics.count("prompt_sent", 1, {
-        attributes: {
-          workspace_id: workspace.id,
-          thread_id: threadId,
-          has_images: images.length > 0 ? "true" : "false",
-          text_length: String(finalText.length),
-          model: resolvedModel ?? "unknown",
-          effort: resolvedEffort ?? "unknown",
-          service_tier: resolvedServiceTier ?? "default",
-          collaboration_mode: sanitizedCollaborationMode ?? "unknown",
-          send_intent: sendIntent,
-        },
-      });
+      if (!options?.skipTelemetry) {
+        Sentry.metrics.count("prompt_sent", 1, {
+          attributes: {
+            workspace_id: workspace.id,
+            thread_id: threadId,
+            has_images: images.length > 0 ? "true" : "false",
+            text_length: String(finalText.length),
+            model: resolvedModel ?? "unknown",
+            effort: resolvedEffort ?? "unknown",
+            service_tier: resolvedServiceTier ?? "default",
+            collaboration_mode: sanitizedCollaborationMode ?? "unknown",
+            send_intent: sendIntent,
+          },
+        });
+      }
       const timestamp = Date.now();
       const customThreadName = getCustomName(workspace.id, threadId) ?? null;
       recordThreadActivity(workspace.id, threadId, timestamp);
@@ -353,6 +407,10 @@ export function useThreadMessaging({
         });
         if (rpcError) {
           if (requestMode !== "steer") {
+            const recovered = await recoverMissingThread(rpcError);
+            if (recovered) {
+              return recovered;
+            }
             markProcessing(threadId, false);
             setActiveTurnId(threadId, null);
             pushThreadErrorMessage(threadId, `Turn failed to start: ${rpcError}`);
@@ -395,6 +453,10 @@ export function useThreadMessaging({
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         if (requestMode !== "steer") {
+          const recovered = await recoverMissingThread(errorMessage);
+          if (recovered) {
+            return recovered;
+          }
           markProcessing(threadId, false);
           setActiveTurnId(threadId, null);
         } else if (isStaleSteerTurnError(errorMessage)) {
@@ -434,11 +496,13 @@ export function useThreadMessaging({
       onDebug,
       onRequireAiSetup,
       pushThreadErrorMessage,
+      replaceMissingThread,
       recordThreadActivity,
       safeMessageActivity,
       setActiveTurnId,
       steerEnabled,
       threadStatusById,
+      activeThreadId,
     ],
   );
 

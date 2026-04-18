@@ -746,6 +746,22 @@ export function useThreads({
     ],
   );
 
+  const replaceMissingThread = useCallback(
+    async (
+      workspaceId: string,
+      threadId: string,
+      options?: { activate?: boolean },
+    ) => {
+      unpinThread(workspaceId, threadId);
+      loadedThreadsRef.current[threadId] = false;
+      dispatch({ type: "removeThread", workspaceId, threadId });
+      return startThreadForWorkspace(workspaceId, {
+        activate: options?.activate !== false,
+      });
+    },
+    [dispatch, loadedThreadsRef, startThreadForWorkspace, unpinThread],
+  );
+
   const {
     interruptTurn,
     sendUserMessage,
@@ -810,6 +826,7 @@ export function useThreads({
     ensureThreadForActiveWorkspace,
     ensureThreadForWorkspace,
     refreshThread,
+    replaceMissingThread,
     forkThreadForWorkspace,
     updateThreadParent,
     registerDetachedReviewChild,
