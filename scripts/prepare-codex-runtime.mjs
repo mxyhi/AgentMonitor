@@ -49,7 +49,7 @@ const rustReleaseDir =
 
 function expectedAssetName() {
   if (process.platform === "win32") {
-    return `codex-${cargoTargetTriple}.exe.zip`;
+    return `codex-${cargoTargetTriple}.exe`;
   }
   return `codex-${cargoTargetTriple}.tar.gz`;
 }

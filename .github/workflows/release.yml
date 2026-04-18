@@ -101,6 +101,40 @@ jobs:
           fetch-depth: 0
           fetch-tags: true
 
+      - name: Validate macOS release signing config
+        shell: bash
+        env:
+          APPLE_CERTIFICATE_P12: ${{ secrets.APPLE_CERTIFICATE_P12 }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
+          APPLE_API_PRIVATE_KEY_B64: ${{ secrets.APPLE_API_PRIVATE_KEY_B64 }}
+        run: |
+          set -euo pipefail
+          missing=()
+          for name in \
+            CODESIGN_IDENTITY \
+            NOTARY_PROFILE_NAME \
+            APPLE_TEAM_ID \
+            TAURI_SIGNING_PRIVATE_KEY_PASSWORD \
+            TAURI_SIGNING_PRIVATE_KEY_B64 \
+            APPLE_CERTIFICATE_P12 \
+            APPLE_CERTIFICATE_PASSWORD \
+            APPLE_API_KEY_ID \
+            APPLE_API_ISSUER_ID \
+            APPLE_API_PRIVATE_KEY_B64
+          do
+            if [ -z "${!name:-}" ]; then
+              missing+=("$name")
+            fi
+          done
+
+          if [ "${#missing[@]}" -gt 0 ]; then
+            printf 'Missing macOS release config:\n' >&2
+            printf '  - %s\n' "${missing[@]}" >&2
+            exit 1
+          fi
+
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
@@ -262,6 +296,26 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Validate Windows updater signing config
+        shell: bash
+        run: |
+          set -euo pipefail
+          missing=()
+          for name in \
+            TAURI_SIGNING_PRIVATE_KEY_PASSWORD \
+            TAURI_SIGNING_PRIVATE_KEY_B64
+          do
+            if [ -z "${!name:-}" ]; then
+              missing+=("$name")
+            fi
+          done
+
+          if [ "${#missing[@]}" -gt 0 ]; then
+            printf 'Missing Windows updater signing config:\n' >&2
+            printf '  - %s\n' "${missing[@]}" >&2
+            exit 1
+          fi
+
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
@@ -283,13 +337,39 @@ jobs:
         with:
           workspaces: "./src-tauri -> target"
 
-      - name: Install LLVM and CMake
-        run: choco install llvm cmake -y --no-progress
+      - name: Install LLVM
+        shell: pwsh
+        run: |
+          if (Get-Command clang -ErrorAction SilentlyContinue) {
+            Write-Host "LLVM already available at $((Get-Command clang).Source)"
+            exit 0
+          }
+          choco install llvm -y --no-progress
+
+      - name: Install CMake
+        shell: pwsh
+        run: |
+          if (Get-Command cmake -ErrorAction SilentlyContinue) {
+            Write-Host "CMake already available at $((Get-Command cmake).Source)"
+            exit 0
+          }
+          choco install cmake -y --no-progress
 
       - name: Configure LLVM
+        shell: pwsh
         run: |
-          echo "LIBCLANG_PATH=C:\\Program Files\\LLVM\\bin" >> $env:GITHUB_ENV
-          echo "C:\\Program Files\\LLVM\\bin" >> $env:GITHUB_PATH
+          $llvmBin = @(
+            "C:\\Program Files\\LLVM\\bin",
+            "C:\\Program Files (x86)\\LLVM\\bin"
+          ) | Where-Object { Test-Path $_ } | Select-Object -First 1
+
+          if (-not $llvmBin) {
+            $clang = Get-Command clang -ErrorAction Stop
+            $llvmBin = Split-Path $clang.Source -Parent
+          }
+
+          "LIBCLANG_PATH=$llvmBin" >> $env:GITHUB_ENV
+          $llvmBin >> $env:GITHUB_PATH
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
