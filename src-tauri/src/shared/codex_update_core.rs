@@ -213,60 +213,59 @@ pub(crate) async fn codex_update_core(
         .ok()
         .flatten();
 
-    let (method, package, upgrade_ok, output, upgraded) = if runtime.source
-        == CodexRuntimeSource::Bundled
-    {
-        (
-            "bundled".to_string(),
-            None,
-            true,
-            format!(
-                "Bundled Codex runtime {} is managed by Agent Monitor releases.",
-                bundled_codex_version()
-            ),
-            false,
-        )
-    } else if detect_brew_cask("codex").await? {
-        let (ok, output) = run_brew_upgrade(&["--cask", "codex"]).await?;
-        let upgraded = brew_output_indicates_upgrade(&output);
-        (
-            "brew_cask".to_string(),
-            Some("codex".to_string()),
-            ok,
-            output,
-            upgraded,
-        )
-    } else if detect_brew_formula("codex").await? {
-        let (ok, output) = run_brew_upgrade(&["codex"]).await?;
-        let upgraded = brew_output_indicates_upgrade(&output);
-        (
-            "brew_formula".to_string(),
-            Some("codex".to_string()),
-            ok,
-            output,
-            upgraded,
-        )
-    } else if pnpm_has_package("@openai/codex").await? {
-        let (ok, output) = run_pnpm_install_latest("@openai/codex").await?;
-        (
-            "pnpm".to_string(),
-            Some("@openai/codex".to_string()),
-            ok,
-            output,
-            ok,
-        )
-    } else if npm_has_package("@openai/codex").await? {
-        let (ok, output) = run_npm_install_latest("@openai/codex").await?;
-        (
-            "npm".to_string(),
-            Some("@openai/codex".to_string()),
-            ok,
-            output,
-            ok,
-        )
-    } else {
-        ("unknown".to_string(), None, false, String::new(), false)
-    };
+    let (method, package, upgrade_ok, output, upgraded) =
+        if runtime.source == CodexRuntimeSource::Bundled {
+            (
+                "bundled".to_string(),
+                None,
+                true,
+                format!(
+                    "Bundled Codex runtime {} is managed by Agent Monitor releases.",
+                    bundled_codex_version()
+                ),
+                false,
+            )
+        } else if detect_brew_cask("codex").await? {
+            let (ok, output) = run_brew_upgrade(&["--cask", "codex"]).await?;
+            let upgraded = brew_output_indicates_upgrade(&output);
+            (
+                "brew_cask".to_string(),
+                Some("codex".to_string()),
+                ok,
+                output,
+                upgraded,
+            )
+        } else if detect_brew_formula("codex").await? {
+            let (ok, output) = run_brew_upgrade(&["codex"]).await?;
+            let upgraded = brew_output_indicates_upgrade(&output);
+            (
+                "brew_formula".to_string(),
+                Some("codex".to_string()),
+                ok,
+                output,
+                upgraded,
+            )
+        } else if pnpm_has_package("@openai/codex").await? {
+            let (ok, output) = run_pnpm_install_latest("@openai/codex").await?;
+            (
+                "pnpm".to_string(),
+                Some("@openai/codex".to_string()),
+                ok,
+                output,
+                ok,
+            )
+        } else if npm_has_package("@openai/codex").await? {
+            let (ok, output) = run_npm_install_latest("@openai/codex").await?;
+            (
+                "npm".to_string(),
+                Some("@openai/codex".to_string()),
+                ok,
+                output,
+                ok,
+            )
+        } else {
+            ("unknown".to_string(), None, false, String::new(), false)
+        };
 
     let after_version = if method == "unknown" {
         None

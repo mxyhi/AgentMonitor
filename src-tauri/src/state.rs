@@ -5,8 +5,8 @@ use tauri::{AppHandle, Manager};
 use tokio::process::Child;
 use tokio::sync::Mutex;
 
-use crate::dictation::DictationState;
 use crate::codex::home::configure_default_codex_home;
+use crate::dictation::DictationState;
 use crate::shared::codex_core::CodexLoginCancelState;
 use crate::storage::{read_settings, read_workspaces};
 use crate::types::{AppSettings, TcpDaemonState, TcpDaemonStatus, WorkspaceEntry};

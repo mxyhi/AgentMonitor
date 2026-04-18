@@ -14,10 +14,10 @@ use tokio::time::timeout;
 
 use crate::backend::events::{AppServerEvent, EventSink};
 use crate::codex::args::parse_codex_args;
-use crate::shared::process_core::{kill_child_process_tree, tokio_command};
 use crate::shared::codex_runtime_core::{
     codex_runtime_parent_dir, resolve_codex_runtime, CodexRuntimeSource, ResolvedCodexRuntime,
 };
+use crate::shared::process_core::{kill_child_process_tree, tokio_command};
 use crate::types::WorkspaceEntry;
 
 #[cfg(target_os = "windows")]
@@ -82,14 +82,12 @@ fn extract_related_thread_ids(value: &Value) -> Vec<String> {
         push_thread_id(out, record.get("id"));
         push_thread_id(
             out,
-            record
-                .get("thread")
-                .and_then(|thread| {
-                    thread
-                        .get("id")
-                        .or_else(|| thread.get("threadId"))
-                        .or_else(|| thread.get("thread_id"))
-                }),
+            record.get("thread").and_then(|thread| {
+                thread
+                    .get("id")
+                    .or_else(|| thread.get("threadId"))
+                    .or_else(|| thread.get("thread_id"))
+            }),
         );
     }
 
@@ -97,12 +95,15 @@ fn extract_related_thread_ids(value: &Value) -> Vec<String> {
         let Some(container) = container.and_then(|value| value.as_object()) else {
             return;
         };
-        push_thread_id(out, container.get("threadId").or_else(|| container.get("thread_id")));
         push_thread_id(
             out,
             container
-                .get("thread")
-                .and_then(|thread| thread.get("id")),
+                .get("threadId")
+                .or_else(|| container.get("thread_id")),
+        );
+        push_thread_id(
+            out,
+            container.get("thread").and_then(|thread| thread.get("id")),
         );
         push_thread_id(
             out,
@@ -152,7 +153,10 @@ fn extract_related_thread_ids(value: &Value) -> Vec<String> {
                 .or_else(|| container.get("agent_statuses")),
             out,
         );
-        if let Some(status_map) = container.get("statuses").and_then(|value| value.as_object()) {
+        if let Some(status_map) = container
+            .get("statuses")
+            .and_then(|value| value.as_object())
+        {
             out.extend(
                 status_map
                     .keys()
@@ -195,10 +199,8 @@ fn normalize_root_path(value: &str) -> String {
     }
 
     let bytes = normalized.as_bytes();
-    let is_drive_path = bytes.len() >= 3
-        && bytes[0].is_ascii_alphabetic()
-        && bytes[1] == b':'
-        && bytes[2] == b'/';
+    let is_drive_path =
+        bytes.len() >= 3 && bytes[0].is_ascii_alphabetic() && bytes[1] == b':' && bytes[2] == b'/';
     if is_drive_path || normalized.starts_with("//") {
         normalized.to_ascii_lowercase()
     } else {
@@ -712,8 +714,7 @@ pub(crate) async fn check_codex_installation(
     codex_bin: Option<String>,
 ) -> Result<Option<String>, String> {
     let resolved_runtime = resolve_codex_runtime_for_bin(codex_bin.clone());
-    let mut command =
-        build_codex_command_with_bin(codex_bin, None, vec!["--version".to_string()])?;
+    let mut command = build_codex_command_with_bin(codex_bin, None, vec!["--version".to_string()])?;
     command.stdout(std::process::Stdio::piped());
     command.stderr(std::process::Stdio::piped());
 
@@ -756,9 +757,7 @@ pub(crate) async fn check_codex_installation(
         };
         if detail.is_empty() {
             return Err(match resolved_runtime.source {
-                CodexRuntimeSource::Bundled => {
-                    "Bundled Codex runtime failed to start.".to_string()
-                }
+                CodexRuntimeSource::Bundled => "Bundled Codex runtime failed to start.".to_string(),
                 _ => "Codex CLI failed to start. Try running `codex --version` in Terminal."
                     .to_string(),
             });
@@ -942,12 +941,20 @@ pub(crate) async fn spawn_workspace_session<E: EventSink>(
                         .and_then(Value::as_str)
                         .unwrap_or("hide");
                     if action.eq_ignore_ascii_case("hide") {
-                        session_clone.hidden_thread_ids.lock().await.insert(tid.clone());
+                        session_clone
+                            .hidden_thread_ids
+                            .lock()
+                            .await
+                            .insert(tid.clone());
                     }
                 } else if method_name == Some("thread/started")
                     && thread_started_is_memory_consolidation(&value)
                 {
-                    session_clone.hidden_thread_ids.lock().await.insert(tid.clone());
+                    session_clone
+                        .hidden_thread_ids
+                        .lock()
+                        .await
+                        .insert(tid.clone());
                     let payload = AppServerEvent {
                         workspace_id: routed_workspace_id.clone(),
                         message: json!({
@@ -1410,8 +1417,14 @@ mod tests {
 
     #[test]
     fn hidden_thread_suppression_allows_rpc_responses() {
-        assert!(!should_suppress_hidden_thread_event(Some("thread/archived"), true));
-        assert!(!should_suppress_hidden_thread_event(Some("thread/updated"), true));
+        assert!(!should_suppress_hidden_thread_event(
+            Some("thread/archived"),
+            true
+        ));
+        assert!(!should_suppress_hidden_thread_event(
+            Some("thread/updated"),
+            true
+        ));
         assert!(!should_suppress_hidden_thread_event(None, true));
     }
 
@@ -1435,7 +1448,9 @@ mod tests {
     fn build_codex_path_env_includes_custom_bin_parent() {
         let path_env = build_codex_path_env(Some("/tmp/codex/bin/codex")).expect("path env");
         let entries = env::split_paths(&path_env).collect::<Vec<_>>();
-        assert!(entries.iter().any(|entry| entry == &std::path::PathBuf::from("/tmp/codex/bin")));
+        assert!(entries
+            .iter()
+            .any(|entry| entry == &std::path::PathBuf::from("/tmp/codex/bin")));
     }
 
     #[test]
@@ -1446,7 +1461,9 @@ mod tests {
         env::remove_var("PNPM_HOME");
 
         let entries = env::split_paths(&path_env).collect::<Vec<_>>();
-        assert!(entries.iter().any(|entry| entry == &std::path::PathBuf::from("/tmp/pnpm-home")));
+        assert!(entries
+            .iter()
+            .any(|entry| entry == &std::path::PathBuf::from("/tmp/pnpm-home")));
     }
 
     #[test]

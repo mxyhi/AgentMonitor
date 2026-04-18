@@ -84,7 +84,10 @@ fn mobile_access_daemon_sidecars_are_declared_in_desktop_config() {
         .cloned()
         .unwrap_or_default();
 
-    for required_sidecar in ["binaries/codex_monitor_daemon", "binaries/codex_monitor_daemonctl"] {
+    for required_sidecar in [
+        "binaries/codex_monitor_daemon",
+        "binaries/codex_monitor_daemonctl",
+    ] {
         assert!(
             external_bin
                 .iter()

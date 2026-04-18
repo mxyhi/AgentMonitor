@@ -88,7 +88,11 @@ fn resolve_env_override() -> Option<PathBuf> {
 
 fn resolve_dev_bundled_path() -> Option<PathBuf> {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    candidate_if_exists(manifest_dir.join("binaries").join(bundled_codex_file_name()))
+    candidate_if_exists(
+        manifest_dir
+            .join("binaries")
+            .join(bundled_codex_file_name()),
+    )
 }
 
 fn bundled_candidate_paths_for_exe_dir(exe_dir: &Path) -> Vec<PathBuf> {
@@ -101,8 +105,18 @@ fn bundled_candidate_paths_for_exe_dir(exe_dir: &Path) -> Vec<PathBuf> {
         candidates.push(exe_dir.join(&file_name));
         candidates.push(exe_dir.join("binaries").join(&file_name));
         candidates.push(exe_dir.join("resources").join("binaries").join(&file_name));
-        candidates.push(exe_dir.join("../resources").join("binaries").join(&file_name));
-        candidates.push(exe_dir.join("../Resources").join("binaries").join(&file_name));
+        candidates.push(
+            exe_dir
+                .join("../resources")
+                .join("binaries")
+                .join(&file_name),
+        );
+        candidates.push(
+            exe_dir
+                .join("../Resources")
+                .join("binaries")
+                .join(&file_name),
+        );
         candidates.push(
             exe_dir
                 .join("../lib")
@@ -177,7 +191,7 @@ mod tests {
     use super::{
         bundled_candidate_paths_for_exe_dir, bundled_codex_file_name,
         bundled_codex_target_triple_for, codex_runtime_requires_node, resolve_bundled_codex_path,
-        resolve_codex_runtime, BUNDLED_CODEX_SIDECAR_NAME, CodexRuntimeSource,
+        resolve_codex_runtime, CodexRuntimeSource, BUNDLED_CODEX_SIDECAR_NAME,
     };
     use std::fs;
     use std::sync::Mutex;
@@ -215,7 +229,9 @@ mod tests {
     #[test]
     fn explicit_runtime_bin_beats_bundled_runtime() {
         let temp_path = create_temp_file(&bundled_codex_file_name());
-        let resolved = with_env_override(&temp_path, || resolve_codex_runtime(Some("/tmp/custom-codex")));
+        let resolved = with_env_override(&temp_path, || {
+            resolve_codex_runtime(Some("/tmp/custom-codex"))
+        });
         assert_eq!(resolved.program, "/tmp/custom-codex");
         assert_eq!(resolved.source, CodexRuntimeSource::Custom);
     }

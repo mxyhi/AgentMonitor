@@ -228,7 +228,9 @@ mod tests {
     #[test]
     fn workspace_codex_home_uses_default_resolution() {
         let entry = workspace_entry(WorkspaceKind::Main, "/repo");
-        let _guard = ENV_LOCK.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        let _guard = ENV_LOCK
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
 
         let prev_codex_home = std::env::var("CODEX_HOME").ok();
         let prev_monitor_data_dir = std::env::var("CODEX_MONITOR_APP_DATA_DIR").ok();
@@ -250,7 +252,9 @@ mod tests {
 
     #[test]
     fn default_codex_home_uses_app_private_data_dir_when_global_override_missing() {
-        let _guard = ENV_LOCK.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        let _guard = ENV_LOCK
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         let prev_codex_home = std::env::var("CODEX_HOME").ok();
         let prev_monitor_data_dir = std::env::var("CODEX_MONITOR_APP_DATA_DIR").ok();
         let prev_home = std::env::var("HOME").ok();
@@ -281,7 +285,9 @@ mod tests {
 
     #[test]
     fn codex_home_expands_tilde_and_env_vars() {
-        let _guard = ENV_LOCK.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        let _guard = ENV_LOCK
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         let home_dir = std::env::temp_dir().join("codex-home-test");
         let home_str = home_dir.to_string_lossy().to_string();
 
