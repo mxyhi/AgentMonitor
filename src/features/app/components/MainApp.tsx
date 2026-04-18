@@ -1828,15 +1828,22 @@ export default function MainApp() {
       mobileSetupWizardProps,
       showStartupAiSetupWizard: startupAiSetup.showWizard,
       startupAiSetupWizardProps: {
+        providers: startupAiSetup.providers,
+        selectedProviderId: startupAiSetup.selectedProviderId,
         selectedProviderName: startupAiSetup.selectedProviderName,
+        configuredBaseUrl: startupAiSetup.configuredBaseUrl,
+        apiKeyConfigured: startupAiSetup.apiKeyConfigured,
         loginRequired: startupAiSetup.loginRequired,
         loginBusy: accountSwitching,
         loginAvailable: Boolean(activeWorkspaceId),
+        settingsBusy: startupAiSetup.savingProviderSettings,
+        settingsError: startupAiSetup.error,
         onSignIn: () => {
           void handleSwitchAccount();
         },
-        onOpenSettings: () => {
-          modalActions.openSettings("codex");
+        onSaveSettings: async (input) => {
+          const saved = await startupAiSetup.saveAiProviderSettings(input);
+          return saved;
         },
         onDismiss: startupAiSetup.dismissWizard,
       },

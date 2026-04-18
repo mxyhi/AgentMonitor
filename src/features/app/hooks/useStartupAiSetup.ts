@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type {
-  AccountSnapshot,
-  GlobalAiProviderEntry,
-  GlobalAiSettings,
-} from "@/types";
-import { getGlobalAiSettings } from "@services/tauri";
+import type { AccountSnapshot, GlobalAiSettings } from "@/types";
+import {
+  getGlobalAiSettings,
+  type UpdateAiProviderSettingsInput,
+  updateAiProviderSettings,
+} from "@services/tauri";
 import { requiresOpenaiAuthWithoutAccount } from "@threads/hooks/threadAccountSnapshot";
 import {
-  OPENAI_PROVIDER_ID,
+  AIROUTER_PROVIDER_ID,
+  getDefaultGlobalAiProviderBaseUrl,
+  isGlobalAiProviderConfigured,
   resolveSelectedGlobalAiProvider,
 } from "@utils/globalAiProvider";
 
@@ -18,60 +20,46 @@ type ResolveStartupAiSetupStateArgs = {
   settingsOpen: boolean;
 };
 
-const LOCAL_BUILT_IN_PROVIDER_IDS = new Set(["ollama", "lmstudio"]);
-
-function isUsableStartupProvider(
-  providerId: string,
-  provider: GlobalAiProviderEntry | null,
-) {
-  if (providerId === OPENAI_PROVIDER_ID) {
-    return false;
-  }
-  if (LOCAL_BUILT_IN_PROVIDER_IDS.has(providerId)) {
-    return true;
-  }
-  if (!provider) {
-    return false;
-  }
-  return Boolean(provider.baseUrl?.trim() || provider.apiKey?.trim());
-}
-
 export function resolveStartupAiSetupState({
   activeAccount,
   aiSettings,
   dismissedForSession,
   settingsOpen,
 }: ResolveStartupAiSetupStateArgs) {
-  const { providerId, provider } = resolveSelectedGlobalAiProvider(aiSettings);
-  const loginRequired =
-    providerId === OPENAI_PROVIDER_ID &&
-    requiresOpenaiAuthWithoutAccount(activeAccount);
-  const providerIncomplete =
-    providerId !== OPENAI_PROVIDER_ID &&
-    !isUsableStartupProvider(providerId, provider);
+  const { providerId, provider, providers } = resolveSelectedGlobalAiProvider(aiSettings);
+  const loginRequired = requiresOpenaiAuthWithoutAccount(activeAccount);
+  const providerIncomplete = !isGlobalAiProviderConfigured({
+    providerId,
+    provider,
+    loginRequired,
+  });
   const showWizard =
     Boolean(aiSettings) &&
     !dismissedForSession &&
     !settingsOpen &&
-    (loginRequired || providerIncomplete);
+    providerIncomplete;
 
   return {
     showWizard,
     loginRequired,
     providerIncomplete,
-    selectedProviderId: providerId,
-    selectedProviderName: provider?.name?.trim() || providerId,
+    providers,
+    selectedProviderId: providerId || AIROUTER_PROVIDER_ID,
+    selectedProviderName: provider?.name?.trim() || "Airouter",
+    configuredBaseUrl:
+      provider?.baseUrl?.trim() || getDefaultGlobalAiProviderBaseUrl(providerId),
+    apiKeyConfigured: Boolean(provider?.apiKey?.trim()),
   };
 }
 
-function toErrorMessage(error: unknown) {
+function toErrorMessage(error: unknown, fallback: string) {
   if (error instanceof Error) {
     return error.message;
   }
   if (typeof error === "string" && error.trim().length > 0) {
     return error;
   }
-  return "Unable to load AI settings.";
+  return fallback;
 }
 
 export function useStartupAiSetup({
@@ -85,6 +73,7 @@ export function useStartupAiSetup({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [dismissedForSession, setDismissedForSession] = useState(false);
+  const [savingProviderSettings, setSavingProviderSettings] = useState(false);
   const previousSettingsOpenRef = useRef(settingsOpen);
   const refreshInFlightRef = useRef<Promise<void> | null>(null);
 
@@ -101,7 +90,7 @@ export function useStartupAiSetup({
         const next = await getGlobalAiSettings();
         setAiSettings(next);
       } catch (nextError) {
-        setError(toErrorMessage(nextError));
+        setError(toErrorMessage(nextError, "Unable to load AI settings."));
       } finally {
         setLoading(false);
       }
@@ -142,6 +131,25 @@ export function useStartupAiSetup({
     setDismissedForSession(true);
   }, []);
 
+  const saveAiProviderSettings = useCallback(
+    async (input: UpdateAiProviderSettingsInput): Promise<boolean> => {
+      setSavingProviderSettings(true);
+      setError(null);
+      try {
+        const next = await updateAiProviderSettings(input);
+        setAiSettings(next);
+        setDismissedForSession(false);
+        return true;
+      } catch (nextError) {
+        setError(toErrorMessage(nextError, "Unable to save AI settings."));
+        return false;
+      } finally {
+        setSavingProviderSettings(false);
+      }
+    },
+    [],
+  );
+
   return {
     ...resolvedState,
     aiSettings,
@@ -149,5 +157,7 @@ export function useStartupAiSetup({
     error,
     dismissWizard,
     refreshAiSettings,
+    savingProviderSettings,
+    saveAiProviderSettings,
   };
 }

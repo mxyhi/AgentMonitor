@@ -9,13 +9,11 @@ import {
   within,
 } from "@testing-library/react";
 import type { ComponentProps } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AppSettings, WorkspaceInfo } from "@/types";
 import * as m from "@/i18n/messages";
 import {
   connectWorkspace,
-  createCustomAiProvider,
-  deleteCustomAiProvider,
   getAppBuildType,
   getAgentsSettings,
   getCodexConfigPath,
@@ -25,9 +23,8 @@ import {
   isMobileRuntime,
   getModelList,
   listWorkspaces,
-  updateCustomAiProvider,
+  updateAiProviderSettings,
   updateGlobalAiSessionDefaults,
-  updateOpenAiBaseUrl,
 } from "@services/tauri";
 import { DEFAULT_COMMIT_MESSAGE_PROMPT } from "@utils/commitMessagePrompt";
 import { SettingsView } from "./SettingsView";
@@ -44,8 +41,6 @@ vi.mock("@services/tauri", async () => {
   return {
     ...actual,
     connectWorkspace: vi.fn(),
-    createCustomAiProvider: vi.fn(),
-    deleteCustomAiProvider: vi.fn(),
     getAppBuildType: vi.fn(),
     getCodexConfigPath: vi.fn(),
     getModelList: vi.fn(),
@@ -55,15 +50,12 @@ vi.mock("@services/tauri", async () => {
     getAgentsSettings: vi.fn(),
     isMobileRuntime: vi.fn(),
     listWorkspaces: vi.fn(),
-    updateCustomAiProvider: vi.fn(),
+    updateAiProviderSettings: vi.fn(),
     updateGlobalAiSessionDefaults: vi.fn(),
-    updateOpenAiBaseUrl: vi.fn(),
   };
 });
 
 const connectWorkspaceMock = vi.mocked(connectWorkspace);
-const createCustomAiProviderMock = vi.mocked(createCustomAiProvider);
-const deleteCustomAiProviderMock = vi.mocked(deleteCustomAiProvider);
 const getAppBuildTypeMock = vi.mocked(getAppBuildType);
 const getCodexConfigPathMock = vi.mocked(getCodexConfigPath);
 const getConfigModelMock = vi.mocked(getConfigModel);
@@ -73,112 +65,102 @@ const getExperimentalFeatureListMock = vi.mocked(getExperimentalFeatureList);
 const getAgentsSettingsMock = vi.mocked(getAgentsSettings);
 const isMobileRuntimeMock = vi.mocked(isMobileRuntime);
 const listWorkspacesMock = vi.mocked(listWorkspaces);
-const updateCustomAiProviderMock = vi.mocked(updateCustomAiProvider);
+const updateAiProviderSettingsMock = vi.mocked(updateAiProviderSettings);
 const updateGlobalAiSessionDefaultsMock = vi.mocked(updateGlobalAiSessionDefaults);
-const updateOpenAiBaseUrlMock = vi.mocked(updateOpenAiBaseUrl);
 
 beforeEach(() => {
   vi.clearAllMocks();
 });
 
-connectWorkspaceMock.mockResolvedValue(undefined);
-createCustomAiProviderMock.mockImplementation(async (input) => ({
-  configPath: "/Users/me/Library/Application Support/CodexMonitor/codex-home/config.toml",
-  sessionDefaults: {
-    modelProvider: "openai",
-    model: "gpt-5.1",
-    modelReasoningEffort: "medium",
-  },
-  openaiBaseUrl: "https://api.example.com/v1",
-  providers: [
-    { id: "openai", name: "OpenAI", baseUrl: "https://api.example.com/v1", apiKey: null, builtIn: true },
-    { id: "ollama", name: "gpt-oss", baseUrl: "http://localhost:11434/v1", apiKey: null, builtIn: true },
-    { id: "lmstudio", name: "gpt-oss", baseUrl: "http://localhost:1234/v1", apiKey: null, builtIn: true },
-    { id: "openai-custom", name: "OpenAI Custom", baseUrl: "https://gateway.example.com/v1", apiKey: "sk-test-openai-custom", builtIn: false },
-    { id: input.id, name: input.id, baseUrl: input.baseUrl ?? null, apiKey: input.apiKey ?? null, builtIn: false },
-  ],
-}));
-deleteCustomAiProviderMock.mockResolvedValue({
-  configPath: "/Users/me/Library/Application Support/CodexMonitor/codex-home/config.toml",
-  sessionDefaults: {
-    modelProvider: "openai",
-    model: "gpt-5.1",
-    modelReasoningEffort: "medium",
-  },
-  openaiBaseUrl: "https://api.example.com/v1",
-  providers: [
-    { id: "openai", name: "OpenAI", baseUrl: "https://api.example.com/v1", apiKey: null, builtIn: true },
-    { id: "ollama", name: "gpt-oss", baseUrl: "http://localhost:11434/v1", apiKey: null, builtIn: true },
-    { id: "lmstudio", name: "gpt-oss", baseUrl: "http://localhost:1234/v1", apiKey: null, builtIn: true },
-  ],
+afterEach(() => {
+  cleanup();
 });
+
+function makeAiSettings(
+  overrides: {
+    modelProvider?: string | null;
+    model?: string | null;
+    modelReasoningEffort?: string | null;
+    providers?: {
+      id: string;
+      name: string;
+      baseUrl: string | null;
+      apiKey: string | null;
+      builtIn: boolean;
+    }[];
+  } = {},
+) {
+  return {
+    configPath: "/Users/me/Library/Application Support/CodexMonitor/codex-home/config.toml",
+    sessionDefaults: {
+      modelProvider: overrides.modelProvider ?? "airouter",
+      model: overrides.model ?? "gpt-5.1",
+      modelReasoningEffort: overrides.modelReasoningEffort ?? "medium",
+    },
+    providers:
+      overrides.providers ?? [
+        {
+          id: "airouter",
+          name: "Airouter",
+          baseUrl: "https://airouter.mxyhi.com/v1",
+          apiKey: "sk-airouter",
+          builtIn: true,
+        },
+        {
+          id: "openai",
+          name: "OpenAI",
+          baseUrl: "https://api.openai.com/v1",
+          apiKey: null,
+          builtIn: true,
+        },
+        {
+          id: "local",
+          name: "Local",
+          baseUrl: "http://127.0.0.1:9208/v1",
+          apiKey: null,
+          builtIn: true,
+        },
+      ],
+  };
+}
+
+connectWorkspaceMock.mockResolvedValue(undefined);
 getAppBuildTypeMock.mockResolvedValue("release");
 getCodexConfigPathMock.mockResolvedValue(
   "/Users/me/Library/Application Support/CodexMonitor/codex-home/config.toml",
 );
 getConfigModelMock.mockResolvedValue(null);
-getGlobalAiSettingsMock.mockResolvedValue({
-  configPath: "/Users/me/Library/Application Support/CodexMonitor/codex-home/config.toml",
-  sessionDefaults: {
-    modelProvider: "openai",
-    model: "gpt-5.1",
-    modelReasoningEffort: "medium",
-  },
-  openaiBaseUrl: "https://api.example.com/v1",
-  providers: [
-    { id: "openai", name: "OpenAI", baseUrl: "https://api.example.com/v1", apiKey: null, builtIn: true },
-    { id: "ollama", name: "gpt-oss", baseUrl: "http://localhost:11434/v1", apiKey: null, builtIn: true },
-    { id: "lmstudio", name: "gpt-oss", baseUrl: "http://localhost:1234/v1", apiKey: null, builtIn: true },
-    { id: "openai-custom", name: "OpenAI Custom", baseUrl: "https://gateway.example.com/v1", apiKey: "sk-test-openai-custom", builtIn: false },
-  ],
-});
+getGlobalAiSettingsMock.mockResolvedValue(makeAiSettings());
 isMobileRuntimeMock.mockResolvedValue(false);
 listWorkspacesMock.mockResolvedValue([]);
-updateCustomAiProviderMock.mockImplementation(async (input) => ({
-  configPath: "/Users/me/Library/Application Support/CodexMonitor/codex-home/config.toml",
-  sessionDefaults: {
-    modelProvider: "openai",
-    model: "gpt-5.1",
-    modelReasoningEffort: "medium",
-  },
-  openaiBaseUrl: "https://api.example.com/v1",
-  providers: [
-    { id: "openai", name: "OpenAI", baseUrl: "https://api.example.com/v1", apiKey: null, builtIn: true },
-    { id: "ollama", name: "gpt-oss", baseUrl: "http://localhost:11434/v1", apiKey: null, builtIn: true },
-    { id: "lmstudio", name: "gpt-oss", baseUrl: "http://localhost:1234/v1", apiKey: null, builtIn: true },
-    { id: input.id, name: input.id, baseUrl: input.baseUrl ?? null, apiKey: input.apiKey ?? null, builtIn: false },
-  ],
-}));
-updateGlobalAiSessionDefaultsMock.mockImplementation(async (input) => ({
-  configPath: "/Users/me/Library/Application Support/CodexMonitor/codex-home/config.toml",
-  sessionDefaults: {
-    modelProvider: input.modelProvider ?? null,
+updateAiProviderSettingsMock.mockImplementation(async (input) => {
+  const current = makeAiSettings({ modelProvider: input.providerId ?? "airouter" });
+  return makeAiSettings({
+    modelProvider: input.providerId ?? "airouter",
+    providers: current.providers.map((provider) =>
+      provider.id === input.providerId
+        ? {
+            ...provider,
+            baseUrl:
+              Object.prototype.hasOwnProperty.call(input, "baseUrl")
+                ? (input.baseUrl ?? null)
+                : provider.baseUrl,
+            apiKey:
+              Object.prototype.hasOwnProperty.call(input, "apiKey")
+                ? (input.apiKey ?? null)
+                : provider.apiKey,
+          }
+        : provider,
+    ),
+  });
+});
+updateGlobalAiSessionDefaultsMock.mockImplementation(async (input) =>
+  makeAiSettings({
+    modelProvider: input.modelProvider ?? "airouter",
     model: input.model ?? null,
     modelReasoningEffort: input.modelReasoningEffort ?? null,
-  },
-  openaiBaseUrl: "https://api.example.com/v1",
-  providers: [
-    { id: "openai", name: "OpenAI", baseUrl: "https://api.example.com/v1", apiKey: null, builtIn: true },
-    { id: "ollama", name: "gpt-oss", baseUrl: "http://localhost:11434/v1", apiKey: null, builtIn: true },
-    { id: "lmstudio", name: "gpt-oss", baseUrl: "http://localhost:1234/v1", apiKey: null, builtIn: true },
-    { id: "openai-custom", name: "OpenAI Custom", baseUrl: "https://gateway.example.com/v1", apiKey: "sk-test-openai-custom", builtIn: false },
-  ],
-}));
-updateOpenAiBaseUrlMock.mockImplementation(async (baseUrl) => ({
-  configPath: "/Users/me/Library/Application Support/CodexMonitor/codex-home/config.toml",
-  sessionDefaults: {
-    modelProvider: "openai",
-    model: "gpt-5.1",
-    modelReasoningEffort: "medium",
-  },
-  openaiBaseUrl: baseUrl,
-  providers: [
-    { id: "openai", name: "OpenAI", baseUrl, apiKey: null, builtIn: true },
-    { id: "ollama", name: "gpt-oss", baseUrl: "http://localhost:11434/v1", apiKey: null, builtIn: true },
-    { id: "lmstudio", name: "gpt-oss", baseUrl: "http://localhost:1234/v1", apiKey: null, builtIn: true },
-    { id: "openai-custom", name: "OpenAI Custom", baseUrl: "https://gateway.example.com/v1", apiKey: "sk-test-openai-custom", builtIn: false },
-  ],
-}));
+  }),
+);
 getAgentsSettingsMock.mockResolvedValue({
   configPath: "/Users/me/Library/Application Support/CodexMonitor/codex-home/config.toml",
   multiAgentEnabled: false,
@@ -1362,13 +1344,19 @@ describe("SettingsView Codex section", () => {
     });
 
     expect(screen.getByText("Session defaults")).toBeTruthy();
-    expect(screen.getByText("Providers")).toBeTruthy();
+    const providerSelect = screen.getByLabelText("Provider") as HTMLSelectElement;
+    expect(Array.from(providerSelect.options).map((option) => option.value)).toEqual([
+      "airouter",
+      "openai",
+      "local",
+    ]);
     expect(screen.getByText("AGENTS.md")).toBeTruthy();
     expect(
-      screen.getByText("Configure app-wide AI defaults, providers, and instruction files."),
+      screen.getByText("Configure app-wide AI defaults, fixed provider connections, and instruction files."),
     ).toBeTruthy();
-    expect(screen.getByLabelText("Provider")).toBeTruthy();
-    expect(screen.getByLabelText("OpenAI Base URL")).toBeTruthy();
+    expect(screen.getByLabelText("Provider ID")).toBeTruthy();
+    expect(screen.getByLabelText("Base URL")).toBeTruthy();
+    expect(screen.getByLabelText("API Key")).toBeTruthy();
     expect(screen.queryByLabelText("Codex path")).toBeNull();
     expect(screen.queryByLabelText("Codex args")).toBeNull();
     expect(screen.queryByRole("button", { name: "Run doctor" })).toBeNull();
@@ -1383,6 +1371,73 @@ describe("SettingsView Codex section", () => {
     expect(screen.queryByText("~/.codex/AGENTS.md")).toBeNull();
     expect(screen.queryByText("~/.codex/config.toml")).toBeNull();
     expect(screen.queryByText("Codex CLI")).toBeNull();
+  });
+
+  it("switches fixed provider drafts and saves the selected provider", async () => {
+    render(
+      <SettingsView
+        workspaceGroups={[]}
+        groupedWorkspaces={[]}
+        ungroupedLabel="Ungrouped"
+        onClose={vi.fn()}
+        onMoveWorkspace={vi.fn()}
+        onDeleteWorkspace={vi.fn()}
+        onCreateWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onRenameWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onMoveWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onDeleteWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        onAssignWorkspaceGroup={vi.fn().mockResolvedValue(null)}
+        reduceTransparency={false}
+        onToggleTransparency={vi.fn()}
+        appSettings={baseSettings}
+        openAppIconById={{}}
+        onUpdateAppSettings={vi.fn().mockResolvedValue(undefined)}
+        onRunDoctor={vi.fn().mockResolvedValue(createDoctorResult())}
+        onRunCodexUpdate={vi.fn().mockResolvedValue(createUpdateResult())}
+        onUpdateWorkspaceSettings={vi.fn().mockResolvedValue(undefined)}
+        scaleShortcutTitle="Scale shortcut"
+        scaleShortcutText="Use Command +/-"
+        onTestNotificationSound={vi.fn()}
+        onTestSystemNotification={vi.fn()}
+        dictationModelStatus={null}
+        onDownloadDictationModel={vi.fn()}
+        onCancelDictationDownload={vi.fn()}
+        onRemoveDictationModel={vi.fn()}
+        initialSection="codex"
+      />,
+    );
+
+    const providerSelect = screen.getByLabelText("Provider");
+    fireEvent.change(providerSelect, { target: { value: "local" } });
+
+    await waitFor(() => {
+      expect((screen.getByLabelText("Provider ID") as HTMLInputElement).value).toBe(
+        "local",
+      );
+      expect((screen.getByLabelText("Base URL") as HTMLInputElement).value).toBe(
+        "http://127.0.0.1:9208/v1",
+      );
+    });
+
+    const baseUrlInput = screen.getByLabelText("Base URL");
+    fireEvent.change(baseUrlInput, {
+      target: { value: "http://localhost:9208/v1" },
+    });
+
+    const apiKeyField = screen.getByLabelText("API Key");
+    const providerField = apiKeyField.closest(".settings-field") as HTMLElement | null;
+    if (!providerField) {
+      throw new Error("provider field not found");
+    }
+    fireEvent.click(within(providerField).getByRole("button", { name: "Save" }));
+
+    await waitFor(() => {
+      expect(updateAiProviderSettingsMock).toHaveBeenCalledWith({
+        providerId: "local",
+        baseUrl: "http://localhost:9208/v1",
+        apiKey: null,
+      });
+    });
   });
 
   it("hides the server settings entry in release builds", async () => {
@@ -1788,7 +1843,7 @@ describe("SettingsView Codex defaults", () => {
 
     await waitFor(() => {
       expect(updateGlobalAiSessionDefaultsMock).toHaveBeenCalledWith({
-        modelProvider: "openai",
+        modelProvider: "airouter",
         model: "gpt-4.1",
         modelReasoningEffort: "medium",
       });
@@ -1799,7 +1854,7 @@ describe("SettingsView Codex defaults", () => {
 
     await waitFor(() => {
       expect(updateGlobalAiSessionDefaultsMock).toHaveBeenCalledWith({
-        modelProvider: "openai",
+        modelProvider: "airouter",
         model: "gpt-4.1",
         modelReasoningEffort: "high",
       });

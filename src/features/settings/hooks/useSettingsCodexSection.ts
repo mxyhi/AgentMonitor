@@ -1,18 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
 import type { AppSettings, GlobalAiSettings, WorkspaceInfo } from "@/types";
 import type {
-  CreateCustomAiProviderInput,
-  DeleteCustomAiProviderInput,
-  UpdateCustomAiProviderInput,
+  UpdateAiProviderSettingsInput,
   UpdateGlobalAiSessionDefaultsInput,
 } from "@services/tauri";
 import {
-  createCustomAiProvider,
-  deleteCustomAiProvider,
   getGlobalAiSettings,
-  updateCustomAiProvider,
+  updateAiProviderSettings,
   updateGlobalAiSessionDefaults,
-  updateOpenAiBaseUrl,
 } from "@services/tauri";
 import { buildEditorContentMeta } from "@settings/components/settingsViewHelpers";
 import { useGlobalAgentsMd } from "./useGlobalAgentsMd";
@@ -31,10 +26,7 @@ export type SettingsCodexSectionProps = {
   aiSettingsLoading: boolean;
   aiSettingsError: string | null;
   updatingSessionDefaults: boolean;
-  updatingOpenAiBaseUrl: boolean;
-  creatingProvider: boolean;
-  updatingProviderId: string | null;
-  deletingProviderId: string | null;
+  updatingAiProviderSettings: boolean;
   defaultModels: ReturnType<typeof useSettingsDefaultModels>["models"];
   defaultModelsLoading: boolean;
   defaultModelsError: string | null;
@@ -44,10 +36,9 @@ export type SettingsCodexSectionProps = {
   onUpdateSessionDefaults: (
     input: UpdateGlobalAiSessionDefaultsInput,
   ) => Promise<boolean>;
-  onUpdateOpenAiBaseUrl: (baseUrl: string | null) => Promise<boolean>;
-  onCreateProvider: (input: CreateCustomAiProviderInput) => Promise<boolean>;
-  onUpdateProvider: (input: UpdateCustomAiProviderInput) => Promise<boolean>;
-  onDeleteProvider: (input: DeleteCustomAiProviderInput) => Promise<boolean>;
+  onUpdateAiProviderSettings: (
+    input: UpdateAiProviderSettingsInput,
+  ) => Promise<boolean>;
   globalAgentsPath: string | null;
   globalAgentsMeta: string;
   globalAgentsError: string | null;
@@ -102,15 +93,8 @@ export const useSettingsCodexSection = ({
   const [aiSettingsLoading, setAiSettingsLoading] = useState(true);
   const [aiSettingsError, setAiSettingsError] = useState<string | null>(null);
   const [updatingSessionDefaults, setUpdatingSessionDefaults] = useState(false);
-  const [updatingOpenAiBaseUrlState, setUpdatingOpenAiBaseUrlState] =
+  const [updatingAiProviderSettingsState, setUpdatingAiProviderSettingsState] =
     useState(false);
-  const [creatingProvider, setCreatingProvider] = useState(false);
-  const [updatingProviderId, setUpdatingProviderId] = useState<string | null>(
-    null,
-  );
-  const [deletingProviderId, setDeletingProviderId] = useState<string | null>(
-    null,
-  );
 
   const {
     models: defaultModels,
@@ -186,78 +170,21 @@ export const useSettingsCodexSection = ({
     [refreshDefaultModels],
   );
 
-  const onUpdateOpenAiBaseUrl = useCallback(
-    async (baseUrl: string | null): Promise<boolean> => {
-      setUpdatingOpenAiBaseUrlState(true);
+  const onUpdateAiProviderSettings = useCallback(
+    async (input: UpdateAiProviderSettingsInput): Promise<boolean> => {
+      setUpdatingAiProviderSettingsState(true);
       setAiSettingsError(null);
       try {
-        const next = await updateOpenAiBaseUrl(baseUrl);
+        const next = await updateAiProviderSettings(input);
         setAiSettings(next);
-        void refreshDefaultModels();
         return true;
       } catch (error) {
         setAiSettingsError(
-          toErrorMessage(error, "Unable to update OpenAI base URL."),
+          toErrorMessage(error, "Unable to update AI provider settings."),
         );
         return false;
       } finally {
-        setUpdatingOpenAiBaseUrlState(false);
-      }
-    },
-    [refreshDefaultModels],
-  );
-
-  const onCreateProvider = useCallback(
-    async (input: CreateCustomAiProviderInput): Promise<boolean> => {
-      setCreatingProvider(true);
-      setAiSettingsError(null);
-      try {
-        const next = await createCustomAiProvider(input);
-        setAiSettings(next);
-        return true;
-      } catch (error) {
-        setAiSettingsError(toErrorMessage(error, "Unable to create provider."));
-        return false;
-      } finally {
-        setCreatingProvider(false);
-      }
-    },
-    [],
-  );
-
-  const onUpdateProvider = useCallback(
-    async (input: UpdateCustomAiProviderInput): Promise<boolean> => {
-      setUpdatingProviderId(input.originalId);
-      setAiSettingsError(null);
-      try {
-        const next = await updateCustomAiProvider(input);
-        setAiSettings(next);
-        return true;
-      } catch (error) {
-        setAiSettingsError(toErrorMessage(error, "Unable to update provider."));
-        return false;
-      } finally {
-        setUpdatingProviderId((current) =>
-          current === input.originalId ? null : current,
-        );
-      }
-    },
-    [],
-  );
-
-  const onDeleteProvider = useCallback(
-    async (input: DeleteCustomAiProviderInput): Promise<boolean> => {
-      setDeletingProviderId(input.id);
-      setAiSettingsError(null);
-      try {
-        const next = await deleteCustomAiProvider(input);
-        setAiSettings(next);
-        return true;
-      } catch (error) {
-        setAiSettingsError(toErrorMessage(error, "Unable to delete provider."));
-        return false;
-      } finally {
-        setDeletingProviderId((current) => (current === input.id ? null : current));
+        setUpdatingAiProviderSettingsState(false);
       }
     },
     [],
@@ -278,10 +205,7 @@ export const useSettingsCodexSection = ({
     aiSettingsLoading,
     aiSettingsError,
     updatingSessionDefaults,
-    updatingOpenAiBaseUrl: updatingOpenAiBaseUrlState,
-    creatingProvider,
-    updatingProviderId,
-    deletingProviderId,
+    updatingAiProviderSettings: updatingAiProviderSettingsState,
     defaultModels,
     defaultModelsLoading,
     defaultModelsError,
@@ -293,10 +217,7 @@ export const useSettingsCodexSection = ({
       void refreshAiSettings();
     },
     onUpdateSessionDefaults,
-    onUpdateOpenAiBaseUrl,
-    onCreateProvider,
-    onUpdateProvider,
-    onDeleteProvider,
+    onUpdateAiProviderSettings,
     globalAgentsPath,
     globalAgentsMeta,
     globalAgentsError,

@@ -159,25 +159,10 @@ export type UpdateGlobalAiSessionDefaultsInput = {
   modelReasoningEffort?: string | null;
 };
 
-export type UpdateOpenAiBaseUrlInput = {
-  baseUrl?: string | null;
-};
-
-export type CreateCustomAiProviderInput = {
-  id: string;
+export type UpdateAiProviderSettingsInput = {
+  providerId: string;
   baseUrl?: string | null;
   apiKey?: string | null;
-};
-
-export type UpdateCustomAiProviderInput = {
-  originalId: string;
-  id: string;
-  baseUrl?: string | null;
-  apiKey?: string | null;
-};
-
-export type DeleteCustomAiProviderInput = {
-  id: string;
 };
 
 export type CreateAgentInput = {
@@ -262,29 +247,10 @@ export async function updateGlobalAiSessionDefaults(
   return invoke<GlobalAiSettings>("update_global_ai_session_defaults", { input });
 }
 
-export async function updateOpenAiBaseUrl(
-  baseUrl: string | null,
+export async function updateAiProviderSettings(
+  input: UpdateAiProviderSettingsInput,
 ): Promise<GlobalAiSettings> {
-  const input: UpdateOpenAiBaseUrlInput = { baseUrl };
-  return invoke<GlobalAiSettings>("update_openai_base_url", { input });
-}
-
-export async function createCustomAiProvider(
-  input: CreateCustomAiProviderInput,
-): Promise<GlobalAiSettings> {
-  return invoke<GlobalAiSettings>("create_custom_ai_provider", { input });
-}
-
-export async function updateCustomAiProvider(
-  input: UpdateCustomAiProviderInput,
-): Promise<GlobalAiSettings> {
-  return invoke<GlobalAiSettings>("update_custom_ai_provider", { input });
-}
-
-export async function deleteCustomAiProvider(
-  input: DeleteCustomAiProviderInput,
-): Promise<GlobalAiSettings> {
-  return invoke<GlobalAiSettings>("delete_custom_ai_provider", { input });
+  return invoke<GlobalAiSettings>("update_ai_provider_settings", { input });
 }
 
 export async function createAgent(input: CreateAgentInput): Promise<AgentsSettings> {

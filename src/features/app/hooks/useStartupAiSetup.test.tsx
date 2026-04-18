@@ -29,44 +29,46 @@ function makeAccount(
 function makeAiSettings(
   overrides: Partial<GlobalAiSettings> = {},
 ): GlobalAiSettings {
+  const providers =
+    overrides.providers ??
+    [
+      {
+        id: "airouter",
+        name: "Airouter",
+        baseUrl: "https://airouter.mxyhi.com/v1",
+        apiKey: null,
+        builtIn: true,
+      },
+      {
+        id: "openai",
+        name: "OpenAI",
+        baseUrl: "https://api.openai.com/v1",
+        apiKey: null,
+        builtIn: true,
+      },
+      {
+        id: "local",
+        name: "Local",
+        baseUrl: "http://127.0.0.1:9208/v1",
+        apiKey: null,
+        builtIn: true,
+      },
+    ];
   return {
     configPath: "/tmp/config.toml",
     sessionDefaults: {
-      modelProvider: "openai",
+      modelProvider: "airouter",
       model: null,
       modelReasoningEffort: null,
       ...overrides.sessionDefaults,
     },
-    openaiBaseUrl: null,
-    providers: [
-      {
-        id: "openai",
-        name: "OpenAI",
-        baseUrl: null,
-        apiKey: null,
-        builtIn: true,
-      },
-      {
-        id: "ollama",
-        name: "gpt-oss",
-        baseUrl: "http://localhost:11434/v1",
-        apiKey: null,
-        builtIn: true,
-      },
-      {
-        id: "lmstudio",
-        name: "gpt-oss",
-        baseUrl: "http://localhost:1234/v1",
-        apiKey: null,
-        builtIn: true,
-      },
-    ],
+    providers,
     ...overrides,
   };
 }
 
 describe("resolveStartupAiSetupState", () => {
-  it("shows wizard when default OpenAI route still requires login", () => {
+  it("shows wizard when airouter API key is missing", () => {
     expect(
       resolveStartupAiSetupState({
         activeAccount: makeAccount(),
@@ -77,16 +79,20 @@ describe("resolveStartupAiSetupState", () => {
     ).toBe(true);
   });
 
-  it("hides wizard when default provider is a built-in local provider", () => {
+  it("hides wizard when airouter is fully configured even without OpenAI login", () => {
     expect(
       resolveStartupAiSetupState({
         activeAccount: makeAccount(),
         aiSettings: makeAiSettings({
-          sessionDefaults: {
-            modelProvider: "ollama",
-            model: null,
-            modelReasoningEffort: null,
-          },
+          providers: [
+            {
+              id: "airouter",
+              name: "Airouter",
+              baseUrl: "https://airouter.mxyhi.com/v1",
+              apiKey: "sk-airouter",
+              builtIn: true,
+            },
+          ],
         }),
         dismissedForSession: false,
         settingsOpen: false,
@@ -94,26 +100,20 @@ describe("resolveStartupAiSetupState", () => {
     ).toBe(false);
   });
 
-  it("shows wizard when selected custom provider is missing connection fields", () => {
+  it("shows wizard when airouter base URL falls outside allowlist", () => {
     expect(
       resolveStartupAiSetupState({
         activeAccount: makeAccount({
           requiresOpenaiAuth: false,
         }),
         aiSettings: makeAiSettings({
-          sessionDefaults: {
-            modelProvider: "gateway",
-            model: null,
-            modelReasoningEffort: null,
-          },
           providers: [
-            ...makeAiSettings().providers,
             {
-              id: "gateway",
-              name: "Gateway",
-              baseUrl: null,
-              apiKey: null,
-              builtIn: false,
+              id: "airouter",
+              name: "Airouter",
+              baseUrl: "https://evil.example.com/v1",
+              apiKey: "sk-airouter",
+              builtIn: true,
             },
           ],
         }),
@@ -121,6 +121,46 @@ describe("resolveStartupAiSetupState", () => {
         settingsOpen: false,
       }).showWizard,
     ).toBe(true);
+  });
+
+  it("hides wizard when selected openai provider already has an API key", () => {
+    expect(
+      resolveStartupAiSetupState({
+        activeAccount: makeAccount(),
+        aiSettings: makeAiSettings({
+          sessionDefaults: {
+            modelProvider: "openai",
+            model: null,
+            modelReasoningEffort: null,
+          },
+          providers: [
+            {
+              id: "airouter",
+              name: "Airouter",
+              baseUrl: "https://airouter.mxyhi.com/v1",
+              apiKey: null,
+              builtIn: true,
+            },
+            {
+              id: "openai",
+              name: "OpenAI",
+              baseUrl: "https://api.openai.com/v1",
+              apiKey: "sk-openai",
+              builtIn: true,
+            },
+            {
+              id: "local",
+              name: "Local",
+              baseUrl: "http://127.0.0.1:9208/v1",
+              apiKey: null,
+              builtIn: true,
+            },
+          ],
+        }),
+        dismissedForSession: false,
+        settingsOpen: false,
+      }).showWizard,
+    ).toBe(false);
   });
 });
 
@@ -163,11 +203,15 @@ describe("useStartupAiSetup", () => {
       .mockResolvedValueOnce(makeAiSettings())
       .mockResolvedValueOnce(
         makeAiSettings({
-          sessionDefaults: {
-            modelProvider: "ollama",
-            model: null,
-            modelReasoningEffort: null,
-          },
+          providers: [
+            {
+              id: "airouter",
+              name: "Airouter",
+              baseUrl: "https://airouter.mxyhi.com/v1",
+              apiKey: "sk-airouter",
+              builtIn: true,
+            },
+          ],
         }),
       );
 

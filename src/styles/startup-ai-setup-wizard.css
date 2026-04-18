@@ -98,6 +98,11 @@
   letter-spacing: 0.04em;
 }
 
+.startup-ai-setup-status-help {
+  color: var(--text-subtle);
+  font-size: 12px;
+}
+
 .startup-ai-setup-actions {
   display: grid;
   gap: 8px;
@@ -115,6 +120,27 @@
 
 .startup-ai-setup-hint {
   color: var(--text-subtle);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.startup-ai-setup-form {
+  display: grid;
+  gap: 10px;
+}
+
+.startup-ai-setup-field-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-subtle);
+}
+
+.startup-ai-setup-input {
+  width: 100%;
+}
+
+.startup-ai-setup-error {
+  color: var(--status-danger-foreground, #ffb4b4);
   font-size: 12px;
   line-height: 1.5;
 }

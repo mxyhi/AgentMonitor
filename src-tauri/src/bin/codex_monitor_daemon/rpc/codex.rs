@@ -328,50 +328,15 @@ pub(super) async fn try_handle(
                     .and_then(|value| serde_json::to_value(value).map_err(|err| err.to_string())),
             )
         }
-        "update_openai_base_url" => {
-            let input = match parse_input::<ai_settings_core::UpdateOpenAiBaseUrlInput>(params) {
+        "update_ai_provider_settings" => {
+            let input = match parse_input::<ai_settings_core::UpdateAiProviderSettingsInput>(params)
+            {
                 Ok(value) => value,
                 Err(err) => return Some(Err(err)),
             };
             Some(
                 state
-                    .update_openai_base_url(input)
-                    .await
-                    .and_then(|value| serde_json::to_value(value).map_err(|err| err.to_string())),
-            )
-        }
-        "create_custom_ai_provider" => {
-            let input = match parse_input::<ai_settings_core::CreateCustomAiProviderInput>(params) {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
-            Some(
-                state
-                    .create_custom_ai_provider(input)
-                    .await
-                    .and_then(|value| serde_json::to_value(value).map_err(|err| err.to_string())),
-            )
-        }
-        "update_custom_ai_provider" => {
-            let input = match parse_input::<ai_settings_core::UpdateCustomAiProviderInput>(params) {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
-            Some(
-                state
-                    .update_custom_ai_provider(input)
-                    .await
-                    .and_then(|value| serde_json::to_value(value).map_err(|err| err.to_string())),
-            )
-        }
-        "delete_custom_ai_provider" => {
-            let input = match parse_input::<ai_settings_core::DeleteCustomAiProviderInput>(params) {
-                Ok(value) => value,
-                Err(err) => return Some(Err(err)),
-            };
-            Some(
-                state
-                    .delete_custom_ai_provider(input)
+                    .update_ai_provider_settings(input)
                     .await
                     .and_then(|value| serde_json::to_value(value).map_err(|err| err.to_string())),
             )

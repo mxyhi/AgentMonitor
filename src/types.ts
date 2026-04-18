@@ -658,7 +658,6 @@ export type GlobalAiProviderEntry = {
 export type GlobalAiSettings = {
   configPath: string;
   sessionDefaults: GlobalAiSessionDefaults;
-  openaiBaseUrl: string | null;
   providers: GlobalAiProviderEntry[];
 };
 

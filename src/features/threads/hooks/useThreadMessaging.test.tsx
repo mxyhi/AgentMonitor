@@ -76,17 +76,16 @@ describe("useThreadMessaging telemetry", () => {
     vi.mocked(getGlobalAiSettingsService).mockResolvedValue({
       configPath: "/tmp/config.toml",
       sessionDefaults: {
-        modelProvider: "openai",
+        modelProvider: "airouter",
         model: null,
         modelReasoningEffort: null,
       },
-      openaiBaseUrl: null,
       providers: [
         {
-          id: "openai",
-          name: "OpenAI",
-          baseUrl: null,
-          apiKey: null,
+          id: "airouter",
+          name: "Airouter",
+          baseUrl: "https://airouter.mxyhi.com/v1",
+          apiKey: "sk-airouter",
           builtIn: true,
         },
       ],
@@ -185,6 +184,23 @@ describe("useThreadMessaging telemetry", () => {
     const markProcessing = vi.fn();
     const pushThreadErrorMessage = vi.fn();
     const safeMessageActivity = vi.fn();
+    vi.mocked(getGlobalAiSettingsService).mockResolvedValueOnce({
+      configPath: "/tmp/config.toml",
+      sessionDefaults: {
+        modelProvider: "openai",
+        model: null,
+        modelReasoningEffort: null,
+      },
+      providers: [
+        {
+          id: "openai",
+          name: "OpenAI",
+          baseUrl: null,
+          apiKey: null,
+          builtIn: true,
+        },
+      ],
+    });
     vi.mocked(getAccountInfoService).mockResolvedValueOnce({
       result: {
         account: null,
@@ -245,31 +261,111 @@ describe("useThreadMessaging telemetry", () => {
     expect(safeMessageActivity).toHaveBeenCalledTimes(1);
   });
 
-  it("does not block turn/start when selected provider is custom even if OpenAI auth is missing", async () => {
+  it("does not block turn/start when openai provider already has an API key", async () => {
     const markProcessing = vi.fn();
     const pushThreadErrorMessage = vi.fn();
     vi.mocked(getGlobalAiSettingsService).mockResolvedValueOnce({
       configPath: "/tmp/config.toml",
       sessionDefaults: {
-        modelProvider: "gateway",
+        modelProvider: "openai",
         model: null,
         modelReasoningEffort: null,
       },
-      openaiBaseUrl: null,
       providers: [
         {
-          id: "openai",
-          name: "OpenAI",
-          baseUrl: null,
+          id: "airouter",
+          name: "Airouter",
+          baseUrl: "https://airouter.mxyhi.com/v1",
           apiKey: null,
           builtIn: true,
         },
         {
-          id: "gateway",
-          name: "Gateway",
+          id: "openai",
+          name: "OpenAI",
+          baseUrl: "https://api.openai.com/v1",
+          apiKey: "sk-openai",
+          builtIn: true,
+        },
+        {
+          id: "local",
+          name: "Local",
+          baseUrl: "http://127.0.0.1:9208/v1",
+          apiKey: null,
+          builtIn: true,
+        },
+      ],
+    });
+    vi.mocked(getAccountInfoService).mockResolvedValueOnce({
+      result: {
+        account: null,
+        requiresOpenaiAuth: true,
+      },
+    } as Awaited<ReturnType<typeof getAccountInfoService>>);
+
+    const { result } = renderHook(() =>
+      useThreadMessaging({
+        activeWorkspace: workspace,
+        activeThreadId: "thread-1",
+        accessMode: "current",
+        model: null,
+        effort: null,
+        collaborationMode: null,
+        reviewDeliveryMode: "inline",
+        steerEnabled: false,
+        customPrompts: [],
+        threadStatusById: {},
+        activeTurnIdByThread: {},
+        rateLimitsByWorkspace: {},
+        pendingInterruptsRef: { current: new Set<string>() },
+        dispatch: vi.fn(),
+        getCustomName: vi.fn(() => undefined),
+        markProcessing,
+        markReviewing: vi.fn(),
+        setActiveTurnId: vi.fn(),
+        recordThreadActivity: vi.fn(),
+        safeMessageActivity: vi.fn(),
+        onDebug: vi.fn(),
+        pushThreadErrorMessage,
+        ensureThreadForActiveWorkspace: vi.fn(async () => "thread-1"),
+        ensureThreadForWorkspace: vi.fn(async () => "thread-1"),
+        refreshThread: vi.fn(async () => null),
+        forkThreadForWorkspace: vi.fn(async () => null),
+        updateThreadParent: vi.fn(),
+      }),
+    );
+
+    await act(async () => {
+      const sendResult = await result.current.sendUserMessageToThread(
+        workspace,
+        "thread-1",
+        "hello",
+        [],
+      );
+      expect(sendResult).toEqual({ status: "sent" });
+    });
+
+    expect(sendUserMessageService).toHaveBeenCalledTimes(1);
+    expect(pushThreadErrorMessage).not.toHaveBeenCalled();
+    expect(markProcessing).toHaveBeenCalledWith("thread-1", true);
+  });
+
+  it("does not block turn/start when fixed airouter provider is configured even if OpenAI auth is missing", async () => {
+    const markProcessing = vi.fn();
+    const pushThreadErrorMessage = vi.fn();
+    vi.mocked(getGlobalAiSettingsService).mockResolvedValueOnce({
+      configPath: "/tmp/config.toml",
+      sessionDefaults: {
+        modelProvider: "airouter",
+        model: null,
+        modelReasoningEffort: null,
+      },
+      providers: [
+        {
+          id: "airouter",
+          name: "Airouter",
           baseUrl: "http://127.0.0.1:9000/v1",
           apiKey: "test-key",
-          builtIn: false,
+          builtIn: true,
         },
       ],
     });

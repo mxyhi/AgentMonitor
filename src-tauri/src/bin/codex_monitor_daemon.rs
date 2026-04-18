@@ -615,32 +615,11 @@ impl DaemonState {
         ai_settings_core::update_global_ai_session_defaults_core(input)
     }
 
-    async fn update_openai_base_url(
+    async fn update_ai_provider_settings(
         &self,
-        input: ai_settings_core::UpdateOpenAiBaseUrlInput,
+        input: ai_settings_core::UpdateAiProviderSettingsInput,
     ) -> Result<ai_settings_core::GlobalAiSettingsDto, String> {
-        ai_settings_core::update_openai_base_url_core(input)
-    }
-
-    async fn create_custom_ai_provider(
-        &self,
-        input: ai_settings_core::CreateCustomAiProviderInput,
-    ) -> Result<ai_settings_core::GlobalAiSettingsDto, String> {
-        ai_settings_core::create_custom_ai_provider_core(input)
-    }
-
-    async fn update_custom_ai_provider(
-        &self,
-        input: ai_settings_core::UpdateCustomAiProviderInput,
-    ) -> Result<ai_settings_core::GlobalAiSettingsDto, String> {
-        ai_settings_core::update_custom_ai_provider_core(input)
-    }
-
-    async fn delete_custom_ai_provider(
-        &self,
-        input: ai_settings_core::DeleteCustomAiProviderInput,
-    ) -> Result<ai_settings_core::GlobalAiSettingsDto, String> {
-        ai_settings_core::delete_custom_ai_provider_core(input)
+        ai_settings_core::update_ai_provider_settings_core(input)
     }
 
     async fn set_agents_core_settings(

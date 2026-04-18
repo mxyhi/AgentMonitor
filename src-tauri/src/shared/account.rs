@@ -94,18 +94,29 @@ pub(crate) fn requires_openai_auth_without_account(value: &Value) -> bool {
 
 pub(crate) fn requires_openai_auth_for_selected_provider(
     selected_provider_id: Option<&str>,
+    selected_provider_api_key: Option<&str>,
     value: &Value,
 ) -> bool {
-    selected_provider_requires_openai_auth(selected_provider_id)
+    selected_provider_requires_openai_auth(selected_provider_id, selected_provider_api_key)
         && requires_openai_auth_without_account(value)
 }
 
-fn selected_provider_requires_openai_auth(selected_provider_id: Option<&str>) -> bool {
-    selected_provider_id
+fn selected_provider_requires_openai_auth(
+    selected_provider_id: Option<&str>,
+    selected_provider_api_key: Option<&str>,
+) -> bool {
+    let is_openai = selected_provider_id
         .map(str::trim)
         .filter(|value| !value.is_empty())
         .map(|value| value.eq_ignore_ascii_case(OPENAI_PROVIDER_ID))
-        .unwrap_or(true)
+        .unwrap_or(false);
+    if !is_openai {
+        return false;
+    }
+
+    !selected_provider_api_key
+        .map(str::trim)
+        .is_some_and(|value| !value.is_empty())
 }
 
 pub(crate) fn read_auth_account(codex_home: Option<PathBuf>) -> Option<AuthAccount> {
@@ -290,6 +301,31 @@ mod tests {
     fn requires_openai_auth_for_selected_provider_skips_non_openai_provider() {
         assert!(!requires_openai_auth_for_selected_provider(
             Some("gateway"),
+            None,
+            &json!({
+                "requiresOpenaiAuth": true,
+                "account": null
+            }),
+        ));
+    }
+
+    #[test]
+    fn requires_openai_auth_for_selected_provider_skips_missing_provider() {
+        assert!(!requires_openai_auth_for_selected_provider(
+            None,
+            None,
+            &json!({
+                "requiresOpenaiAuth": true,
+                "account": null
+            }),
+        ));
+    }
+
+    #[test]
+    fn requires_openai_auth_for_selected_provider_skips_openai_with_api_key() {
+        assert!(!requires_openai_auth_for_selected_provider(
+            Some("openai"),
+            Some("sk-test"),
             &json!({
                 "requiresOpenaiAuth": true,
                 "account": null

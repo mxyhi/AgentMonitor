@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { AppSettings, GlobalAiProviderEntry, ModelOption } from "@/types";
+import type { AppSettings, ModelOption } from "@/types";
 import * as m from "@/i18n/messages";
 import { useAppLocale } from "@/i18n/I18nProvider";
 import {
@@ -9,6 +9,13 @@ import {
 } from "@/features/design-system/components/settings/SettingsPrimitives";
 import { FileEditorCard } from "@/features/shared/components/FileEditorCard";
 import type { SettingsCodexSectionProps } from "@settings/hooks/useSettingsCodexSection";
+import {
+  getDefaultGlobalAiProviderBaseUrl,
+  isGlobalAiProviderApiKeyOptional,
+  listFixedGlobalAiProviders,
+  normalizeGlobalAiProviderId,
+  resolveSelectedGlobalAiProvider,
+} from "@/utils/globalAiProvider";
 
 const FALLBACK_REASONING_OPTIONS = ["minimal", "low", "medium", "high", "xhigh"];
 
@@ -45,125 +52,6 @@ const buildReasoningOptions = (model: ModelOption | null): string[] => {
   return fallback ? [fallback] : FALLBACK_REASONING_OPTIONS;
 };
 
-type ProviderEditorDraft = {
-  id: string;
-  baseUrl: string;
-  apiKey: string;
-};
-
-const getProviderDisplayLabel = (provider: GlobalAiProviderEntry): string =>
-  provider.builtIn ? provider.name : provider.id;
-
-function CustomProviderRow(props: {
-  provider: GlobalAiProviderEntry;
-  isEditing: boolean;
-  isBusy: boolean;
-  onStartEdit: () => void;
-  onCancelEdit: () => void;
-  onDelete: () => void;
-  draft: ProviderEditorDraft;
-  onDraftChange: (next: ProviderEditorDraft) => void;
-  onSave: () => void;
-}) {
-  const locale = useAppLocale();
-  const {
-    provider,
-    isEditing,
-    isBusy,
-    onStartEdit,
-    onCancelEdit,
-    onDelete,
-    draft,
-    onDraftChange,
-    onSave,
-  } = props;
-
-  if (!isEditing) {
-    return (
-      <div className="settings-field">
-        <div className="settings-field-label">{provider.id}</div>
-        <div className="settings-help">
-          {provider.baseUrl ?? m.settings_codex_provider_no_base_url({}, { locale })}
-        </div>
-        <div className="settings-help">
-          {provider.apiKey
-            ? m.settings_codex_provider_api_key_configured({}, { locale })
-            : m.settings_codex_provider_no_api_key({}, { locale })}
-        </div>
-        <div className="settings-field-row">
-          <button
-            type="button"
-            className="ghost"
-            onClick={onStartEdit}
-            aria-label={m.settings_codex_provider_edit_aria(
-              { value: provider.id },
-              { locale },
-            )}
-          >
-            {m.action_edit({}, { locale })}
-          </button>
-          <button
-            type="button"
-            className="ghost destructive"
-            onClick={onDelete}
-            disabled={isBusy}
-            aria-label={m.settings_codex_provider_delete_aria(
-              { value: provider.id },
-              { locale },
-            )}
-          >
-            {m.action_delete({}, { locale })}
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="settings-field">
-      <label className="settings-field-label" htmlFor={`provider-base-url-${provider.id}`}>
-        {m.settings_codex_provider_edit_base_url_label({}, { locale })}
-      </label>
-      <input
-        id={`provider-base-url-${provider.id}`}
-        className="settings-input"
-        value={draft.baseUrl}
-        onChange={(event) => onDraftChange({ ...draft, baseUrl: event.target.value })}
-        aria-label={m.settings_codex_provider_edit_base_url_aria({}, { locale })}
-      />
-      <label className="settings-field-label" htmlFor={`provider-env-key-${provider.id}`}>
-        {m.settings_codex_provider_edit_api_key_label({}, { locale })}
-      </label>
-      <input
-        id={`provider-env-key-${provider.id}`}
-        className="settings-input"
-        type="password"
-        autoComplete="off"
-        value={draft.apiKey}
-        onChange={(event) => onDraftChange({ ...draft, apiKey: event.target.value })}
-        aria-label={m.settings_codex_provider_edit_api_key_aria({}, { locale })}
-      />
-      <div className="settings-field-row">
-        <button
-          type="button"
-          className="ghost"
-          onClick={onSave}
-          disabled={isBusy}
-          aria-label={m.settings_codex_provider_save_aria(
-            { value: provider.id },
-            { locale },
-          )}
-        >
-          {m.action_save({}, { locale })}
-        </button>
-        <button type="button" className="ghost" onClick={onCancelEdit}>
-          {m.action_cancel({}, { locale })}
-        </button>
-      </div>
-    </div>
-  );
-}
-
 export function SettingsCodexSection({
   appSettings,
   onUpdateAppSettings,
@@ -171,10 +59,7 @@ export function SettingsCodexSection({
   aiSettingsLoading,
   aiSettingsError,
   updatingSessionDefaults,
-  updatingOpenAiBaseUrl,
-  creatingProvider,
-  updatingProviderId,
-  deletingProviderId,
+  updatingAiProviderSettings,
   defaultModels,
   defaultModelsLoading,
   defaultModelsError,
@@ -182,10 +67,7 @@ export function SettingsCodexSection({
   onRefreshDefaultModels,
   onRefreshAiSettings,
   onUpdateSessionDefaults,
-  onUpdateOpenAiBaseUrl,
-  onCreateProvider,
-  onUpdateProvider,
-  onDeleteProvider,
+  onUpdateAiProviderSettings,
   globalAgentsPath: _globalAgentsPath,
   globalAgentsMeta,
   globalAgentsError,
@@ -199,46 +81,65 @@ export function SettingsCodexSection({
   onSaveGlobalAgents,
 }: SettingsCodexSectionProps) {
   const locale = useAppLocale();
-  const [providerDraft, setProviderDraft] = useState(
-    aiSettings?.sessionDefaults.modelProvider ?? "openai",
+  const resolvedProviderState = useMemo(
+    () => resolveSelectedGlobalAiProvider(aiSettings),
+    [aiSettings],
   );
+  const fixedProviders = useMemo(
+    () => listFixedGlobalAiProviders(aiSettings),
+    [aiSettings],
+  );
+  const selectedProvider = resolvedProviderState.provider;
+  const selectedProviderBaseUrl =
+    selectedProvider?.baseUrl ??
+    getDefaultGlobalAiProviderBaseUrl(resolvedProviderState.providerId);
+  const selectedProviderApiKey = selectedProvider?.apiKey ?? "";
   const [modelDraft, setModelDraft] = useState(aiSettings?.sessionDefaults.model ?? "");
   const [effortDraft, setEffortDraft] = useState(
     aiSettings?.sessionDefaults.modelReasoningEffort ?? "medium",
   );
-  const [openAiBaseUrlDraft, setOpenAiBaseUrlDraft] = useState(
-    aiSettings?.openaiBaseUrl ?? "",
+  const [providerDraft, setProviderDraft] = useState(resolvedProviderState.providerId);
+  const [providerBaseUrlDraft, setProviderBaseUrlDraft] = useState(
+    selectedProvider?.baseUrl ??
+      getDefaultGlobalAiProviderBaseUrl(resolvedProviderState.providerId),
   );
-  const [creatingDraft, setCreatingDraft] = useState<ProviderEditorDraft>({
-    id: "",
-    baseUrl: "",
-    apiKey: "",
-  });
-  const [editingProviderId, setEditingProviderId] = useState<string | null>(null);
-  const [editingDraft, setEditingDraft] = useState<ProviderEditorDraft>({
-    id: "",
-    baseUrl: "",
-    apiKey: "",
-  });
+  const [providerApiKeyDraft, setProviderApiKeyDraft] = useState(
+    selectedProvider?.apiKey ?? "",
+  );
+  const [providerDraftDirty, setProviderDraftDirty] = useState(false);
   const sessionDefaultsDraftRef = useRef({
-    modelProvider: aiSettings?.sessionDefaults.modelProvider ?? "openai",
+    modelProvider: resolvedProviderState.providerId,
     model: aiSettings?.sessionDefaults.model ?? "",
     modelReasoningEffort: aiSettings?.sessionDefaults.modelReasoningEffort ?? "medium",
   });
 
   useEffect(() => {
     const nextSessionDefaults = {
-      modelProvider: aiSettings?.sessionDefaults.modelProvider ?? "openai",
+      modelProvider: resolvedProviderState.providerId,
       model: aiSettings?.sessionDefaults.model ?? "",
       modelReasoningEffort:
         aiSettings?.sessionDefaults.modelReasoningEffort ?? "medium",
     };
     sessionDefaultsDraftRef.current = nextSessionDefaults;
-    setProviderDraft(nextSessionDefaults.modelProvider);
     setModelDraft(nextSessionDefaults.model);
     setEffortDraft(nextSessionDefaults.modelReasoningEffort);
-    setOpenAiBaseUrlDraft(aiSettings?.openaiBaseUrl ?? "");
-  }, [aiSettings]);
+    const shouldResetProviderInputs =
+      !providerDraftDirty || providerDraft !== resolvedProviderState.providerId;
+    setProviderDraft(resolvedProviderState.providerId);
+    if (shouldResetProviderInputs) {
+      setProviderBaseUrlDraft(selectedProviderBaseUrl);
+      setProviderApiKeyDraft(selectedProviderApiKey);
+      setProviderDraftDirty(false);
+    }
+  }, [
+    aiSettings?.sessionDefaults.model,
+    aiSettings?.sessionDefaults.modelReasoningEffort,
+    providerDraft,
+    providerDraftDirty,
+    resolvedProviderState.providerId,
+    selectedProviderApiKey,
+    selectedProviderBaseUrl,
+  ]);
 
   const selectedModel = useMemo(
     () => findModelOption(defaultModels, modelDraft),
@@ -248,16 +149,6 @@ export function SettingsCodexSection({
     () => buildReasoningOptions(selectedModel),
     [selectedModel],
   );
-  const customProviders = aiSettings?.providers.filter((provider) => !provider.builtIn) ?? [];
-
-  const handleProviderChange = async (nextProvider: string) => {
-    sessionDefaultsDraftRef.current = {
-      ...sessionDefaultsDraftRef.current,
-      modelProvider: nextProvider,
-    };
-    setProviderDraft(nextProvider);
-    await onUpdateSessionDefaults(sessionDefaultsDraftRef.current);
-  };
 
   const handleModelChange = async (nextModel: string) => {
     sessionDefaultsDraftRef.current = {
@@ -276,6 +167,10 @@ export function SettingsCodexSection({
     setEffortDraft(nextEffort);
     await onUpdateSessionDefaults(sessionDefaultsDraftRef.current);
   };
+
+  const providerApiKeyOptional = isGlobalAiProviderApiKeyOptional(
+    normalizeGlobalAiProviderId(providerDraft),
+  );
 
   return (
     <SettingsSection
@@ -313,26 +208,6 @@ export function SettingsCodexSection({
         title="Session defaults"
         subtitle={m.settings_codex_session_default_field_subtitle({}, { locale })}
       />
-
-      <SettingsToggleRow
-        title={<label htmlFor="ai-provider">{m.settings_codex_provider_label({}, { locale })}</label>}
-        subtitle={m.settings_codex_provider_subtitle({}, { locale })}
-      >
-        <select
-          id="ai-provider"
-          className="settings-select"
-          value={providerDraft}
-          onChange={(event) => void handleProviderChange(event.target.value)}
-          disabled={aiSettingsLoading || updatingSessionDefaults}
-          aria-label={m.settings_codex_provider_aria({}, { locale })}
-        >
-          {(aiSettings?.providers ?? []).map((provider) => (
-            <option key={provider.id} value={provider.id}>
-              {getProviderDisplayLabel(provider)}
-            </option>
-          ))}
-        </select>
-      </SettingsToggleRow>
 
       <SettingsToggleRow
         title={<label htmlFor="ai-model">{m.composer_meta_model({}, { locale })}</label>}
@@ -467,25 +342,107 @@ export function SettingsCodexSection({
         subtitle={m.settings_codex_providers_subtitle({}, { locale })}
       />
 
+      <SettingsToggleRow
+        title={<label htmlFor="ai-provider-select">Provider</label>}
+        subtitle={m.settings_codex_provider_id_label({}, { locale })}
+      >
+        <select
+          id="ai-provider-select"
+          className="settings-select"
+          value={providerDraft}
+          onChange={(event) => {
+            const nextProviderId = normalizeGlobalAiProviderId(event.target.value);
+            const nextProvider =
+              fixedProviders.find((provider) => provider.id === nextProviderId) ??
+              fixedProviders[0];
+            const nextSessionDefaults = {
+              ...sessionDefaultsDraftRef.current,
+              modelProvider: nextProviderId,
+            };
+            sessionDefaultsDraftRef.current = nextSessionDefaults;
+            setProviderDraft(nextProviderId);
+            setProviderBaseUrlDraft(
+              nextProvider.baseUrl ??
+                getDefaultGlobalAiProviderBaseUrl(nextProviderId),
+            );
+            setProviderApiKeyDraft(nextProvider.apiKey ?? "");
+            setProviderDraftDirty(false);
+            void onUpdateSessionDefaults(nextSessionDefaults);
+          }}
+          aria-label="Provider"
+        >
+          {fixedProviders.map((provider) => (
+            <option key={provider.id} value={provider.id}>
+              {provider.name}
+            </option>
+          ))}
+        </select>
+      </SettingsToggleRow>
+
       <div className="settings-field">
-        <label className="settings-field-label" htmlFor="openai-base-url">
-          {m.settings_codex_openai_base_url_label({}, { locale })}
+        <label className="settings-field-label" htmlFor="selected-provider-id">
+          {m.settings_codex_provider_id_label({}, { locale })}
         </label>
         <input
-          id="openai-base-url"
+          id="selected-provider-id"
           className="settings-input"
-          value={openAiBaseUrlDraft}
-          onChange={(event) => setOpenAiBaseUrlDraft(event.target.value)}
-          aria-label={m.settings_codex_openai_base_url_aria({}, { locale })}
+          value={providerDraft}
+          readOnly
+          aria-label={m.settings_codex_provider_id_aria({}, { locale })}
+        />
+      </div>
+
+      <div className="settings-field">
+        <label className="settings-field-label" htmlFor="selected-provider-base-url">
+          {m.settings_codex_provider_base_url_label({}, { locale })}
+        </label>
+        <input
+          id="selected-provider-base-url"
+          className="settings-input"
+          value={providerBaseUrlDraft}
+          onChange={(event) => {
+            setProviderBaseUrlDraft(event.target.value);
+            setProviderDraftDirty(true);
+          }}
+          aria-label={m.settings_codex_provider_base_url_aria({}, { locale })}
+        />
+      </div>
+
+      <div className="settings-field">
+        <label className="settings-field-label" htmlFor="selected-provider-api-key">
+          {m.settings_codex_provider_api_key_label({}, { locale })}
+        </label>
+        <input
+          id="selected-provider-api-key"
+          className="settings-input"
+          type="password"
+          autoComplete="off"
+          value={providerApiKeyDraft}
+          placeholder={providerApiKeyOptional ? "Optional for Local" : undefined}
+          onChange={(event) => {
+            setProviderApiKeyDraft(event.target.value);
+            setProviderDraftDirty(true);
+          }}
+          aria-label={m.settings_codex_provider_api_key_aria({}, { locale })}
         />
         <div className="settings-field-row">
           <button
             type="button"
             className="ghost"
-            onClick={() => void onUpdateOpenAiBaseUrl(openAiBaseUrlDraft.trim() || null)}
-            disabled={updatingOpenAiBaseUrl}
+            onClick={() => {
+              void onUpdateAiProviderSettings({
+                providerId: providerDraft,
+                baseUrl: providerBaseUrlDraft.trim() || null,
+                apiKey: providerApiKeyDraft.trim() || null,
+              }).then((saved) => {
+                if (saved) {
+                  setProviderDraftDirty(false);
+                }
+              });
+            }}
+            disabled={updatingAiProviderSettings}
           >
-            {m.settings_codex_openai_base_url_save({}, { locale })}
+            {m.action_save({}, { locale })}
           </button>
           <button
             type="button"
@@ -496,103 +453,11 @@ export function SettingsCodexSection({
             {m.action_refresh({}, { locale })}
           </button>
         </div>
-      </div>
-
-      {customProviders.map((provider) => (
-        <CustomProviderRow
-          key={provider.id}
-          provider={provider}
-          isEditing={editingProviderId === provider.id}
-          isBusy={updatingProviderId === provider.id || deletingProviderId === provider.id}
-          onStartEdit={() => {
-            setEditingProviderId(provider.id);
-            setEditingDraft({
-              id: provider.id,
-              baseUrl: provider.baseUrl ?? "",
-              apiKey: provider.apiKey ?? "",
-            });
-          }}
-          onCancelEdit={() => setEditingProviderId(null)}
-          onDelete={() => {
-            void onDeleteProvider({ id: provider.id });
-          }}
-          draft={editingDraft}
-          onDraftChange={setEditingDraft}
-          onSave={() => {
-            void onUpdateProvider({
-              originalId: provider.id,
-              id: editingDraft.id.trim() || provider.id,
-              baseUrl: editingDraft.baseUrl.trim() || null,
-              apiKey: editingDraft.apiKey.trim() || null,
-            }).then((success) => {
-              if (success) {
-                setEditingProviderId(null);
-              }
-            });
-          }}
-        />
-      ))}
-
-      <div className="settings-field">
-        <div className="settings-field-label">
-          {m.settings_codex_add_provider_title({}, { locale })}
-        </div>
-        <label className="settings-field-label" htmlFor="provider-id">
-          {m.settings_codex_provider_id_label({}, { locale })}
-        </label>
-        <input
-          id="provider-id"
-          className="settings-input"
-          value={creatingDraft.id}
-          onChange={(event) =>
-            setCreatingDraft((current) => ({ ...current, id: event.target.value }))
-          }
-          aria-label={m.settings_codex_provider_id_aria({}, { locale })}
-        />
-        <label className="settings-field-label" htmlFor="provider-base-url">
-          {m.settings_codex_provider_base_url_label({}, { locale })}
-        </label>
-        <input
-          id="provider-base-url"
-          className="settings-input"
-          value={creatingDraft.baseUrl}
-          onChange={(event) =>
-            setCreatingDraft((current) => ({ ...current, baseUrl: event.target.value }))
-          }
-          aria-label={m.settings_codex_provider_base_url_aria({}, { locale })}
-        />
-        <label className="settings-field-label" htmlFor="provider-env-key">
-          {m.settings_codex_provider_api_key_label({}, { locale })}
-        </label>
-        <input
-          id="provider-env-key"
-          className="settings-input"
-          type="password"
-          autoComplete="off"
-          value={creatingDraft.apiKey}
-          onChange={(event) =>
-            setCreatingDraft((current) => ({ ...current, apiKey: event.target.value }))
-          }
-          aria-label={m.settings_codex_provider_api_key_aria({}, { locale })}
-        />
-        <button
-          type="button"
-          className="ghost"
-          disabled={creatingProvider}
-          onClick={() => {
-            void onCreateProvider({
-              id: creatingDraft.id.trim(),
-              baseUrl: creatingDraft.baseUrl.trim() || null,
-              apiKey: creatingDraft.apiKey.trim() || null,
-            }).then((success) => {
-              if (success) {
-                setCreatingDraft({ id: "", baseUrl: "", apiKey: "" });
-              }
-            });
-          }}
-        >
-          {m.settings_codex_add_provider_action({}, { locale })}
-        </button>
+        {providerApiKeyOptional ? (
+          <div className="settings-help">
+            Local provider can leave API Key empty if your local gateway does not require one.
+          </div>
+        ) : null}
       </div>
 
       <FileEditorCard

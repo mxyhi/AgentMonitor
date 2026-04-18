@@ -78,18 +78,17 @@ describe("useThreads UX integration", () => {
     vi.mocked(getGlobalAiSettings).mockResolvedValue({
       configPath: "/tmp/config.toml",
       sessionDefaults: {
-        modelProvider: "local",
+        modelProvider: "airouter",
         model: null,
         modelReasoningEffort: null,
       },
-      openaiBaseUrl: null,
       providers: [
         {
-          id: "local",
-          name: "Local",
-          baseUrl: "http://127.0.0.1:11434/v1",
-          apiKey: null,
-          builtIn: false,
+          id: "airouter",
+          name: "Airouter",
+          baseUrl: "http://127.0.0.1:9208/v1",
+          apiKey: "sk-airouter",
+          builtIn: true,
         },
       ],
     } as Awaited<ReturnType<typeof getGlobalAiSettings>>);
@@ -226,7 +225,6 @@ describe("useThreads UX integration", () => {
         model: null,
         modelReasoningEffort: null,
       },
-      openaiBaseUrl: null,
       providers: [
         {
           id: "openai",
