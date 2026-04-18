@@ -1,0 +1,120 @@
+.startup-ai-setup-overlay {
+  z-index: calc(var(--ds-layer-modal, 40) + 70);
+}
+
+.startup-ai-setup-overlay .ds-modal-backdrop {
+  background: rgba(7, 11, 18, 0.8);
+  backdrop-filter: blur(16px) saturate(1.08);
+  -webkit-backdrop-filter: blur(16px) saturate(1.08);
+}
+
+.app.reduced-transparency .startup-ai-setup-overlay .ds-modal-backdrop {
+  background: rgba(9, 13, 20, 0.94);
+}
+
+.startup-ai-setup-card {
+  width: min(480px, 92vw);
+  border-radius: 20px;
+  overflow: hidden;
+  border: 1px solid var(--border-strong);
+  box-shadow: 0 28px 64px rgba(0, 0, 0, 0.5);
+  background:
+    radial-gradient(120% 120% at 100% 0%, rgba(47, 163, 93, 0.2), transparent 46%),
+    linear-gradient(170deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02)),
+    var(--surface-context-core);
+}
+
+.startup-ai-setup-header {
+  position: relative;
+  padding: 20px 22px 12px;
+}
+
+.startup-ai-setup-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.startup-ai-setup-close svg {
+  width: 14px;
+  height: 14px;
+}
+
+.startup-ai-setup-kicker {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  border: 1px solid rgba(47, 163, 93, 0.34);
+  background: rgba(47, 163, 93, 0.14);
+  color: var(--text-strong);
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.startup-ai-setup-title {
+  margin: 10px 0 6px;
+  font-size: 22px;
+  line-height: 1.2;
+  color: var(--text-strong);
+}
+
+.startup-ai-setup-subtitle {
+  margin: 0;
+  color: var(--text-subtle);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.startup-ai-setup-body {
+  display: grid;
+  gap: 12px;
+  padding: 10px 22px 22px;
+}
+
+.startup-ai-setup-status {
+  display: grid;
+  gap: 4px;
+  border-radius: 12px;
+  border: 1px solid var(--border-muted);
+  background: rgba(255, 255, 255, 0.03);
+  padding: 11px 12px;
+  color: var(--text-strong);
+  font-size: 13px;
+}
+
+.startup-ai-setup-status-label {
+  color: var(--text-subtle);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.startup-ai-setup-actions {
+  display: grid;
+  gap: 8px;
+}
+
+.startup-ai-setup-action {
+  width: 100%;
+  justify-content: center;
+  font-weight: 600;
+}
+
+.startup-ai-setup-skip {
+  justify-self: center;
+}
+
+.startup-ai-setup-hint {
+  color: var(--text-subtle);
+  font-size: 12px;
+  line-height: 1.5;
+}

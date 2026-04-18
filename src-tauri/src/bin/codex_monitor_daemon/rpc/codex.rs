@@ -309,6 +309,73 @@ pub(super) async fn try_handle(
                 .await
                 .and_then(|value| serde_json::to_value(value).map_err(|err| err.to_string())),
         ),
+        "get_global_ai_settings" => Some(
+            state
+                .get_global_ai_settings()
+                .await
+                .and_then(|value| serde_json::to_value(value).map_err(|err| err.to_string())),
+        ),
+        "update_global_ai_session_defaults" => {
+            let input =
+                match parse_input::<ai_settings_core::UpdateGlobalAiSessionDefaultsInput>(params) {
+                    Ok(value) => value,
+                    Err(err) => return Some(Err(err)),
+                };
+            Some(
+                state
+                    .update_global_ai_session_defaults(input)
+                    .await
+                    .and_then(|value| serde_json::to_value(value).map_err(|err| err.to_string())),
+            )
+        }
+        "update_openai_base_url" => {
+            let input = match parse_input::<ai_settings_core::UpdateOpenAiBaseUrlInput>(params) {
+                Ok(value) => value,
+                Err(err) => return Some(Err(err)),
+            };
+            Some(
+                state
+                    .update_openai_base_url(input)
+                    .await
+                    .and_then(|value| serde_json::to_value(value).map_err(|err| err.to_string())),
+            )
+        }
+        "create_custom_ai_provider" => {
+            let input = match parse_input::<ai_settings_core::CreateCustomAiProviderInput>(params) {
+                Ok(value) => value,
+                Err(err) => return Some(Err(err)),
+            };
+            Some(
+                state
+                    .create_custom_ai_provider(input)
+                    .await
+                    .and_then(|value| serde_json::to_value(value).map_err(|err| err.to_string())),
+            )
+        }
+        "update_custom_ai_provider" => {
+            let input = match parse_input::<ai_settings_core::UpdateCustomAiProviderInput>(params) {
+                Ok(value) => value,
+                Err(err) => return Some(Err(err)),
+            };
+            Some(
+                state
+                    .update_custom_ai_provider(input)
+                    .await
+                    .and_then(|value| serde_json::to_value(value).map_err(|err| err.to_string())),
+            )
+        }
+        "delete_custom_ai_provider" => {
+            let input = match parse_input::<ai_settings_core::DeleteCustomAiProviderInput>(params) {
+                Ok(value) => value,
+                Err(err) => return Some(Err(err)),
+            };
+            Some(
+                state
+                    .delete_custom_ai_provider(input)
+                    .await
+                    .and_then(|value| serde_json::to_value(value).map_err(|err| err.to_string())),
+            )
+        }
         "set_agents_core_settings" => {
             let input = match parse_input::<agents_config_core::SetAgentsCoreInput>(params) {
                 Ok(value) => value,

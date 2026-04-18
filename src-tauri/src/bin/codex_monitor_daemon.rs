@@ -82,8 +82,8 @@ use shared::codex_core::CodexLoginCancelState;
 use shared::process_core::kill_child_process_tree;
 use shared::prompts_core::{self, CustomPromptEntry};
 use shared::{
-    agents_config_core, codex_aux_core, codex_core, files_core, git_core, git_ui_core,
-    local_usage_core, settings_core, workspaces_core, worktree_core,
+    agents_config_core, ai_settings_core, codex_aux_core, codex_core, files_core, git_core,
+    git_ui_core, local_usage_core, settings_core, workspaces_core, worktree_core,
 };
 use storage::{read_settings, read_workspaces};
 use types::{
@@ -602,6 +602,47 @@ impl DaemonState {
         agents_config_core::get_agents_settings_core()
     }
 
+    async fn get_global_ai_settings(
+        &self,
+    ) -> Result<ai_settings_core::GlobalAiSettingsDto, String> {
+        ai_settings_core::get_global_ai_settings_core()
+    }
+
+    async fn update_global_ai_session_defaults(
+        &self,
+        input: ai_settings_core::UpdateGlobalAiSessionDefaultsInput,
+    ) -> Result<ai_settings_core::GlobalAiSettingsDto, String> {
+        ai_settings_core::update_global_ai_session_defaults_core(input)
+    }
+
+    async fn update_openai_base_url(
+        &self,
+        input: ai_settings_core::UpdateOpenAiBaseUrlInput,
+    ) -> Result<ai_settings_core::GlobalAiSettingsDto, String> {
+        ai_settings_core::update_openai_base_url_core(input)
+    }
+
+    async fn create_custom_ai_provider(
+        &self,
+        input: ai_settings_core::CreateCustomAiProviderInput,
+    ) -> Result<ai_settings_core::GlobalAiSettingsDto, String> {
+        ai_settings_core::create_custom_ai_provider_core(input)
+    }
+
+    async fn update_custom_ai_provider(
+        &self,
+        input: ai_settings_core::UpdateCustomAiProviderInput,
+    ) -> Result<ai_settings_core::GlobalAiSettingsDto, String> {
+        ai_settings_core::update_custom_ai_provider_core(input)
+    }
+
+    async fn delete_custom_ai_provider(
+        &self,
+        input: ai_settings_core::DeleteCustomAiProviderInput,
+    ) -> Result<ai_settings_core::GlobalAiSettingsDto, String> {
+        ai_settings_core::delete_custom_ai_provider_core(input)
+    }
+
     async fn set_agents_core_settings(
         &self,
         input: agents_config_core::SetAgentsCoreInput,
@@ -694,11 +735,7 @@ impl DaemonState {
         codex_core::resume_thread_core(&self.sessions, workspace_id, thread_id).await
     }
 
-    async fn read_thread(
-        &self,
-        workspace_id: String,
-        thread_id: String,
-    ) -> Result<Value, String> {
+    async fn read_thread(&self, workspace_id: String, thread_id: String) -> Result<Value, String> {
         codex_core::read_thread_core(&self.sessions, workspace_id, thread_id).await
     }
 
@@ -767,8 +804,7 @@ impl DaemonState {
         limit: Option<u32>,
         sort_key: Option<String>,
     ) -> Result<Value, String> {
-        codex_core::list_threads_core(&self.sessions, workspace_id, cursor, limit, sort_key)
-            .await
+        codex_core::list_threads_core(&self.sessions, workspace_id, cursor, limit, sort_key).await
     }
 
     async fn list_mcp_server_status(

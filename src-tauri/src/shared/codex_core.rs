@@ -15,7 +15,9 @@ use crate::backend::app_server::WorkspaceSession;
 use crate::codex::config as codex_config;
 use crate::codex::home::{resolve_default_codex_home, resolve_workspace_codex_home};
 use crate::rules;
-use crate::shared::account::{build_account_response, read_auth_account};
+use crate::shared::account::{
+    build_account_response, read_auth_account, requires_openai_auth_for_selected_provider,
+};
 use crate::types::WorkspaceEntry;
 
 const LOGIN_START_TIMEOUT: Duration = Duration::from_secs(30);
@@ -227,7 +229,7 @@ async fn resolve_workspace_and_parent(
     Ok((entry, parent_entry))
 }
 
-async fn resolve_codex_home_for_workspace_core(
+pub(crate) async fn resolve_codex_home_for_workspace_core(
     workspaces: &Mutex<HashMap<String, WorkspaceEntry>>,
     workspace_id: &str,
 ) -> Result<PathBuf, String> {
@@ -486,7 +488,16 @@ pub(crate) async fn send_user_message_core(
     collaboration_mode: Option<Value>,
 ) -> Result<Value, String> {
     let session = get_session_clone(sessions, &workspace_id).await?;
+    let codex_home = resolve_codex_home_for_workspace_core(workspaces, &workspace_id).await?;
     let workspace_path = resolve_workspace_path_core(workspaces, &workspace_id).await?;
+    let selected_provider = codex_config::read_config_model_provider(Some(codex_home))?;
+    let account_response = account_read_core(sessions, workspaces, workspace_id.clone()).await?;
+    if requires_openai_auth_for_selected_provider(selected_provider.as_deref(), &account_response) {
+        return Err(
+            "OpenAI authentication required before sending. Sign in or configure a provider first."
+                .to_string(),
+        );
+    }
     let access_mode = access_mode.unwrap_or_else(|| "current".to_string());
     let sandbox_policy = match access_mode.as_str() {
         "full-access" => json!({ "type": "dangerFullAccess" }),
@@ -635,7 +646,7 @@ pub(crate) async fn account_read_core(
     };
     let response = if let Some(session) = session {
         session
-            .send_request_for_workspace(&workspace_id, "account/read", Value::Null)
+            .send_request_for_workspace(&workspace_id, "account/read", json!({}))
             .await
             .ok()
     } else {

@@ -1,32 +1,53 @@
-import { useEffect, useState } from "react";
-import type { AppSettings, CodexDoctorResult, CodexUpdateResult, WorkspaceInfo } from "@/types";
-import { getCodexConfigPath } from "@services/tauri";
+import { useCallback, useEffect, useState } from "react";
+import type { AppSettings, GlobalAiSettings, WorkspaceInfo } from "@/types";
+import type {
+  CreateCustomAiProviderInput,
+  DeleteCustomAiProviderInput,
+  UpdateCustomAiProviderInput,
+  UpdateGlobalAiSessionDefaultsInput,
+} from "@services/tauri";
+import {
+  createCustomAiProvider,
+  deleteCustomAiProvider,
+  getGlobalAiSettings,
+  updateCustomAiProvider,
+  updateGlobalAiSessionDefaults,
+  updateOpenAiBaseUrl,
+} from "@services/tauri";
+import { buildEditorContentMeta } from "@settings/components/settingsViewHelpers";
 import { useGlobalAgentsMd } from "./useGlobalAgentsMd";
 import { useSettingsDefaultModels } from "./useSettingsDefaultModels";
-import { buildEditorContentMeta } from "@settings/components/settingsViewHelpers";
 
 type UseSettingsCodexSectionArgs = {
   appSettings: AppSettings;
   projects: WorkspaceInfo[];
   onUpdateAppSettings: (next: AppSettings) => Promise<void>;
-  onRunDoctor: (
-    codexBin: string | null,
-    codexArgs: string | null,
-  ) => Promise<CodexDoctorResult>;
-  onRunCodexUpdate?: (
-    codexBin: string | null,
-    codexArgs: string | null,
-  ) => Promise<CodexUpdateResult>;
 };
 
 export type SettingsCodexSectionProps = {
   appSettings: AppSettings;
   onUpdateAppSettings: (next: AppSettings) => Promise<void>;
+  aiSettings: GlobalAiSettings | null;
+  aiSettingsLoading: boolean;
+  aiSettingsError: string | null;
+  updatingSessionDefaults: boolean;
+  updatingOpenAiBaseUrl: boolean;
+  creatingProvider: boolean;
+  updatingProviderId: string | null;
+  deletingProviderId: string | null;
   defaultModels: ReturnType<typeof useSettingsDefaultModels>["models"];
   defaultModelsLoading: boolean;
   defaultModelsError: string | null;
   defaultModelsConnectedWorkspaceCount: number;
   onRefreshDefaultModels: () => void;
+  onRefreshAiSettings: () => void;
+  onUpdateSessionDefaults: (
+    input: UpdateGlobalAiSessionDefaultsInput,
+  ) => Promise<boolean>;
+  onUpdateOpenAiBaseUrl: (baseUrl: string | null) => Promise<boolean>;
+  onCreateProvider: (input: CreateCustomAiProviderInput) => Promise<boolean>;
+  onUpdateProvider: (input: UpdateCustomAiProviderInput) => Promise<boolean>;
+  onDeleteProvider: (input: DeleteCustomAiProviderInput) => Promise<boolean>;
   globalAgentsPath: string | null;
   globalAgentsMeta: string;
   globalAgentsError: string | null;
@@ -62,14 +83,34 @@ function joinPath(base: string, name: string): string {
   return `${base}/${name}`;
 }
 
+const toErrorMessage = (value: unknown, fallback: string): string => {
+  if (value instanceof Error) {
+    return value.message;
+  }
+  if (typeof value === "string" && value.trim().length > 0) {
+    return value;
+  }
+  return fallback;
+};
+
 export const useSettingsCodexSection = ({
   appSettings,
   projects,
   onUpdateAppSettings,
-  onRunDoctor: _onRunDoctor,
-  onRunCodexUpdate: _onRunCodexUpdate,
 }: UseSettingsCodexSectionArgs): SettingsCodexSectionProps => {
-  const [globalConfigPath, setGlobalConfigPath] = useState<string | null>(null);
+  const [aiSettings, setAiSettings] = useState<GlobalAiSettings | null>(null);
+  const [aiSettingsLoading, setAiSettingsLoading] = useState(true);
+  const [aiSettingsError, setAiSettingsError] = useState<string | null>(null);
+  const [updatingSessionDefaults, setUpdatingSessionDefaults] = useState(false);
+  const [updatingOpenAiBaseUrlState, setUpdatingOpenAiBaseUrlState] =
+    useState(false);
+  const [creatingProvider, setCreatingProvider] = useState(false);
+  const [updatingProviderId, setUpdatingProviderId] = useState<string | null>(
+    null,
+  );
+  const [deletingProviderId, setDeletingProviderId] = useState<string | null>(
+    null,
+  );
 
   const {
     models: defaultModels,
@@ -99,27 +140,131 @@ export const useSettingsCodexSection = ({
     truncated: globalAgentsTruncated,
     isDirty: globalAgentsDirty,
   });
+  const globalAgentsMeta =
+    !globalAgentsExists &&
+    !globalAgentsLoading &&
+    !globalAgentsSaving &&
+    !globalAgentsTruncated
+      ? ""
+      : globalAgentsEditorMeta.meta;
+
+  const refreshAiSettings = useCallback(async () => {
+    setAiSettingsLoading(true);
+    setAiSettingsError(null);
+    try {
+      const next = await getGlobalAiSettings();
+      setAiSettings(next);
+    } catch (error) {
+      setAiSettingsError(toErrorMessage(error, "Unable to load AI settings."));
+    } finally {
+      setAiSettingsLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    let cancelled = false;
-    void (async () => {
+    if (aiSettingsLoading && aiSettings === null && aiSettingsError === null) {
+      void refreshAiSettings();
+    }
+  }, [aiSettings, aiSettingsError, aiSettingsLoading, refreshAiSettings]);
+
+  const onUpdateSessionDefaults = useCallback(
+    async (input: UpdateGlobalAiSessionDefaultsInput): Promise<boolean> => {
+      setUpdatingSessionDefaults(true);
+      setAiSettingsError(null);
       try {
-        const path = await getCodexConfigPath();
-        if (!cancelled) {
-          setGlobalConfigPath(path);
-        }
-      } catch {
-        if (!cancelled) {
-          setGlobalConfigPath(null);
-        }
+        const next = await updateGlobalAiSessionDefaults(input);
+        setAiSettings(next);
+        void refreshDefaultModels();
+        return true;
+      } catch (error) {
+        setAiSettingsError(toErrorMessage(error, "Unable to update AI defaults."));
+        return false;
+      } finally {
+        setUpdatingSessionDefaults(false);
       }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    },
+    [refreshDefaultModels],
+  );
+
+  const onUpdateOpenAiBaseUrl = useCallback(
+    async (baseUrl: string | null): Promise<boolean> => {
+      setUpdatingOpenAiBaseUrlState(true);
+      setAiSettingsError(null);
+      try {
+        const next = await updateOpenAiBaseUrl(baseUrl);
+        setAiSettings(next);
+        void refreshDefaultModels();
+        return true;
+      } catch (error) {
+        setAiSettingsError(
+          toErrorMessage(error, "Unable to update OpenAI base URL."),
+        );
+        return false;
+      } finally {
+        setUpdatingOpenAiBaseUrlState(false);
+      }
+    },
+    [refreshDefaultModels],
+  );
+
+  const onCreateProvider = useCallback(
+    async (input: CreateCustomAiProviderInput): Promise<boolean> => {
+      setCreatingProvider(true);
+      setAiSettingsError(null);
+      try {
+        const next = await createCustomAiProvider(input);
+        setAiSettings(next);
+        return true;
+      } catch (error) {
+        setAiSettingsError(toErrorMessage(error, "Unable to create provider."));
+        return false;
+      } finally {
+        setCreatingProvider(false);
+      }
+    },
+    [],
+  );
+
+  const onUpdateProvider = useCallback(
+    async (input: UpdateCustomAiProviderInput): Promise<boolean> => {
+      setUpdatingProviderId(input.originalId);
+      setAiSettingsError(null);
+      try {
+        const next = await updateCustomAiProvider(input);
+        setAiSettings(next);
+        return true;
+      } catch (error) {
+        setAiSettingsError(toErrorMessage(error, "Unable to update provider."));
+        return false;
+      } finally {
+        setUpdatingProviderId((current) =>
+          current === input.originalId ? null : current,
+        );
+      }
+    },
+    [],
+  );
+
+  const onDeleteProvider = useCallback(
+    async (input: DeleteCustomAiProviderInput): Promise<boolean> => {
+      setDeletingProviderId(input.id);
+      setAiSettingsError(null);
+      try {
+        const next = await deleteCustomAiProvider(input);
+        setAiSettings(next);
+        return true;
+      } catch (error) {
+        setAiSettingsError(toErrorMessage(error, "Unable to delete provider."));
+        return false;
+      } finally {
+        setDeletingProviderId((current) => (current === input.id ? null : current));
+      }
+    },
+    [],
+  );
+
   const globalAgentsPath = (() => {
-    const directory = globalConfigPath ? parentDir(globalConfigPath) : null;
+    const directory = aiSettings?.configPath ? parentDir(aiSettings.configPath) : null;
     if (!directory) {
       return null;
     }
@@ -129,6 +274,14 @@ export const useSettingsCodexSection = ({
   return {
     appSettings,
     onUpdateAppSettings,
+    aiSettings,
+    aiSettingsLoading,
+    aiSettingsError,
+    updatingSessionDefaults,
+    updatingOpenAiBaseUrl: updatingOpenAiBaseUrlState,
+    creatingProvider,
+    updatingProviderId,
+    deletingProviderId,
     defaultModels,
     defaultModelsLoading,
     defaultModelsError,
@@ -136,8 +289,16 @@ export const useSettingsCodexSection = ({
     onRefreshDefaultModels: () => {
       void refreshDefaultModels();
     },
+    onRefreshAiSettings: () => {
+      void refreshAiSettings();
+    },
+    onUpdateSessionDefaults,
+    onUpdateOpenAiBaseUrl,
+    onCreateProvider,
+    onUpdateProvider,
+    onDeleteProvider,
     globalAgentsPath,
-    globalAgentsMeta: globalAgentsEditorMeta.meta,
+    globalAgentsMeta,
     globalAgentsError,
     globalAgentsContent,
     globalAgentsLoading,

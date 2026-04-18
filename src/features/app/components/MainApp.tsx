@@ -51,6 +51,7 @@ import { useMainAppWorkspaceActions } from "@app/hooks/useMainAppWorkspaceAction
 import { useMainAppWorkspaceLifecycle } from "@app/hooks/useMainAppWorkspaceLifecycle";
 import { useMainAppMobileThreadRefresh } from "@app/hooks/useMainAppMobileThreadRefresh";
 import { useHomeAccount } from "@app/hooks/useHomeAccount";
+import { useStartupAiSetup } from "@app/hooks/useStartupAiSetup";
 import type {
   ComposerEditorSettings,
   ServiceTier,
@@ -1025,6 +1026,10 @@ export default function MainApp() {
       dictationModel,
     },
   });
+  const startupAiSetup = useStartupAiSetup({
+    activeAccount,
+    settingsOpen: appModalsProps.settingsOpen,
+  });
 
   useBranchSwitcherShortcut({
     shortcut: appSettings.branchSwitcherShortcut,
@@ -1821,6 +1826,20 @@ export default function MainApp() {
       appModalsProps,
       showMobileSetupWizard,
       mobileSetupWizardProps,
+      showStartupAiSetupWizard: startupAiSetup.showWizard,
+      startupAiSetupWizardProps: {
+        selectedProviderName: startupAiSetup.selectedProviderName,
+        loginRequired: startupAiSetup.loginRequired,
+        loginBusy: accountSwitching,
+        loginAvailable: Boolean(activeWorkspaceId),
+        onSignIn: () => {
+          void handleSwitchAccount();
+        },
+        onOpenSettings: () => {
+          modalActions.openSettings("codex");
+        },
+        onDismiss: startupAiSetup.dismissWizard,
+      },
     },
     gitHubPanelDataProps: {
       activeWorkspace,

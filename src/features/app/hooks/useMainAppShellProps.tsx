@@ -14,6 +14,8 @@ type UseMainAppShellPropsArgs = {
     | "appModalsProps"
     | "showMobileSetupWizard"
     | "mobileSetupWizardProps"
+    | "showStartupAiSetupWizard"
+    | "startupAiSetupWizardProps"
   >;
   gitHubPanelDataProps: ComponentProps<typeof MainAppShell>["gitHubPanelDataProps"];
   appLayout: Omit<ComponentProps<typeof MainAppShell>["appLayoutProps"], "desktopTopbarLeftNode" | "topbarActionsNode">;

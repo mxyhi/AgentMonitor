@@ -7,6 +7,7 @@ import type {
   CodexDoctorResult,
   DictationModelStatus,
   DictationSessionState,
+  GlobalAiSettings,
   LocalUsageSnapshot,
   TcpDaemonStatus,
   TailscaleDaemonCommandPreview,
@@ -152,6 +153,33 @@ export type SetAgentsCoreInput = {
   maxDepth: number;
 };
 
+export type UpdateGlobalAiSessionDefaultsInput = {
+  modelProvider?: string | null;
+  model?: string | null;
+  modelReasoningEffort?: string | null;
+};
+
+export type UpdateOpenAiBaseUrlInput = {
+  baseUrl?: string | null;
+};
+
+export type CreateCustomAiProviderInput = {
+  id: string;
+  baseUrl?: string | null;
+  apiKey?: string | null;
+};
+
+export type UpdateCustomAiProviderInput = {
+  originalId: string;
+  id: string;
+  baseUrl?: string | null;
+  apiKey?: string | null;
+};
+
+export type DeleteCustomAiProviderInput = {
+  id: string;
+};
+
 export type CreateAgentInput = {
   name: string;
   description?: string | null;
@@ -222,6 +250,41 @@ export async function setAgentsCoreSettings(
   input: SetAgentsCoreInput,
 ): Promise<AgentsSettings> {
   return invoke<AgentsSettings>("set_agents_core_settings", { input });
+}
+
+export async function getGlobalAiSettings(): Promise<GlobalAiSettings> {
+  return invoke<GlobalAiSettings>("get_global_ai_settings");
+}
+
+export async function updateGlobalAiSessionDefaults(
+  input: UpdateGlobalAiSessionDefaultsInput,
+): Promise<GlobalAiSettings> {
+  return invoke<GlobalAiSettings>("update_global_ai_session_defaults", { input });
+}
+
+export async function updateOpenAiBaseUrl(
+  baseUrl: string | null,
+): Promise<GlobalAiSettings> {
+  const input: UpdateOpenAiBaseUrlInput = { baseUrl };
+  return invoke<GlobalAiSettings>("update_openai_base_url", { input });
+}
+
+export async function createCustomAiProvider(
+  input: CreateCustomAiProviderInput,
+): Promise<GlobalAiSettings> {
+  return invoke<GlobalAiSettings>("create_custom_ai_provider", { input });
+}
+
+export async function updateCustomAiProvider(
+  input: UpdateCustomAiProviderInput,
+): Promise<GlobalAiSettings> {
+  return invoke<GlobalAiSettings>("update_custom_ai_provider", { input });
+}
+
+export async function deleteCustomAiProvider(
+  input: DeleteCustomAiProviderInput,
+): Promise<GlobalAiSettings> {
+  return invoke<GlobalAiSettings>("delete_custom_ai_provider", { input });
 }
 
 export async function createAgent(input: CreateAgentInput): Promise<AgentsSettings> {

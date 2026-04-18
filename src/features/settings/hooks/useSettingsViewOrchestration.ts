@@ -79,8 +79,8 @@ export function useSettingsViewOrchestration({
   openAppIconById,
   onUpdateAppSettings,
   onToggleAutomaticAppUpdateChecks,
-  onRunDoctor,
-  onRunCodexUpdate,
+  onRunDoctor: _onRunDoctor,
+  onRunCodexUpdate: _onRunCodexUpdate,
   onUpdateWorkspaceSettings,
   scaleShortcutTitle,
   scaleShortcutText,
@@ -204,8 +204,6 @@ export function useSettingsViewOrchestration({
     appSettings,
     projects,
     onUpdateAppSettings,
-    onRunDoctor,
-    onRunCodexUpdate,
   });
 
   const gitSectionProps = useSettingsGitSection({

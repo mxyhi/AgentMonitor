@@ -10,8 +10,11 @@ import {
   getAppsList as getAppsListService,
   listMcpServerStatus as listMcpServerStatusService,
   compactThread as compactThreadService,
+  getAccountInfo as getAccountInfoService,
+  getGlobalAiSettings as getGlobalAiSettingsService,
 } from "@services/tauri";
 import type { WorkspaceInfo } from "@/types";
+import { OPENAI_AUTH_REQUIRED_BEFORE_SENDING_ERROR } from "../utils/threadErrorMessages";
 import { useThreadMessaging } from "./useThreadMessaging";
 
 vi.mock("@sentry/react", () => ({
@@ -28,6 +31,8 @@ vi.mock("@services/tauri", () => ({
   getAppsList: vi.fn(),
   listMcpServerStatus: vi.fn(),
   compactThread: vi.fn(),
+  getAccountInfo: vi.fn(),
+  getGlobalAiSettings: vi.fn(),
 }));
 
 vi.mock("./useReviewPrompt", () => ({
@@ -68,6 +73,24 @@ describe("useThreadMessaging telemetry", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(getGlobalAiSettingsService).mockResolvedValue({
+      configPath: "/tmp/config.toml",
+      sessionDefaults: {
+        modelProvider: "openai",
+        model: null,
+        modelReasoningEffort: null,
+      },
+      openaiBaseUrl: null,
+      providers: [
+        {
+          id: "openai",
+          name: "OpenAI",
+          baseUrl: null,
+          apiKey: null,
+          builtIn: true,
+        },
+      ],
+    });
     vi.mocked(sendUserMessageService).mockResolvedValue({
       result: {
         turn: { id: "turn-1" },
@@ -156,6 +179,218 @@ describe("useThreadMessaging telemetry", () => {
     );
     expect(ensureWorkspaceRuntimeCodexArgs).toHaveBeenCalledTimes(1);
     expect(ensureWorkspaceRuntimeCodexArgs).toHaveBeenCalledWith("ws-1", "thread-1");
+  });
+
+  it("blocks turn/start when account/read says OpenAI auth is required but no account exists", async () => {
+    const markProcessing = vi.fn();
+    const pushThreadErrorMessage = vi.fn();
+    const safeMessageActivity = vi.fn();
+    vi.mocked(getAccountInfoService).mockResolvedValueOnce({
+      result: {
+        account: null,
+        requiresOpenaiAuth: true,
+      },
+    } as Awaited<ReturnType<typeof getAccountInfoService>>);
+
+    const { result } = renderHook(() =>
+      useThreadMessaging({
+        activeWorkspace: workspace,
+        activeThreadId: "thread-1",
+        accessMode: "current",
+        model: null,
+        effort: null,
+        collaborationMode: null,
+        reviewDeliveryMode: "inline",
+        steerEnabled: false,
+        customPrompts: [],
+        threadStatusById: {},
+        activeTurnIdByThread: {},
+        rateLimitsByWorkspace: {},
+        pendingInterruptsRef: { current: new Set<string>() },
+        dispatch: vi.fn(),
+        getCustomName: vi.fn(() => undefined),
+        markProcessing,
+        markReviewing: vi.fn(),
+        setActiveTurnId: vi.fn(),
+        recordThreadActivity: vi.fn(),
+        safeMessageActivity,
+        onDebug: vi.fn(),
+        pushThreadErrorMessage,
+        ensureThreadForActiveWorkspace: vi.fn(async () => "thread-1"),
+        ensureThreadForWorkspace: vi.fn(async () => "thread-1"),
+        refreshThread: vi.fn(async () => null),
+        forkThreadForWorkspace: vi.fn(async () => null),
+        updateThreadParent: vi.fn(),
+      }),
+    );
+
+    await act(async () => {
+      const sendResult = await result.current.sendUserMessageToThread(
+        workspace,
+        "thread-1",
+        "hello",
+        [],
+      );
+      expect(sendResult).toEqual({ status: "blocked" });
+    });
+
+    expect(getAccountInfoService).toHaveBeenCalledWith("ws-1");
+    expect(sendUserMessageService).not.toHaveBeenCalled();
+    expect(markProcessing).not.toHaveBeenCalled();
+    expect(Sentry.metrics.count).not.toHaveBeenCalled();
+    expect(pushThreadErrorMessage).toHaveBeenCalledWith(
+      "thread-1",
+      OPENAI_AUTH_REQUIRED_BEFORE_SENDING_ERROR,
+    );
+    expect(safeMessageActivity).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not block turn/start when selected provider is custom even if OpenAI auth is missing", async () => {
+    const markProcessing = vi.fn();
+    const pushThreadErrorMessage = vi.fn();
+    vi.mocked(getGlobalAiSettingsService).mockResolvedValueOnce({
+      configPath: "/tmp/config.toml",
+      sessionDefaults: {
+        modelProvider: "gateway",
+        model: null,
+        modelReasoningEffort: null,
+      },
+      openaiBaseUrl: null,
+      providers: [
+        {
+          id: "openai",
+          name: "OpenAI",
+          baseUrl: null,
+          apiKey: null,
+          builtIn: true,
+        },
+        {
+          id: "gateway",
+          name: "Gateway",
+          baseUrl: "http://127.0.0.1:9000/v1",
+          apiKey: "test-key",
+          builtIn: false,
+        },
+      ],
+    });
+    vi.mocked(getAccountInfoService).mockResolvedValueOnce({
+      result: {
+        account: null,
+        requiresOpenaiAuth: true,
+      },
+    } as Awaited<ReturnType<typeof getAccountInfoService>>);
+
+    const { result } = renderHook(() =>
+      useThreadMessaging({
+        activeWorkspace: workspace,
+        activeThreadId: "thread-1",
+        accessMode: "current",
+        model: null,
+        effort: null,
+        collaborationMode: null,
+        reviewDeliveryMode: "inline",
+        steerEnabled: false,
+        customPrompts: [],
+        threadStatusById: {},
+        activeTurnIdByThread: {},
+        rateLimitsByWorkspace: {},
+        pendingInterruptsRef: { current: new Set<string>() },
+        dispatch: vi.fn(),
+        getCustomName: vi.fn(() => undefined),
+        markProcessing,
+        markReviewing: vi.fn(),
+        setActiveTurnId: vi.fn(),
+        recordThreadActivity: vi.fn(),
+        safeMessageActivity: vi.fn(),
+        onDebug: vi.fn(),
+        pushThreadErrorMessage,
+        ensureThreadForActiveWorkspace: vi.fn(async () => "thread-1"),
+        ensureThreadForWorkspace: vi.fn(async () => "thread-1"),
+        refreshThread: vi.fn(async () => null),
+        forkThreadForWorkspace: vi.fn(async () => null),
+        updateThreadParent: vi.fn(),
+      }),
+    );
+
+    await act(async () => {
+      const sendResult = await result.current.sendUserMessageToThread(
+        workspace,
+        "thread-1",
+        "hello",
+        [],
+      );
+      expect(sendResult).toEqual({ status: "sent" });
+    });
+
+    expect(getGlobalAiSettingsService).toHaveBeenCalledTimes(1);
+    expect(getAccountInfoService).toHaveBeenCalledWith("ws-1");
+    expect(sendUserMessageService).toHaveBeenCalledTimes(1);
+    expect(pushThreadErrorMessage).not.toHaveBeenCalled();
+    expect(markProcessing).toHaveBeenCalledWith("thread-1", true);
+  });
+
+  it("blocks turn/start when account/read preflight returns an rpc error", async () => {
+    const markProcessing = vi.fn();
+    const pushThreadErrorMessage = vi.fn();
+    const safeMessageActivity = vi.fn();
+    vi.mocked(getAccountInfoService).mockResolvedValueOnce({
+      error: {
+        code: -32600,
+        message: "Invalid request: missing field `params`",
+      },
+    } as Awaited<ReturnType<typeof getAccountInfoService>>);
+
+    const { result } = renderHook(() =>
+      useThreadMessaging({
+        activeWorkspace: workspace,
+        activeThreadId: "thread-1",
+        accessMode: "current",
+        model: null,
+        effort: null,
+        collaborationMode: null,
+        reviewDeliveryMode: "inline",
+        steerEnabled: false,
+        customPrompts: [],
+        threadStatusById: {},
+        activeTurnIdByThread: {},
+        rateLimitsByWorkspace: {},
+        pendingInterruptsRef: { current: new Set<string>() },
+        dispatch: vi.fn(),
+        getCustomName: vi.fn(() => undefined),
+        markProcessing,
+        markReviewing: vi.fn(),
+        setActiveTurnId: vi.fn(),
+        recordThreadActivity: vi.fn(),
+        safeMessageActivity,
+        onDebug: vi.fn(),
+        pushThreadErrorMessage,
+        ensureThreadForActiveWorkspace: vi.fn(async () => "thread-1"),
+        ensureThreadForWorkspace: vi.fn(async () => "thread-1"),
+        refreshThread: vi.fn(async () => null),
+        forkThreadForWorkspace: vi.fn(async () => null),
+        updateThreadParent: vi.fn(),
+      }),
+    );
+
+    await act(async () => {
+      const sendResult = await result.current.sendUserMessageToThread(
+        workspace,
+        "thread-1",
+        "hello",
+        [],
+      );
+      expect(sendResult).toEqual({ status: "blocked" });
+    });
+
+    expect(getAccountInfoService).toHaveBeenCalledWith("ws-1");
+    expect(sendUserMessageService).not.toHaveBeenCalled();
+    expect(markProcessing).not.toHaveBeenCalled();
+    expect(Sentry.metrics.count).not.toHaveBeenCalled();
+    expect(pushThreadErrorMessage).toHaveBeenCalledWith(
+      "thread-1",
+      "Failed to read account state before sending: Invalid request: missing field `params`",
+    );
+    expect(safeMessageActivity).toHaveBeenCalledTimes(1);
   });
 
   it("forwards explicit app mentions to turn/start", async () => {

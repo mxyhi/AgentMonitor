@@ -93,6 +93,20 @@ pub(crate) fn read_config_model(codex_home: Option<PathBuf>) -> Result<Option<St
     Ok(config_toml_core::read_top_level_string(&document, "model"))
 }
 
+pub(crate) fn read_config_model_provider(
+    codex_home: Option<PathBuf>,
+) -> Result<Option<String>, String> {
+    let root = codex_home.or_else(resolve_default_codex_home);
+    let Some(root) = root else {
+        return Err("Unable to resolve CODEX_HOME".to_string());
+    };
+    let (_, document) = config_toml_core::load_global_config_document(&root)?;
+    Ok(config_toml_core::read_top_level_string(
+        &document,
+        "model_provider",
+    ))
+}
+
 fn resolve_default_codex_home() -> Option<PathBuf> {
     crate::codex::home::resolve_default_codex_home()
 }
@@ -142,5 +156,26 @@ mod tests {
         assert_eq!(normalize_personality_value("Friendly"), Some("friendly"));
         assert_eq!(normalize_personality_value("PRAGMATIC"), Some("pragmatic"));
         assert_eq!(normalize_personality_value("unknown"), None);
+    }
+
+    #[test]
+    fn read_config_model_provider_from_document_reads_selected_provider() {
+        let document =
+            config_toml_core::parse_document("model_provider = \"gateway\"\n").expect("parse");
+
+        assert_eq!(
+            config_toml_core::read_top_level_string(&document, "model_provider"),
+            Some("gateway".to_string())
+        );
+    }
+
+    #[test]
+    fn read_config_model_provider_from_document_returns_none_when_unset() {
+        let document = config_toml_core::parse_document("").expect("parse");
+
+        assert_eq!(
+            config_toml_core::read_top_level_string(&document, "model_provider"),
+            None
+        );
     }
 }

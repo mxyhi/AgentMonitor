@@ -641,6 +641,27 @@ export type ModelOption = {
   isDefault: boolean;
 };
 
+export type GlobalAiSessionDefaults = {
+  modelProvider: string | null;
+  model: string | null;
+  modelReasoningEffort: string | null;
+};
+
+export type GlobalAiProviderEntry = {
+  id: string;
+  name: string;
+  baseUrl: string | null;
+  apiKey: string | null;
+  builtIn: boolean;
+};
+
+export type GlobalAiSettings = {
+  configPath: string;
+  sessionDefaults: GlobalAiSessionDefaults;
+  openaiBaseUrl: string | null;
+  providers: GlobalAiProviderEntry[];
+};
+
 export type CollaborationModeOption = {
   id: string;
   label: string;

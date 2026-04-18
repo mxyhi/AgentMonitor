@@ -1,11 +1,15 @@
 // @vitest-environment jsdom
 import { act, renderHook, waitFor } from "@testing-library/react";
+import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { WorkspaceInfo } from "@/types";
+import { I18nProvider } from "@/i18n/I18nProvider";
 import type { useAppServerEvents } from "@app/hooks/useAppServerEvents";
 import { useThreadRows } from "@app/hooks/useThreadRows";
 import {
   archiveThread,
+  getAccountInfo,
+  getGlobalAiSettings,
   interruptTurn,
   listThreads,
   readThread,
@@ -45,6 +49,7 @@ vi.mock("@services/tauri", () => ({
   setThreadName: vi.fn(),
   getAccountRateLimits: vi.fn(),
   getAccountInfo: vi.fn(),
+  getGlobalAiSettings: vi.fn(),
   interruptTurn: vi.fn(),
 }));
 
@@ -56,6 +61,10 @@ const workspace: WorkspaceInfo = {
   settings: { sidebarCollapsed: false },
 };
 
+function ZhCnWrapper({ children }: { children: ReactNode }) {
+  return <I18nProvider locale="zh-CN">{children}</I18nProvider>;
+}
+
 describe("useThreads UX integration", () => {
   let now: number;
   let nowSpy: ReturnType<typeof vi.spyOn>;
@@ -66,6 +75,30 @@ describe("useThreads UX integration", () => {
     vi.clearAllMocks();
     now = 1000;
     nowSpy = vi.spyOn(Date, "now").mockImplementation(() => now++);
+    vi.mocked(getGlobalAiSettings).mockResolvedValue({
+      configPath: "/tmp/config.toml",
+      sessionDefaults: {
+        modelProvider: "local",
+        model: null,
+        modelReasoningEffort: null,
+      },
+      openaiBaseUrl: null,
+      providers: [
+        {
+          id: "local",
+          name: "Local",
+          baseUrl: "http://127.0.0.1:11434/v1",
+          apiKey: null,
+          builtIn: false,
+        },
+      ],
+    } as Awaited<ReturnType<typeof getGlobalAiSettings>>);
+    vi.mocked(getAccountInfo).mockResolvedValue({
+      result: {
+        account: null,
+        requiresOpenaiAuth: false,
+      },
+    } as Awaited<ReturnType<typeof getAccountInfo>>);
   });
 
   afterEach(() => {
@@ -183,6 +216,68 @@ describe("useThreads UX integration", () => {
     const selectEnsureCallOrder = ensureWorkspaceRuntimeCodexArgs.mock.invocationCallOrder[1];
     const resumeThreadCallOrder = vi.mocked(resumeThread).mock.invocationCallOrder[0];
     expect(selectEnsureCallOrder).toBeLessThan(resumeThreadCallOrder);
+  });
+
+  it("localizes known auth preflight errors before inserting assistant message", async () => {
+    vi.mocked(getGlobalAiSettings).mockResolvedValue({
+      configPath: "/tmp/config.toml",
+      sessionDefaults: {
+        modelProvider: "openai",
+        model: null,
+        modelReasoningEffort: null,
+      },
+      openaiBaseUrl: null,
+      providers: [
+        {
+          id: "openai",
+          name: "OpenAI",
+          baseUrl: null,
+          apiKey: null,
+          builtIn: true,
+        },
+      ],
+    } as Awaited<ReturnType<typeof getGlobalAiSettings>>);
+    vi.mocked(getAccountInfo).mockResolvedValue({
+      result: {
+        account: null,
+        requiresOpenaiAuth: true,
+      },
+    } as Awaited<ReturnType<typeof getAccountInfo>>);
+
+    const { result } = renderHook(
+      () =>
+        useThreads({
+          activeWorkspace: workspace,
+          onWorkspaceConnected: vi.fn(),
+        }),
+      { wrapper: ZhCnWrapper },
+    );
+
+    act(() => {
+      result.current.setActiveThreadId("thread-1");
+    });
+
+    await act(async () => {
+      const sendResult = await result.current.sendUserMessageToThread(
+        workspace,
+        "thread-1",
+        "hello",
+        [],
+      );
+      expect(sendResult).toEqual({ status: "blocked" });
+    });
+
+    await waitFor(() => {
+      const localizedError = result.current.activeItems.find(
+        (item) =>
+          item.kind === "message" &&
+          item.role === "assistant" &&
+          item.text === "发送前需要先完成 OpenAI 认证。请先登录，或先配置一个 provider。",
+      );
+      expect(localizedError).toBeTruthy();
+    });
+
+    expect(vi.mocked(sendUserMessageService)).not.toHaveBeenCalled();
   });
 
   it("applies runtime codex args before direct startThreadForWorkspace calls", async () => {

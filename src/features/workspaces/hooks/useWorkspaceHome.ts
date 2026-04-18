@@ -161,6 +161,16 @@ const buildWorktreeBranch = (prompt: string) => {
 const resolveModelLabel = (model: ModelOption | null, fallback: string) =>
   model?.displayName?.trim() || model?.model?.trim() || fallback;
 
+const ensureRunMessageWasSent = (result: void | SendMessageResult) => {
+  if (!result || result.status === "sent") {
+    return;
+  }
+  if (result.status === "blocked") {
+    throw new Error("Run was blocked before starting.");
+  }
+  throw new Error("Run could not be started.");
+};
+
 const normalizeWorktreeName = (value: string | null | undefined) => {
   if (!value) {
     return null;
@@ -498,12 +508,14 @@ export function useWorkspaceHome({
           const localModel = selectedModelId
             ? modelLookup.get(selectedModelId)?.model ?? null
             : null;
-          await sendUserMessageToThread(activeWorkspace, threadId, prompt, images, {
-            model: localModel,
-            effort,
-            serviceTier,
-            collaborationMode,
-          });
+          ensureRunMessageWasSent(
+            await sendUserMessageToThread(activeWorkspace, threadId, prompt, images, {
+              model: localModel,
+              effort,
+              serviceTier,
+              collaborationMode,
+            }),
+          );
           const model =
             selectedModelId ? modelLookup.get(selectedModelId) ?? null : null;
           instances.push({
@@ -562,17 +574,19 @@ export function useWorkspaceHome({
                 effort,
                 serviceTier,
               });
-              await sendUserMessageToThread(
-                worktreeWorkspace,
-                threadId,
-                prompt,
-                images,
-                {
-                  model: selection.model?.model ?? selection.modelId,
-                  effort,
-                  serviceTier,
-                  collaborationMode,
-                },
+              ensureRunMessageWasSent(
+                await sendUserMessageToThread(
+                  worktreeWorkspace,
+                  threadId,
+                  prompt,
+                  images,
+                  {
+                    model: selection.model?.model ?? selection.modelId,
+                    effort,
+                    serviceTier,
+                    collaborationMode,
+                  },
+                ),
               );
               instances.push({
                 id: `${runId}-${selection.modelId}-${index + 1}`,

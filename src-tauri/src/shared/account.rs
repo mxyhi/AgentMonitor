@@ -3,6 +3,8 @@ use serde_json::{Map, Value};
 use std::fs;
 use std::path::PathBuf;
 
+const OPENAI_PROVIDER_ID: &str = "openai";
+
 #[derive(Clone, Debug)]
 pub(crate) struct AuthAccount {
     pub(crate) email: Option<String>,
@@ -58,6 +60,52 @@ pub(crate) fn build_account_response(
         );
     }
     Value::Object(result)
+}
+
+pub(crate) fn requires_openai_auth_without_account(value: &Value) -> bool {
+    let requires_openai_auth = extract_requires_openai_auth(value).unwrap_or(false);
+    if !requires_openai_auth {
+        return false;
+    }
+
+    let account = extract_account_map(value);
+    let Some(account) = account else {
+        return true;
+    };
+
+    let account_type = account
+        .get("type")
+        .and_then(Value::as_str)
+        .map(|value| value.trim().to_ascii_lowercase())
+        .filter(|value| !value.is_empty());
+    let has_email = account
+        .get("email")
+        .and_then(Value::as_str)
+        .is_some_and(|value| !value.trim().is_empty());
+    let has_plan_type = account
+        .get("planType")
+        .and_then(Value::as_str)
+        .is_some_and(|value| !value.trim().is_empty());
+
+    !matches!(account_type.as_deref(), Some("chatgpt") | Some("apikey"))
+        && !has_email
+        && !has_plan_type
+}
+
+pub(crate) fn requires_openai_auth_for_selected_provider(
+    selected_provider_id: Option<&str>,
+    value: &Value,
+) -> bool {
+    selected_provider_requires_openai_auth(selected_provider_id)
+        && requires_openai_auth_without_account(value)
+}
+
+fn selected_provider_requires_openai_auth(selected_provider_id: Option<&str>) -> bool {
+    selected_provider_id
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(|value| value.eq_ignore_ascii_case(OPENAI_PROVIDER_ID))
+        .unwrap_or(true)
 }
 
 pub(crate) fn read_auth_account(codex_home: Option<PathBuf>) -> Option<AuthAccount> {
@@ -217,5 +265,35 @@ mod tests {
             account.get("planType").and_then(Value::as_str),
             Some("plus")
         );
+    }
+
+    #[test]
+    fn requires_openai_auth_without_account_rejects_missing_account() {
+        assert!(requires_openai_auth_without_account(&json!({
+            "requiresOpenaiAuth": true,
+            "account": null
+        })));
+    }
+
+    #[test]
+    fn requires_openai_auth_without_account_allows_known_chatgpt_account() {
+        assert!(!requires_openai_auth_without_account(&json!({
+            "requiresOpenaiAuth": true,
+            "account": {
+                "type": "chatgpt",
+                "email": "chatgpt@example.com"
+            }
+        })));
+    }
+
+    #[test]
+    fn requires_openai_auth_for_selected_provider_skips_non_openai_provider() {
+        assert!(!requires_openai_auth_for_selected_provider(
+            Some("gateway"),
+            &json!({
+                "requiresOpenaiAuth": true,
+                "account": null
+            }),
+        ));
     }
 }

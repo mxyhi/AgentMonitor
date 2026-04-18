@@ -11,6 +11,9 @@ use crate::backend::app_server::{
     build_codex_command_with_bin, build_codex_path_env, check_codex_installation,
     resolve_codex_runtime_for_bin, WorkspaceSession,
 };
+use crate::codex::config as codex_config;
+use crate::shared::account::requires_openai_auth_for_selected_provider;
+use crate::shared::codex_core::{account_read_core, resolve_codex_home_for_workspace_core};
 use crate::shared::codex_runtime_core::{bundled_codex_version, codex_runtime_requires_node};
 use crate::shared::process_core::tokio_command;
 use crate::types::{AppSettings, WorkspaceEntry};
@@ -415,6 +418,16 @@ pub(crate) async fn run_background_prompt_core<F>(
 where
     F: Fn(&str, &str),
 {
+    let codex_home = resolve_codex_home_for_workspace_core(workspaces, &workspace_id).await?;
+    let selected_provider = codex_config::read_config_model_provider(Some(codex_home))?;
+    let account_response = account_read_core(sessions, workspaces, workspace_id.clone()).await?;
+    if requires_openai_auth_for_selected_provider(selected_provider.as_deref(), &account_response) {
+        return Err(
+            "OpenAI authentication required before sending. Sign in or configure a provider first."
+                .to_string(),
+        );
+    }
+
     let workspace_path = {
         let workspaces = workspaces.lock().await;
         let entry = workspaces.get(&workspace_id).ok_or("workspace not found")?;

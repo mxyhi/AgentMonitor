@@ -137,6 +137,45 @@ describe("useWorkspaceHome", () => {
     });
   });
 
+  it("fails local runs when sendUserMessageToThread is blocked", async () => {
+    const addWorktreeAgent = vi.fn();
+    const connectWorkspace = vi.fn().mockResolvedValue(undefined);
+    const startThreadForWorkspace = vi.fn().mockResolvedValue("thread-1");
+    const sendUserMessageToThread = vi
+      .fn()
+      .mockResolvedValue({ status: "blocked" } satisfies { status: "blocked" });
+    vi.mocked(generateRunMetadata).mockResolvedValue({
+      title: "Blocked",
+      worktreeName: "feat/blocked",
+    });
+
+    const { result } = renderHook(() =>
+      useWorkspaceHome({
+        activeWorkspace: workspace,
+        models,
+        selectedModelId: "id-1",
+        addWorktreeAgent,
+        connectWorkspace,
+        startThreadForWorkspace,
+        sendUserMessageToThread,
+      }),
+    );
+
+    act(() => {
+      result.current.setDraft("Hello");
+    });
+
+    await act(async () => {
+      const started = await result.current.startRun();
+      expect(started).toBe(true);
+    });
+
+    expect(result.current.runs[0]?.status).toBe("failed");
+    expect(result.current.runs[0]?.instances).toHaveLength(0);
+    expect(result.current.runs[0]?.error).toBe("Run was blocked before starting.");
+    expect(result.current.error).toBe("Run was blocked before starting.");
+  });
+
   it("blocks worktree runs without model selections", async () => {
     const addWorktreeAgent = vi.fn();
     const connectWorkspace = vi.fn();

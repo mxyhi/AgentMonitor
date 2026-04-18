@@ -13,8 +13,8 @@ pub(crate) use crate::backend::app_server::WorkspaceSession;
 use crate::backend::events::AppServerEvent;
 use crate::event_sink::TauriEventSink;
 use crate::remote_backend;
-use crate::shared::agents_config_core;
 use crate::shared::codex_core::{self, insert_optional_nullable_string};
+use crate::shared::{agents_config_core, ai_settings_core};
 use crate::state::AppState;
 use crate::types::WorkspaceEntry;
 
@@ -508,14 +508,7 @@ pub(crate) async fn start_review(
         .await;
     }
 
-    codex_core::start_review_core(
-        &state.sessions,
-        workspace_id,
-        thread_id,
-        target,
-        delivery,
-    )
-    .await
+    codex_core::start_review_core(&state.sessions, workspace_id, thread_id, target, delivery).await
 }
 
 #[tauri::command]
@@ -598,6 +591,120 @@ pub(crate) async fn get_agents_settings(
     }
 
     agents_config_core::get_agents_settings_core()
+}
+
+#[tauri::command]
+pub(crate) async fn get_global_ai_settings(
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<ai_settings_core::GlobalAiSettingsDto, String> {
+    if remote_backend::is_remote_mode(&*state).await {
+        let response =
+            remote_backend::call_remote(&*state, app, "get_global_ai_settings", json!({})).await?;
+        return serde_json::from_value(response).map_err(|err| err.to_string());
+    }
+
+    ai_settings_core::get_global_ai_settings_core()
+}
+
+#[tauri::command]
+pub(crate) async fn update_global_ai_session_defaults(
+    input: ai_settings_core::UpdateGlobalAiSessionDefaultsInput,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<ai_settings_core::GlobalAiSettingsDto, String> {
+    if remote_backend::is_remote_mode(&*state).await {
+        let response = remote_backend::call_remote(
+            &*state,
+            app,
+            "update_global_ai_session_defaults",
+            json!({ "input": input }),
+        )
+        .await?;
+        return serde_json::from_value(response).map_err(|err| err.to_string());
+    }
+
+    ai_settings_core::update_global_ai_session_defaults_core(input)
+}
+
+#[tauri::command]
+pub(crate) async fn update_openai_base_url(
+    input: ai_settings_core::UpdateOpenAiBaseUrlInput,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<ai_settings_core::GlobalAiSettingsDto, String> {
+    if remote_backend::is_remote_mode(&*state).await {
+        let response = remote_backend::call_remote(
+            &*state,
+            app,
+            "update_openai_base_url",
+            json!({ "input": input }),
+        )
+        .await?;
+        return serde_json::from_value(response).map_err(|err| err.to_string());
+    }
+
+    ai_settings_core::update_openai_base_url_core(input)
+}
+
+#[tauri::command]
+pub(crate) async fn create_custom_ai_provider(
+    input: ai_settings_core::CreateCustomAiProviderInput,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<ai_settings_core::GlobalAiSettingsDto, String> {
+    if remote_backend::is_remote_mode(&*state).await {
+        let response = remote_backend::call_remote(
+            &*state,
+            app,
+            "create_custom_ai_provider",
+            json!({ "input": input }),
+        )
+        .await?;
+        return serde_json::from_value(response).map_err(|err| err.to_string());
+    }
+
+    ai_settings_core::create_custom_ai_provider_core(input)
+}
+
+#[tauri::command]
+pub(crate) async fn update_custom_ai_provider(
+    input: ai_settings_core::UpdateCustomAiProviderInput,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<ai_settings_core::GlobalAiSettingsDto, String> {
+    if remote_backend::is_remote_mode(&*state).await {
+        let response = remote_backend::call_remote(
+            &*state,
+            app,
+            "update_custom_ai_provider",
+            json!({ "input": input }),
+        )
+        .await?;
+        return serde_json::from_value(response).map_err(|err| err.to_string());
+    }
+
+    ai_settings_core::update_custom_ai_provider_core(input)
+}
+
+#[tauri::command]
+pub(crate) async fn delete_custom_ai_provider(
+    input: ai_settings_core::DeleteCustomAiProviderInput,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> Result<ai_settings_core::GlobalAiSettingsDto, String> {
+    if remote_backend::is_remote_mode(&*state).await {
+        let response = remote_backend::call_remote(
+            &*state,
+            app,
+            "delete_custom_ai_provider",
+            json!({ "input": input }),
+        )
+        .await?;
+        return serde_json::from_value(response).map_err(|err| err.to_string());
+    }
+
+    ai_settings_core::delete_custom_ai_provider_core(input)
 }
 
 #[tauri::command]

@@ -6,9 +6,11 @@ import {
   exportMarkdownFile,
   addWorkspace,
   compactThread,
+  createCustomAiProvider,
   createGitHubRepo,
   fetchGit,
   forkThread,
+  getGlobalAiSettings,
   getAppsList,
   getAgentsSettings,
   getExperimentalFeatureList,
@@ -53,6 +55,10 @@ import {
   generateAgentDescription,
   writeAgentConfigToml,
   writeAgentMd,
+  updateGlobalAiSessionDefaults,
+  updateOpenAiBaseUrl,
+  updateCustomAiProvider,
+  deleteCustomAiProvider,
 } from "./tauri";
 
 vi.mock("@tauri-apps/api/core", () => ({
@@ -606,6 +612,113 @@ describe("tauri invoke wrappers", () => {
 
     expect(invokeMock).toHaveBeenCalledWith("set_agents_core_settings", {
       input: { multiAgentEnabled: false, maxThreads: 4, maxDepth: 3 },
+    });
+  });
+
+  it("gets global AI settings", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockResolvedValueOnce({
+      configPath: "/Users/me/Library/Application Support/CodexMonitor/codex-home/config.toml",
+      sessionDefaults: {
+        modelProvider: "openai",
+        model: "gpt-5.1",
+        modelReasoningEffort: "high",
+      },
+      openaiBaseUrl: "https://api.example.com/v1",
+      providers: [
+        {
+          id: "openai",
+          name: "OpenAI",
+          baseUrl: "https://api.example.com/v1",
+          apiKey: null,
+          builtIn: true,
+        },
+      ],
+    });
+
+    await getGlobalAiSettings();
+
+    expect(invokeMock).toHaveBeenCalledWith("get_global_ai_settings");
+  });
+
+  it("updates global AI session defaults", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockResolvedValueOnce({});
+
+    await updateGlobalAiSessionDefaults({
+      modelProvider: "openai",
+      model: "gpt-5.1",
+      modelReasoningEffort: "high",
+    });
+
+    expect(invokeMock).toHaveBeenCalledWith("update_global_ai_session_defaults", {
+      input: {
+        modelProvider: "openai",
+        model: "gpt-5.1",
+        modelReasoningEffort: "high",
+      },
+    });
+  });
+
+  it("updates OpenAI base URL", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockResolvedValueOnce({});
+
+    await updateOpenAiBaseUrl("https://api.example.com/v1");
+
+    expect(invokeMock).toHaveBeenCalledWith("update_openai_base_url", {
+      input: { baseUrl: "https://api.example.com/v1" },
+    });
+  });
+
+  it("creates a custom AI provider", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockResolvedValueOnce({});
+
+    await createCustomAiProvider({
+      id: "openai-custom",
+      baseUrl: "https://api.example.com/v1",
+      apiKey: "sk-test-openai-custom",
+    });
+
+    expect(invokeMock).toHaveBeenCalledWith("create_custom_ai_provider", {
+      input: {
+        id: "openai-custom",
+        baseUrl: "https://api.example.com/v1",
+        apiKey: "sk-test-openai-custom",
+      },
+    });
+  });
+
+  it("updates a custom AI provider", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockResolvedValueOnce({});
+
+    await updateCustomAiProvider({
+      originalId: "openai-custom",
+      id: "gateway",
+      baseUrl: "https://gateway.example.com/v1",
+      apiKey: "sk-test-gateway",
+    });
+
+    expect(invokeMock).toHaveBeenCalledWith("update_custom_ai_provider", {
+      input: {
+        originalId: "openai-custom",
+        id: "gateway",
+        baseUrl: "https://gateway.example.com/v1",
+        apiKey: "sk-test-gateway",
+      },
+    });
+  });
+
+  it("deletes a custom AI provider", async () => {
+    const invokeMock = vi.mocked(invoke);
+    invokeMock.mockResolvedValueOnce({});
+
+    await deleteCustomAiProvider({ id: "openai-custom" });
+
+    expect(invokeMock).toHaveBeenCalledWith("delete_custom_ai_provider", {
+      input: { id: "openai-custom" },
     });
   });
 

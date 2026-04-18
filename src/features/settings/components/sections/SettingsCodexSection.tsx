@@ -1,67 +1,39 @@
-import { useEffect, useMemo, useRef } from "react";
-import type { AppSettings, ModelOption } from "@/types";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { AppSettings, GlobalAiProviderEntry, ModelOption } from "@/types";
 import * as m from "@/i18n/messages";
 import { useAppLocale } from "@/i18n/I18nProvider";
 import {
   SettingsSection,
+  SettingsSubsection,
   SettingsToggleRow,
 } from "@/features/design-system/components/settings/SettingsPrimitives";
 import { FileEditorCard } from "@/features/shared/components/FileEditorCard";
+import type { SettingsCodexSectionProps } from "@settings/hooks/useSettingsCodexSection";
 
-type SettingsCodexSectionProps = {
-  appSettings: AppSettings;
-  onUpdateAppSettings: (next: AppSettings) => Promise<void>;
-  defaultModels: ModelOption[];
-  defaultModelsLoading: boolean;
-  defaultModelsError: string | null;
-  defaultModelsConnectedWorkspaceCount: number;
-  onRefreshDefaultModels: () => void;
-  globalAgentsPath: string | null;
-  globalAgentsMeta: string;
-  globalAgentsError: string | null;
-  globalAgentsContent: string;
-  globalAgentsLoading: boolean;
-  globalAgentsRefreshDisabled: boolean;
-  globalAgentsSaveDisabled: boolean;
-  globalAgentsSaveLabel: string;
-  onSetGlobalAgentsContent: (value: string) => void;
-  onRefreshGlobalAgents: () => void;
-  onSaveGlobalAgents: () => void;
-};
-
-const DEFAULT_REASONING_EFFORT = "medium";
+const FALLBACK_REASONING_OPTIONS = ["minimal", "low", "medium", "high", "xhigh"];
 
 const normalizeEffortValue = (value: unknown): string | null => {
   if (typeof value !== "string") {
     return null;
   }
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed.toLowerCase() : null;
+  const trimmed = value.trim().toLowerCase();
+  return trimmed.length > 0 ? trimmed : null;
 };
 
-function coerceSavedModelSlug(value: string | null, models: ModelOption[]): string | null {
-  const trimmed = (value ?? "").trim();
-  if (!trimmed) {
+const findModelOption = (
+  models: ModelOption[],
+  idOrModel: string | null | undefined,
+): ModelOption | null => {
+  const value = (idOrModel ?? "").trim();
+  if (!value) {
     return null;
   }
-  const bySlug = models.find((model) => model.model === trimmed);
-  if (bySlug) {
-    return bySlug.model;
-  }
-  const byId = models.find((model) => model.id === trimmed);
-  return byId ? byId.model : null;
-}
-
-const getReasoningSupport = (model: ModelOption | null): boolean => {
-  if (!model) {
-    return false;
-  }
-  return model.supportedReasoningEfforts.length > 0 || model.defaultReasoningEffort !== null;
+  return models.find((model) => model.model === value || model.id === value) ?? null;
 };
 
-const getReasoningOptions = (model: ModelOption | null): string[] => {
+const buildReasoningOptions = (model: ModelOption | null): string[] => {
   if (!model) {
-    return [];
+    return FALLBACK_REASONING_OPTIONS;
   }
   const supported = model.supportedReasoningEfforts
     .map((effort) => normalizeEffortValue(effort.reasoningEffort))
@@ -70,18 +42,151 @@ const getReasoningOptions = (model: ModelOption | null): string[] => {
     return Array.from(new Set(supported));
   }
   const fallback = normalizeEffortValue(model.defaultReasoningEffort);
-  return fallback ? [fallback] : [];
+  return fallback ? [fallback] : FALLBACK_REASONING_OPTIONS;
 };
+
+type ProviderEditorDraft = {
+  id: string;
+  baseUrl: string;
+  apiKey: string;
+};
+
+const getProviderDisplayLabel = (provider: GlobalAiProviderEntry): string =>
+  provider.builtIn ? provider.name : provider.id;
+
+function CustomProviderRow(props: {
+  provider: GlobalAiProviderEntry;
+  isEditing: boolean;
+  isBusy: boolean;
+  onStartEdit: () => void;
+  onCancelEdit: () => void;
+  onDelete: () => void;
+  draft: ProviderEditorDraft;
+  onDraftChange: (next: ProviderEditorDraft) => void;
+  onSave: () => void;
+}) {
+  const locale = useAppLocale();
+  const {
+    provider,
+    isEditing,
+    isBusy,
+    onStartEdit,
+    onCancelEdit,
+    onDelete,
+    draft,
+    onDraftChange,
+    onSave,
+  } = props;
+
+  if (!isEditing) {
+    return (
+      <div className="settings-field">
+        <div className="settings-field-label">{provider.id}</div>
+        <div className="settings-help">
+          {provider.baseUrl ?? m.settings_codex_provider_no_base_url({}, { locale })}
+        </div>
+        <div className="settings-help">
+          {provider.apiKey
+            ? m.settings_codex_provider_api_key_configured({}, { locale })
+            : m.settings_codex_provider_no_api_key({}, { locale })}
+        </div>
+        <div className="settings-field-row">
+          <button
+            type="button"
+            className="ghost"
+            onClick={onStartEdit}
+            aria-label={m.settings_codex_provider_edit_aria(
+              { value: provider.id },
+              { locale },
+            )}
+          >
+            {m.action_edit({}, { locale })}
+          </button>
+          <button
+            type="button"
+            className="ghost destructive"
+            onClick={onDelete}
+            disabled={isBusy}
+            aria-label={m.settings_codex_provider_delete_aria(
+              { value: provider.id },
+              { locale },
+            )}
+          >
+            {m.action_delete({}, { locale })}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="settings-field">
+      <label className="settings-field-label" htmlFor={`provider-base-url-${provider.id}`}>
+        {m.settings_codex_provider_edit_base_url_label({}, { locale })}
+      </label>
+      <input
+        id={`provider-base-url-${provider.id}`}
+        className="settings-input"
+        value={draft.baseUrl}
+        onChange={(event) => onDraftChange({ ...draft, baseUrl: event.target.value })}
+        aria-label={m.settings_codex_provider_edit_base_url_aria({}, { locale })}
+      />
+      <label className="settings-field-label" htmlFor={`provider-env-key-${provider.id}`}>
+        {m.settings_codex_provider_edit_api_key_label({}, { locale })}
+      </label>
+      <input
+        id={`provider-env-key-${provider.id}`}
+        className="settings-input"
+        type="password"
+        autoComplete="off"
+        value={draft.apiKey}
+        onChange={(event) => onDraftChange({ ...draft, apiKey: event.target.value })}
+        aria-label={m.settings_codex_provider_edit_api_key_aria({}, { locale })}
+      />
+      <div className="settings-field-row">
+        <button
+          type="button"
+          className="ghost"
+          onClick={onSave}
+          disabled={isBusy}
+          aria-label={m.settings_codex_provider_save_aria(
+            { value: provider.id },
+            { locale },
+          )}
+        >
+          {m.action_save({}, { locale })}
+        </button>
+        <button type="button" className="ghost" onClick={onCancelEdit}>
+          {m.action_cancel({}, { locale })}
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export function SettingsCodexSection({
   appSettings,
   onUpdateAppSettings,
+  aiSettings,
+  aiSettingsLoading,
+  aiSettingsError,
+  updatingSessionDefaults,
+  updatingOpenAiBaseUrl,
+  creatingProvider,
+  updatingProviderId,
+  deletingProviderId,
   defaultModels,
   defaultModelsLoading,
   defaultModelsError,
   defaultModelsConnectedWorkspaceCount,
   onRefreshDefaultModels,
-  globalAgentsPath,
+  onRefreshAiSettings,
+  onUpdateSessionDefaults,
+  onUpdateOpenAiBaseUrl,
+  onCreateProvider,
+  onUpdateProvider,
+  onDeleteProvider,
+  globalAgentsPath: _globalAgentsPath,
   globalAgentsMeta,
   globalAgentsError,
   globalAgentsContent,
@@ -94,104 +199,143 @@ export function SettingsCodexSection({
   onSaveGlobalAgents,
 }: SettingsCodexSectionProps) {
   const locale = useAppLocale();
-  const globalAgentsResolvedPath =
-    globalAgentsPath ?? m.settings_codex_global_agents_managed_path({}, { locale });
-  const latestModelSlug = defaultModels[0]?.model ?? null;
-  const savedModelSlug = useMemo(
-    () => coerceSavedModelSlug(appSettings.lastComposerModelId, defaultModels),
-    [appSettings.lastComposerModelId, defaultModels],
+  const [providerDraft, setProviderDraft] = useState(
+    aiSettings?.sessionDefaults.modelProvider ?? "openai",
   );
-  const selectedModelSlug = savedModelSlug ?? latestModelSlug ?? "";
+  const [modelDraft, setModelDraft] = useState(aiSettings?.sessionDefaults.model ?? "");
+  const [effortDraft, setEffortDraft] = useState(
+    aiSettings?.sessionDefaults.modelReasoningEffort ?? "medium",
+  );
+  const [openAiBaseUrlDraft, setOpenAiBaseUrlDraft] = useState(
+    aiSettings?.openaiBaseUrl ?? "",
+  );
+  const [creatingDraft, setCreatingDraft] = useState<ProviderEditorDraft>({
+    id: "",
+    baseUrl: "",
+    apiKey: "",
+  });
+  const [editingProviderId, setEditingProviderId] = useState<string | null>(null);
+  const [editingDraft, setEditingDraft] = useState<ProviderEditorDraft>({
+    id: "",
+    baseUrl: "",
+    apiKey: "",
+  });
+  const sessionDefaultsDraftRef = useRef({
+    modelProvider: aiSettings?.sessionDefaults.modelProvider ?? "openai",
+    model: aiSettings?.sessionDefaults.model ?? "",
+    modelReasoningEffort: aiSettings?.sessionDefaults.modelReasoningEffort ?? "medium",
+  });
+
+  useEffect(() => {
+    const nextSessionDefaults = {
+      modelProvider: aiSettings?.sessionDefaults.modelProvider ?? "openai",
+      model: aiSettings?.sessionDefaults.model ?? "",
+      modelReasoningEffort:
+        aiSettings?.sessionDefaults.modelReasoningEffort ?? "medium",
+    };
+    sessionDefaultsDraftRef.current = nextSessionDefaults;
+    setProviderDraft(nextSessionDefaults.modelProvider);
+    setModelDraft(nextSessionDefaults.model);
+    setEffortDraft(nextSessionDefaults.modelReasoningEffort);
+    setOpenAiBaseUrlDraft(aiSettings?.openaiBaseUrl ?? "");
+  }, [aiSettings]);
+
   const selectedModel = useMemo(
-    () => defaultModels.find((model) => model.model === selectedModelSlug) ?? null,
-    [defaultModels, selectedModelSlug],
-  );
-  const reasoningSupported = useMemo(
-    () => getReasoningSupport(selectedModel),
-    [selectedModel],
+    () => findModelOption(defaultModels, modelDraft),
+    [defaultModels, modelDraft],
   );
   const reasoningOptions = useMemo(
-    () => getReasoningOptions(selectedModel),
+    () => buildReasoningOptions(selectedModel),
     [selectedModel],
   );
-  const savedEffort = useMemo(
-    () => normalizeEffortValue(appSettings.lastComposerReasoningEffort),
-    [appSettings.lastComposerReasoningEffort],
-  );
-  const selectedEffort = useMemo(() => {
-    if (!reasoningSupported) {
-      return "";
-    }
-    if (savedEffort && reasoningOptions.includes(savedEffort)) {
-      return savedEffort;
-    }
-    if (reasoningOptions.includes(DEFAULT_REASONING_EFFORT)) {
-      return DEFAULT_REASONING_EFFORT;
-    }
-    const fallback = normalizeEffortValue(selectedModel?.defaultReasoningEffort);
-    if (fallback && reasoningOptions.includes(fallback)) {
-      return fallback;
-    }
-    return reasoningOptions[0] ?? "";
-  }, [reasoningOptions, reasoningSupported, savedEffort, selectedModel]);
+  const customProviders = aiSettings?.providers.filter((provider) => !provider.builtIn) ?? [];
 
-  const didNormalizeDefaultsRef = useRef(false);
-  useEffect(() => {
-    if (didNormalizeDefaultsRef.current) {
-      return;
-    }
-    if (!defaultModels.length) {
-      return;
-    }
-    const savedRawModel = (appSettings.lastComposerModelId ?? "").trim();
-    const savedRawEffort = (appSettings.lastComposerReasoningEffort ?? "").trim();
-    const shouldNormalizeModel = savedRawModel.length === 0 || savedModelSlug === null;
-    const shouldNormalizeEffort =
-      reasoningSupported &&
-      (savedRawEffort.length === 0 ||
-        savedEffort === null ||
-        !reasoningOptions.includes(savedEffort));
-    if (!shouldNormalizeModel && !shouldNormalizeEffort) {
-      didNormalizeDefaultsRef.current = true;
-      return;
-    }
-
-    const next: AppSettings = {
-      ...appSettings,
-      lastComposerModelId: shouldNormalizeModel ? selectedModelSlug : appSettings.lastComposerModelId,
-      lastComposerReasoningEffort: shouldNormalizeEffort
-        ? selectedEffort
-        : appSettings.lastComposerReasoningEffort,
+  const handleProviderChange = async (nextProvider: string) => {
+    sessionDefaultsDraftRef.current = {
+      ...sessionDefaultsDraftRef.current,
+      modelProvider: nextProvider,
     };
-    didNormalizeDefaultsRef.current = true;
-    void onUpdateAppSettings(next);
-  }, [
-    appSettings,
-    defaultModels.length,
-    onUpdateAppSettings,
-    reasoningOptions,
-    reasoningSupported,
-    savedEffort,
-    savedModelSlug,
-    selectedModelSlug,
-    selectedEffort,
-  ]);
+    setProviderDraft(nextProvider);
+    await onUpdateSessionDefaults(sessionDefaultsDraftRef.current);
+  };
+
+  const handleModelChange = async (nextModel: string) => {
+    sessionDefaultsDraftRef.current = {
+      ...sessionDefaultsDraftRef.current,
+      model: nextModel,
+    };
+    setModelDraft(nextModel);
+    await onUpdateSessionDefaults(sessionDefaultsDraftRef.current);
+  };
+
+  const handleEffortChange = async (nextEffort: string) => {
+    sessionDefaultsDraftRef.current = {
+      ...sessionDefaultsDraftRef.current,
+      modelReasoningEffort: nextEffort,
+    };
+    setEffortDraft(nextEffort);
+    await onUpdateSessionDefaults(sessionDefaultsDraftRef.current);
+  };
 
   return (
     <SettingsSection
       title={m.settings_nav_codex({}, { locale })}
       subtitle={m.settings_codex_subtitle({}, { locale })}
     >
-      <div className="settings-field-label settings-field-label--section">
-        {m.settings_codex_default_parameters({}, { locale })}
-      </div>
+      {aiSettingsError ? <div className="settings-help">{aiSettingsError}</div> : null}
 
       <SettingsToggleRow
-        title={
-          <label htmlFor="default-model">
-            {m.composer_meta_model({}, { locale })}
-          </label>
-        }
+        title={m.settings_features_personality_title({}, { locale })}
+        subtitle={m.settings_features_personality_subtitle({}, { locale })}
+      >
+        <select
+          id="ai-personality-select"
+          className="settings-select"
+          value={appSettings.personality}
+          onChange={(event) =>
+            void onUpdateAppSettings({
+              ...appSettings,
+              personality: event.target.value as AppSettings["personality"],
+            })
+          }
+          aria-label={m.settings_features_personality_aria({}, { locale })}
+        >
+          <option value="friendly">
+            {m.settings_features_personality_friendly({}, { locale })}
+          </option>
+          <option value="pragmatic">
+            {m.settings_features_personality_pragmatic({}, { locale })}
+          </option>
+        </select>
+      </SettingsToggleRow>
+
+      <SettingsSubsection
+        title="Session defaults"
+        subtitle={m.settings_codex_session_default_field_subtitle({}, { locale })}
+      />
+
+      <SettingsToggleRow
+        title={<label htmlFor="ai-provider">{m.settings_codex_provider_label({}, { locale })}</label>}
+        subtitle={m.settings_codex_provider_subtitle({}, { locale })}
+      >
+        <select
+          id="ai-provider"
+          className="settings-select"
+          value={providerDraft}
+          onChange={(event) => void handleProviderChange(event.target.value)}
+          disabled={aiSettingsLoading || updatingSessionDefaults}
+          aria-label={m.settings_codex_provider_aria({}, { locale })}
+        >
+          {(aiSettings?.providers ?? []).map((provider) => (
+            <option key={provider.id} value={provider.id}>
+              {getProviderDisplayLabel(provider)}
+            </option>
+          ))}
+        </select>
+      </SettingsToggleRow>
+
+      <SettingsToggleRow
+        title={<label htmlFor="ai-model">{m.composer_meta_model({}, { locale })}</label>}
         subtitle={
           defaultModelsConnectedWorkspaceCount === 0
             ? m.settings_codex_default_model_add_workspace({}, { locale })
@@ -202,29 +346,28 @@ export function SettingsCodexSection({
                     { error: defaultModelsError },
                     { locale },
                   )
-                : m.settings_codex_default_model_help({}, { locale })
+                : m.settings_codex_model_manual_entry_help({}, { locale })
         }
       >
         <div className="settings-field-row">
-          <select
-            id="default-model"
-            className="settings-select"
-            value={selectedModelSlug}
-            disabled={!defaultModels.length || defaultModelsLoading}
-            onChange={(event) =>
-              void onUpdateAppSettings({
-                ...appSettings,
-                lastComposerModelId: event.target.value,
-              })
-            }
+          <input
+            id="ai-model"
+            className="settings-input"
+            list="ai-model-options"
+            value={modelDraft}
+            onChange={(event) => {
+              const nextValue = event.target.value;
+              setModelDraft(nextValue);
+              void handleModelChange(nextValue);
+            }}
+            disabled={aiSettingsLoading || updatingSessionDefaults}
             aria-label={m.composer_meta_model({}, { locale })}
-          >
+          />
+          <datalist id="ai-model-options">
             {defaultModels.map((model) => (
-              <option key={model.model} value={model.model}>
-                {model.displayName?.trim() || model.model}
-              </option>
+              <option key={model.model} value={model.model} />
             ))}
-          </select>
+          </datalist>
           <button
             type="button"
             className="ghost"
@@ -238,32 +381,20 @@ export function SettingsCodexSection({
 
       <SettingsToggleRow
         title={
-          <label htmlFor="default-effort">
+          <label htmlFor="ai-reasoning-effort">
             {m.settings_codex_reasoning_effort({}, { locale })}
           </label>
         }
-        subtitle={
-          reasoningSupported
-            ? m.settings_codex_reasoning_effort_help({}, { locale })
-            : m.settings_codex_reasoning_effort_unavailable({}, { locale })
-        }
+        subtitle={m.settings_codex_session_default_field_subtitle({}, { locale })}
       >
         <select
-          id="default-effort"
+          id="ai-reasoning-effort"
           className="settings-select"
-          value={selectedEffort}
-          onChange={(event) =>
-            void onUpdateAppSettings({
-              ...appSettings,
-              lastComposerReasoningEffort: event.target.value,
-            })
-          }
+          value={effortDraft}
+          onChange={(event) => void handleEffortChange(event.target.value)}
+          disabled={aiSettingsLoading || updatingSessionDefaults}
           aria-label={m.settings_codex_reasoning_effort({}, { locale })}
-          disabled={!reasoningSupported}
         >
-          {!reasoningSupported && (
-            <option value="">{m.settings_codex_not_supported({}, { locale })}</option>
-          )}
           {reasoningOptions.map((effort) => (
             <option key={effort} value={effort}>
               {effort}
@@ -291,15 +422,26 @@ export function SettingsCodexSection({
             })
           }
         >
-          <option value="read-only">{m.composer_meta_access_read_only({}, { locale })}</option>
-          <option value="current">{m.composer_meta_access_on_request({}, { locale })}</option>
-          <option value="full-access">{m.composer_meta_access_full_access({}, { locale })}</option>
+          <option value="read-only">
+            {m.composer_meta_access_read_only({}, { locale })}
+          </option>
+          <option value="current">
+            {m.composer_meta_access_on_request({}, { locale })}
+          </option>
+          <option value="full-access">
+            {m.composer_meta_access_full_access({}, { locale })}
+          </option>
         </select>
       </SettingsToggleRow>
-      <div className="settings-field">
-        <label className="settings-field-label" htmlFor="review-delivery">
-          {m.settings_codex_review_mode({}, { locale })}
-        </label>
+
+      <SettingsToggleRow
+        title={
+          <label htmlFor="review-delivery">
+            {m.settings_codex_review_mode({}, { locale })}
+          </label>
+        }
+        subtitle={m.settings_codex_review_mode_help({}, { locale })}
+      >
         <select
           id="review-delivery"
           className="settings-select"
@@ -311,36 +453,162 @@ export function SettingsCodexSection({
             })
           }
         >
-          <option value="inline">{m.settings_codex_review_inline({}, { locale })}</option>
-          <option value="detached">{m.settings_codex_review_detached({}, { locale })}</option>
+          <option value="inline">
+            {m.settings_codex_review_inline({}, { locale })}
+          </option>
+          <option value="detached">
+            {m.settings_codex_review_detached({}, { locale })}
+          </option>
         </select>
-        <div className="settings-help">
-          {m.settings_codex_review_mode_help({}, { locale })}
+      </SettingsToggleRow>
+
+      <SettingsSubsection
+        title={m.settings_codex_providers_title({}, { locale })}
+        subtitle={m.settings_codex_providers_subtitle({}, { locale })}
+      />
+
+      <div className="settings-field">
+        <label className="settings-field-label" htmlFor="openai-base-url">
+          {m.settings_codex_openai_base_url_label({}, { locale })}
+        </label>
+        <input
+          id="openai-base-url"
+          className="settings-input"
+          value={openAiBaseUrlDraft}
+          onChange={(event) => setOpenAiBaseUrlDraft(event.target.value)}
+          aria-label={m.settings_codex_openai_base_url_aria({}, { locale })}
+        />
+        <div className="settings-field-row">
+          <button
+            type="button"
+            className="ghost"
+            onClick={() => void onUpdateOpenAiBaseUrl(openAiBaseUrlDraft.trim() || null)}
+            disabled={updatingOpenAiBaseUrl}
+          >
+            {m.settings_codex_openai_base_url_save({}, { locale })}
+          </button>
+          <button
+            type="button"
+            className="ghost"
+            onClick={onRefreshAiSettings}
+            disabled={aiSettingsLoading}
+          >
+            {m.action_refresh({}, { locale })}
+          </button>
         </div>
+      </div>
+
+      {customProviders.map((provider) => (
+        <CustomProviderRow
+          key={provider.id}
+          provider={provider}
+          isEditing={editingProviderId === provider.id}
+          isBusy={updatingProviderId === provider.id || deletingProviderId === provider.id}
+          onStartEdit={() => {
+            setEditingProviderId(provider.id);
+            setEditingDraft({
+              id: provider.id,
+              baseUrl: provider.baseUrl ?? "",
+              apiKey: provider.apiKey ?? "",
+            });
+          }}
+          onCancelEdit={() => setEditingProviderId(null)}
+          onDelete={() => {
+            void onDeleteProvider({ id: provider.id });
+          }}
+          draft={editingDraft}
+          onDraftChange={setEditingDraft}
+          onSave={() => {
+            void onUpdateProvider({
+              originalId: provider.id,
+              id: editingDraft.id.trim() || provider.id,
+              baseUrl: editingDraft.baseUrl.trim() || null,
+              apiKey: editingDraft.apiKey.trim() || null,
+            }).then((success) => {
+              if (success) {
+                setEditingProviderId(null);
+              }
+            });
+          }}
+        />
+      ))}
+
+      <div className="settings-field">
+        <div className="settings-field-label">
+          {m.settings_codex_add_provider_title({}, { locale })}
+        </div>
+        <label className="settings-field-label" htmlFor="provider-id">
+          {m.settings_codex_provider_id_label({}, { locale })}
+        </label>
+        <input
+          id="provider-id"
+          className="settings-input"
+          value={creatingDraft.id}
+          onChange={(event) =>
+            setCreatingDraft((current) => ({ ...current, id: event.target.value }))
+          }
+          aria-label={m.settings_codex_provider_id_aria({}, { locale })}
+        />
+        <label className="settings-field-label" htmlFor="provider-base-url">
+          {m.settings_codex_provider_base_url_label({}, { locale })}
+        </label>
+        <input
+          id="provider-base-url"
+          className="settings-input"
+          value={creatingDraft.baseUrl}
+          onChange={(event) =>
+            setCreatingDraft((current) => ({ ...current, baseUrl: event.target.value }))
+          }
+          aria-label={m.settings_codex_provider_base_url_aria({}, { locale })}
+        />
+        <label className="settings-field-label" htmlFor="provider-env-key">
+          {m.settings_codex_provider_api_key_label({}, { locale })}
+        </label>
+        <input
+          id="provider-env-key"
+          className="settings-input"
+          type="password"
+          autoComplete="off"
+          value={creatingDraft.apiKey}
+          onChange={(event) =>
+            setCreatingDraft((current) => ({ ...current, apiKey: event.target.value }))
+          }
+          aria-label={m.settings_codex_provider_api_key_aria({}, { locale })}
+        />
+        <button
+          type="button"
+          className="ghost"
+          disabled={creatingProvider}
+          onClick={() => {
+            void onCreateProvider({
+              id: creatingDraft.id.trim(),
+              baseUrl: creatingDraft.baseUrl.trim() || null,
+              apiKey: creatingDraft.apiKey.trim() || null,
+            }).then((success) => {
+              if (success) {
+                setCreatingDraft({ id: "", baseUrl: "", apiKey: "" });
+              }
+            });
+          }}
+        >
+          {m.settings_codex_add_provider_action({}, { locale })}
+        </button>
       </div>
 
       <FileEditorCard
         title="AGENTS.md"
         meta={globalAgentsMeta}
-        error={globalAgentsError}
         value={globalAgentsContent}
+        error={globalAgentsError}
+        helpText={m.settings_codex_global_agents_managed_path({}, { locale })}
         placeholder={m.settings_codex_global_agents_placeholder({}, { locale })}
         disabled={globalAgentsLoading}
-        refreshDisabled={globalAgentsRefreshDisabled}
-        saveDisabled={globalAgentsSaveDisabled}
         saveLabel={globalAgentsSaveLabel}
+        saveDisabled={globalAgentsSaveDisabled}
+        refreshDisabled={globalAgentsRefreshDisabled}
         onChange={onSetGlobalAgentsContent}
         onRefresh={onRefreshGlobalAgents}
         onSave={onSaveGlobalAgents}
-        helpText={
-          <>
-            {m.settings_codex_global_agents_help(
-              { path: globalAgentsResolvedPath },
-              { locale },
-            )}{" "}
-            <code>{globalAgentsResolvedPath}</code>.
-          </>
-        }
         classNames={{
           container: "settings-field settings-agents",
           header: "settings-agents-header",

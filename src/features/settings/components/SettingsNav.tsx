@@ -35,6 +35,15 @@ export function SettingsNav({
       <PanelNavList className="settings-nav-list">
         <PanelNavItem
           className="settings-nav"
+          icon={<TerminalSquare aria-hidden />}
+          active={activeSection === "codex"}
+          showDisclosure={showDisclosure}
+          onClick={() => onSelectSection("codex")}
+        >
+          {m.settings_nav_codex({}, { locale })}
+        </PanelNavItem>
+        <PanelNavItem
+          className="settings-nav"
           icon={<LayoutGrid aria-hidden />}
           active={activeSection === "projects"}
           showDisclosure={showDisclosure}
@@ -124,15 +133,6 @@ export function SettingsNav({
           onClick={() => onSelectSection("agents")}
         >
           {m.settings_nav_agents({}, { locale })}
-        </PanelNavItem>
-        <PanelNavItem
-          className="settings-nav"
-          icon={<TerminalSquare aria-hidden />}
-          active={activeSection === "codex"}
-          showDisclosure={showDisclosure}
-          onClick={() => onSelectSection("codex")}
-        >
-          Codex
         </PanelNavItem>
         <PanelNavItem
           className="settings-nav"

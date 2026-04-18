@@ -6,6 +6,7 @@ import {
   TitlebarExpandControls,
 } from "@/features/layout/components/SidebarToggleControls";
 import { WindowCaptionControls } from "@/features/layout/components/WindowCaptionControls";
+import { StartupAiSetupWizard } from "@/features/app/components/StartupAiSetupWizard";
 import { MobileServerSetupWizard } from "@/features/mobile/components/MobileServerSetupWizard";
 
 const GitHubPanelData = lazy(() =>
@@ -36,6 +37,8 @@ type MainAppShellProps = {
   appModalsProps: AppModalsProps;
   showMobileSetupWizard: boolean;
   mobileSetupWizardProps: ComponentProps<typeof MobileServerSetupWizard>;
+  showStartupAiSetupWizard: boolean;
+  startupAiSetupWizardProps: ComponentProps<typeof StartupAiSetupWizard>;
 };
 
 export function MainAppShell({
@@ -50,6 +53,8 @@ export function MainAppShell({
   appModalsProps,
   showMobileSetupWizard,
   mobileSetupWizardProps,
+  showStartupAiSetupWizard,
+  startupAiSetupWizardProps,
 }: MainAppShellProps) {
   return (
     <div className={`${appClassName}${isResizing ? " is-resizing" : ""}`} style={appStyle} ref={appRef}>
@@ -64,6 +69,7 @@ export function MainAppShell({
       <AppLayout {...appLayoutProps} />
       <AppModals {...appModalsProps} />
       {showMobileSetupWizard ? <MobileServerSetupWizard {...mobileSetupWizardProps} /> : null}
+      {showStartupAiSetupWizard ? <StartupAiSetupWizard {...startupAiSetupWizardProps} /> : null}
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef } from "react";
 import * as Sentry from "@sentry/react";
+import { useAppLocale } from "@/i18n/I18nProvider";
 import type {
   CollabAgentRef,
   CustomPromptOption,
@@ -39,6 +40,7 @@ import {
   extractThreadFromResponse,
 } from "@threads/utils/threadSummary";
 import { getSubagentDescendantThreadIds } from "@threads/utils/subagentTree";
+import { localizeKnownThreadErrorMessage } from "../utils/threadErrorMessages";
 
 type UseThreadsOptions = {
   activeWorkspace: WorkspaceInfo | null;
@@ -94,6 +96,7 @@ export function useThreads({
   threadSortKey = "updated_at",
   onThreadCodexMetadataDetected,
 }: UseThreadsOptions) {
+  const locale = useAppLocale();
   const maxItemsPerThread =
     chatHistoryScrollbackItems === undefined
       ? CHAT_SCROLLBACK_DEFAULT
@@ -178,16 +181,17 @@ export function useThreads({
 
   const pushThreadErrorMessage = useCallback(
     (threadId: string, message: string) => {
+      const localizedMessage = localizeKnownThreadErrorMessage(message, locale);
       dispatch({
         type: "addAssistantMessage",
         threadId,
-        text: message,
+        text: localizedMessage,
       });
       if (threadId !== activeThreadId) {
         dispatch({ type: "markUnread", threadId, hasUnread: true });
       }
     },
-    [activeThreadId, dispatch],
+    [activeThreadId, dispatch, locale],
   );
 
   const safeMessageActivity = useCallback(() => {

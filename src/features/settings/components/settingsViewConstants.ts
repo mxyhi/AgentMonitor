@@ -135,7 +135,7 @@ export function getSettingsSectionLabel(
     case "agents":
       return m.settings_nav_agents({}, { locale });
     case "codex":
-      return "Codex";
+      return m.settings_nav_codex({}, { locale });
     case "features":
       return m.settings_nav_features({}, { locale });
   }

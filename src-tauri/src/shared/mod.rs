@@ -1,5 +1,6 @@
 pub(crate) mod account;
 pub(crate) mod agents_config_core;
+pub(crate) mod ai_settings_core;
 pub(crate) mod codex_aux_core;
 pub(crate) mod codex_core;
 pub(crate) mod codex_runtime_core;

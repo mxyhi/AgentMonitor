@@ -14,6 +14,8 @@ import type {
 } from "@/types";
 import {
   compactThread as compactThreadService,
+  getAccountInfo as getAccountInfoService,
+  getGlobalAiSettings as getGlobalAiSettingsService,
   sendUserMessage as sendUserMessageService,
   steerTurn as steerTurnService,
   startReview as startReviewService,
@@ -41,6 +43,12 @@ import {
   resolveSendMessageOptions,
   type SendMessageOptions,
 } from "./threadMessagingHelpers";
+import {
+  normalizeAccountSnapshot,
+  requiresOpenaiAuthWithoutAccount,
+} from "./threadAccountSnapshot";
+import { OPENAI_AUTH_REQUIRED_BEFORE_SENDING_ERROR } from "../utils/threadErrorMessages";
+import { selectedGlobalAiProviderRequiresOpenAiAuth } from "@/utils/globalAiProvider";
 
 type UseThreadMessagingOptions = {
   activeWorkspace: WorkspaceInfo | null;
@@ -178,6 +186,53 @@ export function useThreadMessaging({
           activeTurnId,
         },
       });
+      if (!shouldSteer) {
+        try {
+          const shouldRequireOpenaiAuth = selectedGlobalAiProviderRequiresOpenAiAuth(
+            await getGlobalAiSettingsService(),
+          );
+          const accountResponse =
+            (await getAccountInfoService(workspace.id)) as Record<string, unknown>;
+          const accountRpcError = extractRpcErrorMessage(accountResponse);
+          if (accountRpcError) {
+            pushThreadErrorMessage(
+              threadId,
+              `Failed to read account state before sending: ${accountRpcError}`,
+            );
+            safeMessageActivity();
+            return { status: "blocked" };
+          }
+          const accountSnapshot = normalizeAccountSnapshot(accountResponse);
+          dispatch({
+            type: "setAccountInfo",
+            workspaceId: workspace.id,
+            account: accountSnapshot,
+          });
+          if (
+            shouldRequireOpenaiAuth &&
+            requiresOpenaiAuthWithoutAccount(accountSnapshot)
+          ) {
+            pushThreadErrorMessage(
+              threadId,
+              OPENAI_AUTH_REQUIRED_BEFORE_SENDING_ERROR,
+            );
+            safeMessageActivity();
+            return { status: "blocked" };
+          }
+        } catch (error) {
+          onDebug?.({
+            id: `${Date.now()}-client-account-preflight-error`,
+            timestamp: Date.now(),
+            source: "error",
+            label: "account/read preflight error",
+            payload: {
+              workspaceId: workspace.id,
+              threadId,
+              error: error instanceof Error ? error.message : String(error),
+            },
+          });
+        }
+      }
       Sentry.metrics.count("prompt_sent", 1, {
         attributes: {
           workspace_id: workspace.id,
