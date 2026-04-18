@@ -603,9 +603,7 @@ dependencies = [
  "objc",
 ]
 
-[[package]]
-name = "codex-monitor"
-version = "0.7.73"
+\g<1>0.7.74\2
 dependencies = [
  "base64 0.22.1",
  "block2",
