@@ -1,11 +1,17 @@
 // @vitest-environment jsdom
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { I18nProvider } from "@/i18n/I18nProvider";
 import { StartupAiSetupWizard } from "./StartupAiSetupWizard";
 
+vi.mock("@tauri-apps/plugin-opener", () => ({
+  openUrl: vi.fn(),
+}));
+
 afterEach(() => {
   cleanup();
+  vi.clearAllMocks();
 });
 
 const FIXED_PROVIDERS = [
@@ -87,6 +93,17 @@ describe("StartupAiSetupWizard", () => {
     ).toBeTruthy();
   });
 
+  it("removes provider status card and opens Airouter purchase page from summary link", () => {
+    renderWizard();
+
+    expect(screen.queryByText("Current default provider")).toBeNull();
+    expect(screen.queryByText("API Key missing")).toBeNull();
+
+    fireEvent.click(screen.getByRole("link", { name: "No API key yet? Buy one" }));
+
+    expect(openUrl).toHaveBeenCalledWith("https://airouter.mxyhi.com");
+  });
+
   it("switches to inline API key form and saves airouter settings", async () => {
     const { onSaveSettings } = renderWizard();
 
@@ -107,5 +124,20 @@ describe("StartupAiSetupWizard", () => {
         apiKey: null,
       });
     });
+  });
+
+  it("shows buy link next to API Key label only for airouter provider", () => {
+    renderWizard();
+
+    fireEvent.click(screen.getByRole("button", { name: "Configure API Key" }));
+
+    fireEvent.click(screen.getByRole("link", { name: "No API key yet? Buy one" }));
+    expect(openUrl).toHaveBeenCalledWith("https://airouter.mxyhi.com");
+
+    fireEvent.change(screen.getByLabelText("Provider"), {
+      target: { value: "local" },
+    });
+
+    expect(screen.queryByRole("link", { name: "No API key yet? Buy one" })).toBeNull();
   });
 });

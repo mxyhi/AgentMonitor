@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import "../../../styles/startup-ai-setup-wizard.css";
 import X from "lucide-react/dist/esm/icons/x";
 import type { GlobalAiProviderEntry } from "@/types";
@@ -10,6 +11,8 @@ import {
   isGlobalAiProviderApiKeyOptional,
   normalizeGlobalAiProviderId,
 } from "@/utils/globalAiProvider";
+
+const AIROUTER_BUY_URL = "https://airouter.mxyhi.com";
 
 type StartupAiSetupWizardProps = {
   providers: GlobalAiProviderEntry[];
@@ -34,9 +37,7 @@ type StartupAiSetupWizardProps = {
 export function StartupAiSetupWizard({
   providers,
   selectedProviderId,
-  selectedProviderName,
   configuredBaseUrl,
-  apiKeyConfigured,
   loginRequired,
   loginBusy,
   loginAvailable,
@@ -98,18 +99,6 @@ export function StartupAiSetupWizard({
       </div>
 
       <div className="startup-ai-setup-body">
-        <div className="startup-ai-setup-status" role="status" aria-live="polite">
-          <span className="startup-ai-setup-status-label">
-            {m.startup_ai_setup_current_provider_label({}, { locale })}
-          </span>
-          <strong>{selectedProviderName}</strong>
-          <span className="startup-ai-setup-status-help">
-            {apiKeyConfigured
-              ? m.startup_ai_setup_status_api_key_ready({}, { locale })
-              : m.startup_ai_setup_status_api_key_missing({}, { locale })}
-          </span>
-        </div>
-
         {mode === "summary" ? (
           <>
             <div className="startup-ai-setup-actions">
@@ -130,13 +119,18 @@ export function StartupAiSetupWizard({
                   ? m.startup_ai_setup_action_signing_in({}, { locale })
                   : m.startup_ai_setup_action_sign_in({}, { locale })}
               </button>
-              <button
-                type="button"
-                className="ghost startup-ai-setup-skip"
-                onClick={onDismiss}
+              <a
+                className="startup-ai-setup-link"
+                href={AIROUTER_BUY_URL}
+                target="_blank"
+                rel="noreferrer"
+                onClick={(event) => {
+                  event.preventDefault();
+                  void openUrl(AIROUTER_BUY_URL);
+                }}
               >
-                {m.startup_ai_setup_action_skip({}, { locale })}
-              </button>
+                {m.startup_ai_setup_action_buy_api_key({}, { locale })}
+              </a>
             </div>
 
             <div className="startup-ai-setup-hint">
@@ -184,7 +178,21 @@ export function StartupAiSetupWizard({
               aria-label={m.startup_ai_setup_form_base_url_label({}, { locale })}
             />
             <label className="startup-ai-setup-field-label" htmlFor="startup-ai-api-key">
-              {m.startup_ai_setup_form_api_key_label({}, { locale })}
+              <span>{m.startup_ai_setup_form_api_key_label({}, { locale })}</span>
+              {providerDraft === "airouter" ? (
+                <a
+                  className="startup-ai-setup-inline-link"
+                  href={AIROUTER_BUY_URL}
+                  target="_blank"
+                  rel="noreferrer"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    void openUrl(AIROUTER_BUY_URL);
+                  }}
+                >
+                  {m.startup_ai_setup_action_buy_api_key({}, { locale })}
+                </a>
+              ) : null}
             </label>
             <input
               id="startup-ai-api-key"

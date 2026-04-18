@@ -80,29 +80,6 @@
   padding: 10px 22px 22px;
 }
 
-.startup-ai-setup-status {
-  display: grid;
-  gap: 4px;
-  border-radius: 12px;
-  border: 1px solid var(--border-muted);
-  background: rgba(255, 255, 255, 0.03);
-  padding: 11px 12px;
-  color: var(--text-strong);
-  font-size: 13px;
-}
-
-.startup-ai-setup-status-label {
-  color: var(--text-subtle);
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-.startup-ai-setup-status-help {
-  color: var(--text-subtle);
-  font-size: 12px;
-}
-
 .startup-ai-setup-actions {
   display: grid;
   gap: 8px;
@@ -114,8 +91,23 @@
   font-weight: 600;
 }
 
-.startup-ai-setup-skip {
+.startup-ai-setup-link {
   justify-self: center;
+  color: var(--text-subtle);
+  font-size: 12px;
+  line-height: 1.4;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.startup-ai-setup-link:hover {
+  color: var(--text-strong);
+}
+
+.startup-ai-setup-link:focus-visible {
+  outline: 2px solid var(--focus-ring, rgba(47, 163, 93, 0.7));
+  outline-offset: 3px;
+  border-radius: 6px;
 }
 
 .startup-ai-setup-hint {
@@ -130,9 +122,31 @@
 }
 
 .startup-ai-setup-field-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   font-size: 12px;
   font-weight: 600;
   color: var(--text-subtle);
+}
+
+.startup-ai-setup-inline-link {
+  color: var(--text-subtle);
+  font-size: 11px;
+  font-weight: 500;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.startup-ai-setup-inline-link:hover {
+  color: var(--text-strong);
+}
+
+.startup-ai-setup-inline-link:focus-visible {
+  outline: 2px solid var(--focus-ring, rgba(47, 163, 93, 0.7));
+  outline-offset: 2px;
+  border-radius: 4px;
 }
 
 .startup-ai-setup-input {
