@@ -190,6 +190,7 @@ export default function MainApp() {
     () => new Map(workspaces.map((workspace) => [workspace.id, workspace])),
     [workspaces],
   );
+  const loginWorkspaceId = activeWorkspaceId ?? workspaces[0]?.id ?? null;
   const {
     threadCodexParamsVersion,
     getThreadCodexParams,
@@ -721,6 +722,7 @@ export default function MainApp() {
     handleCancelSwitchAccount,
   } = useAccountSwitching({
     activeWorkspaceId,
+    fallbackWorkspaceId: workspaces[0]?.id ?? null,
     accountByWorkspace,
     refreshAccountInfo,
     refreshAccountRateLimits,
@@ -1835,7 +1837,7 @@ export default function MainApp() {
         apiKeyConfigured: startupAiSetup.apiKeyConfigured,
         loginRequired: startupAiSetup.loginRequired,
         loginBusy: accountSwitching,
-        loginAvailable: Boolean(activeWorkspaceId),
+        loginAvailable: Boolean(loginWorkspaceId),
         settingsBusy: startupAiSetup.savingProviderSettings,
         settingsError: startupAiSetup.error,
         onSignIn: () => {

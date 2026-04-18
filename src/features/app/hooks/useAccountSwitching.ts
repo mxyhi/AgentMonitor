@@ -7,6 +7,7 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 
 type UseAccountSwitchingArgs = {
   activeWorkspaceId: string | null;
+  fallbackWorkspaceId?: string | null;
   accountByWorkspace: Record<string, AccountSnapshot | null | undefined>;
   refreshAccountInfo: (workspaceId: string) => Promise<void> | void;
   refreshAccountRateLimits: (workspaceId: string) => Promise<void> | void;
@@ -22,6 +23,7 @@ type UseAccountSwitchingResult = {
 
 export function useAccountSwitching({
   activeWorkspaceId,
+  fallbackWorkspaceId = null,
   accountByWorkspace,
   refreshAccountInfo,
   refreshAccountRateLimits,
@@ -43,6 +45,7 @@ export function useAccountSwitching({
     }
     return accountByWorkspace[activeWorkspaceId] ?? null;
   }, [activeWorkspaceId, accountByWorkspace]);
+  const loginWorkspaceId = activeWorkspaceId ?? fallbackWorkspaceId;
 
   const isCodexLoginCanceled = useCallback((error: unknown) => {
     const message =
@@ -143,10 +146,10 @@ export function useAccountSwitching({
   }, []);
 
   const handleSwitchAccount = useCallback(async () => {
-    if (!activeWorkspaceId || accountSwitching) {
+    if (!loginWorkspaceId || accountSwitching) {
       return;
     }
-    const workspaceId = activeWorkspaceId;
+    const workspaceId = loginWorkspaceId;
     accountSwitchCanceledRef.current = false;
     setAccountSwitching(true);
     loginIdRef.current = null;
@@ -194,14 +197,15 @@ export function useAccountSwitching({
       // Completion is now driven by app-server events.
     }
   }, [
-    activeWorkspaceId,
     accountSwitching,
     alertError,
     isCodexLoginCanceled,
+    loginWorkspaceId,
   ]);
 
   const handleCancelSwitchAccount = useCallback(async () => {
-    const targetWorkspaceId = loginWorkspaceIdRef.current ?? activeWorkspaceId;
+    const targetWorkspaceId =
+      loginWorkspaceIdRef.current ?? activeWorkspaceId ?? fallbackWorkspaceId;
     if (!targetWorkspaceId || (!accountSwitchingRef.current && !loginWorkspaceIdRef.current)) {
       return;
     }
@@ -215,7 +219,7 @@ export function useAccountSwitching({
       loginIdRef.current = null;
       loginWorkspaceIdRef.current = null;
     }
-  }, [activeWorkspaceId, alertError]);
+  }, [activeWorkspaceId, alertError, fallbackWorkspaceId]);
 
   return {
     activeAccount,

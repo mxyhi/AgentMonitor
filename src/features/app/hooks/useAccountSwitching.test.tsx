@@ -82,6 +82,7 @@ describe("useAccountSwitching", () => {
 
     const { root } = await mount({
       activeWorkspaceId: "ws-1",
+      fallbackWorkspaceId: null,
       accountByWorkspace: { "ws-1": makeAccount() },
       refreshAccountInfo,
       refreshAccountRateLimits,
@@ -134,6 +135,7 @@ describe("useAccountSwitching", () => {
 
     const { root } = await mount({
       activeWorkspaceId: "ws-1",
+      fallbackWorkspaceId: null,
       accountByWorkspace: { "ws-1": makeAccount() },
       refreshAccountInfo,
       refreshAccountRateLimits,
@@ -186,6 +188,7 @@ describe("useAccountSwitching", () => {
 
     const { root } = await mount({
       activeWorkspaceId: "ws-1",
+      fallbackWorkspaceId: null,
       accountByWorkspace: { "ws-1": makeAccount() },
       refreshAccountInfo,
       refreshAccountRateLimits,
@@ -227,6 +230,7 @@ describe("useAccountSwitching", () => {
 
     const { root } = await mount({
       activeWorkspaceId: "ws-1",
+      fallbackWorkspaceId: null,
       accountByWorkspace: { "ws-1": makeAccount() },
       refreshAccountInfo,
       refreshAccountRateLimits,
@@ -259,6 +263,7 @@ describe("useAccountSwitching", () => {
 
     const { root, render } = await mount({
       activeWorkspaceId: "ws-1",
+      fallbackWorkspaceId: null,
       accountByWorkspace: { "ws-1": makeAccount() },
       refreshAccountInfo,
       refreshAccountRateLimits,
@@ -272,6 +277,7 @@ describe("useAccountSwitching", () => {
 
     await render({
       activeWorkspaceId: "ws-2",
+      fallbackWorkspaceId: null,
       accountByWorkspace: { "ws-1": makeAccount(), "ws-2": makeAccount() },
       refreshAccountInfo,
       refreshAccountRateLimits,
@@ -292,6 +298,37 @@ describe("useAccountSwitching", () => {
     expect(refreshAccountInfo).toHaveBeenCalledWith("ws-1");
     expect(refreshAccountRateLimits).toHaveBeenCalledWith("ws-1");
     expect(alertError).not.toHaveBeenCalled();
+
+    await act(async () => {
+      root.unmount();
+    });
+  });
+
+  it("falls back to the first available workspace when none is active", async () => {
+    vi.mocked(runCodexLogin).mockResolvedValue({
+      loginId: "login-fallback",
+      authUrl: "https://example.com/fallback",
+    });
+
+    const refreshAccountInfo = vi.fn();
+    const refreshAccountRateLimits = vi.fn();
+    const alertError = vi.fn();
+
+    const { root } = await mount({
+      activeWorkspaceId: null,
+      fallbackWorkspaceId: "ws-1",
+      accountByWorkspace: { "ws-1": makeAccount() },
+      refreshAccountInfo,
+      refreshAccountRateLimits,
+      alertError,
+    });
+
+    await act(async () => {
+      await latest?.handleSwitchAccount();
+    });
+
+    expect(runCodexLogin).toHaveBeenCalledWith("ws-1");
+    expect(openUrl).toHaveBeenCalledWith("https://example.com/fallback");
 
     await act(async () => {
       root.unmount();
