@@ -274,7 +274,7 @@ jobs:
             "release-artifacts/${BASE_NAME}.app.tar.gz" \
             -C "$APP_DIR" "Agent Monitor.app"
 
-          pnpm exec tauri signer sign -- \
+          pnpm exec tauri signer sign \
             -f "$HOME/.tauri/codexmonitor.key" \
             -p "$TAURI_SIGNING_PRIVATE_KEY_PASSWORD" \
             "release-artifacts/${BASE_NAME}.app.tar.gz"
@@ -415,7 +415,7 @@ jobs:
           pnpm sync:material-icons
           pnpm prepare:codex-runtime
           pnpm doctor:win
-          node scripts/run-tauri-build.mjs \
+          pnpm exec tauri build \
             --target "$CARGO_BUILD_TARGET" \
             --bundles nsis,msi \
             --config src-tauri/tauri.windows.conf.json

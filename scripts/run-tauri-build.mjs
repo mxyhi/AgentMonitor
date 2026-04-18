@@ -22,11 +22,16 @@ if (!hasUpdaterSigningKey) {
   );
 }
 
-const command = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
+const command = "pnpm";
 const result = spawnSync(command, tauriArgs, {
   stdio: "inherit",
   env: process.env,
+  shell: process.platform === "win32",
 });
+
+if (result.error) {
+  throw result.error;
+}
 
 if (typeof result.status === "number") {
   process.exit(result.status);
