@@ -63,7 +63,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEY0QTgzQUU0QTc2MEVBNDMKUldSRDZtQ241RHFvOURJbm1KeC81aEZaOXlhZHlHd2NEZVpPVWs5NjdjOFNhUFEyZGJpTkV0S2YK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDgyQkE2QzQyN0ZBMDg3RTkKUldUcGg2Qi9RbXk2Z2paNW9ubmpLTE1lWk9xVlpGcElHcXhja3VSYnIvd1U0bXJ0eWhZWjJ2d1gK",
       "endpoints": [
         "https://github.com/mxyhi/CodexMonitor/releases/latest/download/latest.json"
       ]
