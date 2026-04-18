@@ -239,7 +239,7 @@ jobs:
         run: |
           set -euo pipefail
           APP_PATH="src-tauri/target/${CARGO_BUILD_TARGET}/release/bundle/macos/Agent Monitor.app"
-          ZIP_PATH="CodexMonitor-${{ matrix.arch }}-notarize.zip"
+          ZIP_PATH="AgentMonitor-${{ matrix.arch }}-notarize.zip"
 
           ditto -c -k --keepParent "$APP_PATH" "$ZIP_PATH"
 
@@ -255,7 +255,7 @@ jobs:
           VERSION="${{ needs.prepare_release.outputs.version }}"
           APP_PATH="src-tauri/target/${CARGO_BUILD_TARGET}/release/bundle/macos/Agent Monitor.app"
           APP_DIR="$(dirname "$APP_PATH")"
-          BASE_NAME="CodexMonitor_${VERSION}_${{ matrix.arch }}"
+          BASE_NAME="AgentMonitor_${VERSION}_${{ matrix.arch }}"
 
           mkdir -p release-artifacts release-artifacts/dmg-root
           rm -rf "release-artifacts/dmg-root/Agent Monitor.app"
@@ -430,7 +430,7 @@ jobs:
         run: |
           set -euo pipefail
           VERSION="${{ needs.prepare_release.outputs.version }}"
-          BASE_NAME="CodexMonitor_${VERSION}_${{ matrix.arch }}"
+          BASE_NAME="AgentMonitor_${VERSION}_${{ matrix.arch }}"
           BUNDLE_ROOT="src-tauri/target/${CARGO_BUILD_TARGET}/release/bundle"
 
           mkdir -p release-artifacts
@@ -577,14 +577,14 @@ jobs:
               }
 
           for arch in ("aarch64", "x86_64"):
-              mac_file = f"CodexMonitor_{version}_{arch}.app.tar.gz"
+              mac_file = f"AgentMonitor_{version}_{arch}.app.tar.gz"
               if (artifacts_dir / mac_file).exists():
                   register_target(f"darwin-{arch}", mac_file)
                   register_target(f"darwin-{arch}-app", mac_file)
 
           for arch in ("x86_64", "aarch64"):
-              nsis_file = f"CodexMonitor_{version}_{arch}-setup.exe"
-              msi_file = f"CodexMonitor_{version}_{arch}.msi"
+              nsis_file = f"AgentMonitor_{version}_{arch}-setup.exe"
+              msi_file = f"AgentMonitor_{version}_{arch}.msi"
               if (artifacts_dir / nsis_file).exists():
                   register_target(f"windows-{arch}", nsis_file)
                   register_target(f"windows-{arch}-nsis", nsis_file)
