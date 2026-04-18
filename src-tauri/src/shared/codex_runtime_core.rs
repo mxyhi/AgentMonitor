@@ -251,6 +251,11 @@ mod tests {
     fn packaged_runtime_candidates_include_bare_sidecar_next_to_app_binary() {
         let exe_dir = std::path::Path::new("/Applications/Agent Monitor.app/Contents/MacOS");
         let candidates = bundled_candidate_paths_for_exe_dir(exe_dir);
-        assert!(candidates.iter().any(|path| path == &exe_dir.join(BUNDLED_CODEX_SIDECAR_NAME)));
+        let bare_sidecar = if cfg!(target_os = "windows") {
+            exe_dir.join(format!("{BUNDLED_CODEX_SIDECAR_NAME}.exe"))
+        } else {
+            exe_dir.join(BUNDLED_CODEX_SIDECAR_NAME)
+        };
+        assert!(candidates.iter().any(|path| path == &bare_sidecar));
     }
 }
