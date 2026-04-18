@@ -1,6 +1,6 @@
 # Agent Monitor
 
-[![gitcgr](https://gitcgr.com/badge/Dimillian/CodexMonitor.svg)](https://gitcgr.com/Dimillian/CodexMonitor)
+[![gitcgr](https://gitcgr.com/badge/mxyhi/CodexMonitor.svg)](https://gitcgr.com/mxyhi/CodexMonitor)
 
 ![Agent Monitor](screenshot.png)
 
@@ -12,7 +12,7 @@ Agent Monitor is a Tauri app for orchestrating multiple Codex agents across loca
 
 - Add and persist workspaces, group/sort them, and jump into recent agent activity from the home dashboard.
 - Spawn one `codex app-server` per workspace, resume threads, and track unread/running state.
-- Worktree and clone agents for isolated work; worktrees live under the app data directory (legacy `.codex-worktrees` supported).
+- Worktree and clone agents for isolated work; worktrees live under the app data directory.
 - Thread management: pin/rename/archive/copy, per-thread drafts, and stop/interrupt in-flight turns.
 - Optional remote backend (daemon) mode for running Codex on another machine.
 - Remote setup helpers for self-hosted connectivity (Tailscale detection/host bootstrap for TCP mode).
@@ -228,6 +228,8 @@ If `TAURI_SIGNING_PRIVATE_KEY` is not set locally, `pnpm tauri:build` still buil
 
 Artifacts will be in `src-tauri/target/release/bundle/` (platform-specific subfolders).
 
+`main` 上的 push 会自动触发 GitHub Release 工作流。工作流会读取仓内当前版本号，只有当对应 `v<version>` tag 尚不存在时才会并行发布桌面产物并生成 `latest.json`，当前自动发布目标为 macOS (`aarch64` / `x86_64`) 与 Windows (`x86_64` / `aarch64`)。
+
 ### Windows (opt-in)
 
 Windows builds are opt-in and use a separate Tauri config file to avoid macOS-only window effects.
@@ -307,7 +309,7 @@ src-tauri/
 - The remote daemon entrypoint is `src-tauri/src/bin/codex_monitor_daemon.rs`; RPC routing lives in `src-tauri/src/bin/codex_monitor_daemon/rpc.rs` and domain handlers in `src-tauri/src/bin/codex_monitor_daemon/rpc/`.
 - Shared domain logic lives in `src-tauri/src/shared/` (notably `src-tauri/src/shared/git_ui_core/` and `src-tauri/src/shared/workspaces_core/`).
 - Codex home resolves from an explicit `CODEX_HOME` override first; otherwise the desktop app uses its own app-data `codex-home/` directory so config, prompts, agents, auth, and usage data stay self-contained inside the app.
-- Worktree agents live under the app data directory (`worktrees/<workspace-id>`); legacy `.codex-worktrees/` paths remain supported, and the app no longer edits repo `.gitignore` files.
+- Worktree agents live under the app data directory (`worktrees/<workspace-id>`), and the app no longer edits repo `.gitignore` files.
 - UI state (panel sizes, reduced transparency toggle, recent thread activity) is stored in `localStorage`.
 - Custom prompts load from the active Codex home `prompts/` directory with optional frontmatter description/argument hints.
 

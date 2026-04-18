@@ -11,38 +11,47 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
-          cache: "npm"
+          cache: "pnpm"
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
       - name: Lint
-        run: npm run lint
+        run: pnpm run lint
   typecheck:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
-          cache: "npm"
+          cache: "pnpm"
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
       - name: Typecheck
-        run: npm run typecheck
+        run: pnpm run typecheck
   test-js:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
-          cache: "npm"
+          cache: "pnpm"
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
       - name: Tests
-        run: npm run test
+        run: pnpm run test
 
   test-tauri:
     name: Rust tests (${{ matrix.platform.name }})
@@ -59,6 +68,13 @@ jobs:
             os: windows-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
       - uses: dtolnay/rust-toolchain@stable
       - name: Cache Rust build
         uses: actions/cache@v4
@@ -93,6 +109,8 @@ jobs:
         run: |
           echo "LIBCLANG_PATH=C:\\Program Files\\LLVM\\bin" >> $env:GITHUB_ENV
           echo "C:\\Program Files\\LLVM\\bin" >> $env:GITHUB_PATH
+      - name: Install JS dependencies
+        run: pnpm install --frozen-lockfile
       - name: Rust tests
         run: cargo test
         working-directory: src-tauri
@@ -111,19 +129,22 @@ jobs:
         platform:
           - name: macOS
             os: macos-latest
-            build_command: npm run tauri -- build --debug --no-bundle
+            build_command: pnpm exec tauri build --debug --no-bundle
           - name: Linux
             os: ubuntu-latest
-            build_command: npm run tauri -- build --debug --no-bundle
+            build_command: pnpm exec tauri build --debug --no-bundle
           - name: Windows
             os: windows-latest
-            build_command: npm run tauri -- build --debug --no-bundle --config src-tauri/tauri.windows.conf.json
+            build_command: pnpm exec tauri build --debug --no-bundle --config src-tauri/tauri.windows.conf.json
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
-          cache: "npm"
+          cache: "pnpm"
       - uses: dtolnay/rust-toolchain@stable
       - name: Cache Rust build
         uses: actions/cache@v4
@@ -159,9 +180,16 @@ jobs:
           echo "LIBCLANG_PATH=C:\\Program Files\\LLVM\\bin" >> $env:GITHUB_ENV
           echo "C:\\Program Files\\LLVM\\bin" >> $env:GITHUB_PATH
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
+      - name: Prepare bundled runtime
+        run: |
+          pnpm sync:material-icons
+          pnpm prepare:codex-runtime
+      - name: Doctor (non-Windows)
+        if: runner.os != 'Windows'
+        run: pnpm run doctor:strict
       - name: Doctor (Windows)
         if: runner.os == 'Windows'
-        run: npm run doctor:win
+        run: pnpm run doctor:win
       - name: Tauri debug build
         run: ${{ matrix.platform.build_command }}
