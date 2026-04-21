@@ -1,5 +1,6 @@
 use std::env;
 use std::ffi::OsString;
+use std::fs;
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 
@@ -17,10 +18,20 @@ pub(crate) struct ResolvedGitRuntime {
     bundled_root: Option<PathBuf>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct BundledGitLayout {
+    program: PathBuf,
+    exec_path: PathBuf,
+    template_dir: PathBuf,
+    path_entries: Vec<PathBuf>,
+}
+
 // Build scripts read this version directly from source to keep the bundled MinGit asset tag in sync.
 #[allow(dead_code)]
 pub(crate) const BUNDLED_GIT_WINDOWS_VERSION: &str = "2.54.0.windows.1";
 pub(crate) const BUNDLED_GIT_RESOURCE_DIR: &str = "git-bundled";
+const PREFERRED_BUNDLED_GIT_TOOLCHAINS: &[&str] =
+    &["mingw64", "clangarm64", "clang64", "ucrt64", "mingw32"];
 
 fn bundled_git_target_triple_for(target_os: &str, target_arch: &str) -> Option<&'static str> {
     match (target_os, target_arch) {
@@ -34,16 +45,97 @@ pub(crate) fn bundled_git_target_triple() -> Option<&'static str> {
     bundled_git_target_triple_for(env::consts::OS, env::consts::ARCH)
 }
 
-fn windows_bundled_git_program(root: &Path) -> PathBuf {
-    root.join("cmd").join("git.exe")
-}
-
 fn candidate_if_exists(path: PathBuf) -> Option<PathBuf> {
     path.is_file().then_some(path)
 }
 
+fn preferred_toolchain_rank(root: &Path) -> (usize, String) {
+    let name = root
+        .file_name()
+        .and_then(|value| value.to_str())
+        .unwrap_or_default()
+        .to_ascii_lowercase();
+    let index = PREFERRED_BUNDLED_GIT_TOOLCHAINS
+        .iter()
+        .position(|candidate| *candidate == name)
+        .unwrap_or(PREFERRED_BUNDLED_GIT_TOOLCHAINS.len());
+    (index, name)
+}
+
+fn is_bundled_git_toolchain_root(root: &Path) -> bool {
+    root.join("bin").join("git.exe").is_file()
+        && root.join("libexec").join("git-core").is_dir()
+        && root.join("share").join("git-core").join("templates").is_dir()
+}
+
+fn bundled_git_toolchain_roots(root: &Path) -> Vec<PathBuf> {
+    let Ok(entries) = fs::read_dir(root) else {
+        return Vec::new();
+    };
+
+    let mut candidates = entries
+        .filter_map(Result::ok)
+        .map(|entry| entry.path())
+        .filter(|candidate| candidate.is_dir() && is_bundled_git_toolchain_root(candidate))
+        .collect::<Vec<_>>();
+
+    candidates.sort_by(|left, right| {
+        preferred_toolchain_rank(left)
+            .cmp(&preferred_toolchain_rank(right))
+            .then_with(|| left.cmp(right))
+    });
+    candidates
+}
+
+fn bundled_git_layout_for(container_root: &Path, toolchain_root: &Path) -> Option<BundledGitLayout> {
+    let wrapped_program = container_root.join("cmd").join("git.exe");
+    let direct_program = toolchain_root.join("bin").join("git.exe");
+    let program = if wrapped_program.is_file() {
+        wrapped_program
+    } else if direct_program.is_file() {
+        direct_program
+    } else {
+        return None;
+    };
+
+    let exec_path = toolchain_root.join("libexec").join("git-core");
+    let template_dir = toolchain_root.join("share").join("git-core").join("templates");
+    if !exec_path.is_dir() || !template_dir.is_dir() {
+        return None;
+    }
+
+    let mut path_entries = Vec::new();
+    if container_root.join("cmd").is_dir() && container_root.join("cmd").join("git.exe").is_file() {
+        append_unique_path(&mut path_entries, container_root.join("cmd"));
+    }
+    append_unique_path(&mut path_entries, toolchain_root.join("bin"));
+    append_unique_path(&mut path_entries, container_root.join("usr").join("bin"));
+
+    Some(BundledGitLayout {
+        program,
+        exec_path,
+        template_dir,
+        path_entries,
+    })
+}
+
+// Git for Windows 2.54 keeps x64 MinGit in the classic root layout but arm64 ships
+// under a nested clangarm64 toolchain root. Resolve the usable runtime from files
+// on disk so app runtime and release prepare logic stay aligned.
+fn bundled_git_layout(root: &Path) -> Option<BundledGitLayout> {
+    if let Some(toolchain_root) = bundled_git_toolchain_roots(root).into_iter().next() {
+        return bundled_git_layout_for(root, &toolchain_root);
+    }
+
+    if is_bundled_git_toolchain_root(root) {
+        return bundled_git_layout_for(root, root);
+    }
+
+    None
+}
+
 fn bundled_root_if_valid(root: PathBuf) -> Option<PathBuf> {
-    windows_bundled_git_program(&root).is_file().then_some(root)
+    bundled_git_layout(&root).map(|_| root)
 }
 
 fn find_in_path(binary: &str) -> Option<PathBuf> {
@@ -184,12 +276,13 @@ pub(crate) fn resolve_git_runtime() -> Result<ResolvedGitRuntime, String> {
     }
 
     if let Some(bundled_root) = resolve_bundled_git_root() {
-        let program = windows_bundled_git_program(&bundled_root);
-        return Ok(ResolvedGitRuntime {
-            program: program.to_string_lossy().to_string(),
-            source: GitRuntimeSource::Bundled,
-            bundled_root: Some(bundled_root),
-        });
+        if let Some(layout) = bundled_git_layout(&bundled_root) {
+            return Ok(ResolvedGitRuntime {
+                program: layout.program.to_string_lossy().to_string(),
+                source: GitRuntimeSource::Bundled,
+                bundled_root: Some(bundled_root),
+            });
+        }
     }
 
     if let Some(path_binary) = resolve_path_git_binary() {
@@ -262,30 +355,12 @@ fn git_home_override() -> Option<String> {
     None
 }
 
-fn bundled_git_exec_path(root: &Path) -> Option<String> {
-    let path = root.join("mingw64").join("libexec").join("git-core");
-    path.is_dir().then(|| path.to_string_lossy().to_string())
-}
-
-fn bundled_git_template_dir(root: &Path) -> Option<String> {
-    let path = root
-        .join("mingw64")
-        .join("share")
-        .join("git-core")
-        .join("templates");
-    path.is_dir().then(|| path.to_string_lossy().to_string())
-}
-
 fn git_path_env(runtime: &ResolvedGitRuntime) -> String {
     let mut paths = Vec::new();
 
     if let Some(root) = runtime.bundled_root.as_ref() {
-        for candidate in [
-            root.join("cmd"),
-            root.join("mingw64").join("bin"),
-            root.join("usr").join("bin"),
-        ] {
-            if candidate.is_dir() {
+        if let Some(layout) = bundled_git_layout(root) {
+            for candidate in layout.path_entries {
                 append_unique_path(&mut paths, candidate);
             }
         }
@@ -324,11 +399,15 @@ pub(crate) fn git_runtime_env(runtime: &ResolvedGitRuntime) -> Vec<(String, Stri
     }
 
     if let Some(root) = runtime.bundled_root.as_ref() {
-        if let Some(exec_path) = bundled_git_exec_path(root) {
-            envs.push(("GIT_EXEC_PATH".to_string(), exec_path));
-        }
-        if let Some(template_dir) = bundled_git_template_dir(root) {
-            envs.push(("GIT_TEMPLATE_DIR".to_string(), template_dir));
+        if let Some(layout) = bundled_git_layout(root) {
+            envs.push((
+                "GIT_EXEC_PATH".to_string(),
+                layout.exec_path.to_string_lossy().to_string(),
+            ));
+            envs.push((
+                "GIT_TEMPLATE_DIR".to_string(),
+                layout.template_dir.to_string_lossy().to_string(),
+            ));
         }
     }
 
@@ -338,9 +417,9 @@ pub(crate) fn git_runtime_env(runtime: &ResolvedGitRuntime) -> Vec<(String, Stri
 #[cfg(test)]
 mod tests {
     use super::{
-        bundled_candidate_roots_for_exe_dir, bundled_git_target_triple_for, format_git_command_error,
-        format_git_spawn_error, git_runtime_env, resolve_git_runtime, GitRuntimeSource,
-        ResolvedGitRuntime, BUNDLED_GIT_RESOURCE_DIR,
+        bundled_candidate_roots_for_exe_dir, bundled_git_layout, bundled_git_target_triple_for,
+        format_git_command_error, format_git_spawn_error, git_runtime_env, resolve_git_runtime,
+        GitRuntimeSource, ResolvedGitRuntime, BUNDLED_GIT_RESOURCE_DIR,
     };
     use std::env;
     use std::fs;
@@ -396,6 +475,63 @@ mod tests {
         Path::new(value).components().eq(expected.components())
     }
 
+    fn create_fake_runtime_files(root: &Path, relative_paths: &[&str]) {
+        for relative in relative_paths {
+            let full_path = root.join(relative);
+            if relative.ends_with(".exe") {
+                if let Some(parent) = full_path.parent() {
+                    fs::create_dir_all(parent).expect("create file parent");
+                }
+                fs::write(full_path, b"stub").expect("write runtime file");
+            } else {
+                fs::create_dir_all(full_path).expect("create runtime directory");
+            }
+        }
+    }
+
+    fn assert_bundled_runtime_env(
+        root: &Path,
+        expected_program: &Path,
+        expected_path_entries: &[PathBuf],
+        expected_exec_path: &Path,
+        expected_template_dir: &Path,
+    ) {
+        let layout = bundled_git_layout(root).expect("resolve bundled git layout");
+        assert_eq!(layout.program, expected_program);
+        assert_eq!(layout.exec_path, expected_exec_path);
+        assert_eq!(layout.template_dir, expected_template_dir);
+        assert_eq!(layout.path_entries, expected_path_entries);
+
+        let runtime = ResolvedGitRuntime {
+            program: layout.program.to_string_lossy().to_string(),
+            source: GitRuntimeSource::Bundled,
+            bundled_root: Some(root.to_path_buf()),
+        };
+        let envs = git_runtime_env(&runtime);
+        let path_env = envs
+            .iter()
+            .find(|(key, _)| key == "PATH")
+            .map(|(_, value)| value.clone())
+            .expect("path env");
+        let path_entries = env::split_paths(std::ffi::OsStr::new(&path_env)).collect::<Vec<_>>();
+
+        for expected_entry in expected_path_entries {
+            assert!(path_entries.contains(expected_entry));
+        }
+        assert!(
+            envs.iter().any(|(key, value)| {
+                key == "GIT_EXEC_PATH"
+                    && path_components_match(value, expected_exec_path)
+            })
+        );
+        assert!(
+            envs.iter().any(|(key, value)| {
+                key == "GIT_TEMPLATE_DIR"
+                    && path_components_match(value, expected_template_dir)
+            })
+        );
+    }
+
     #[test]
     fn custom_runtime_env_var_beats_other_sources() {
         let temp_dir = create_temp_dir("custom");
@@ -426,50 +562,64 @@ mod tests {
     }
 
     #[test]
-    fn bundled_windows_env_includes_mingit_dirs() {
-        let root = create_temp_dir("bundled-root");
-        for relative in [
-            "cmd",
-            "mingw64/bin",
-            "mingw64/libexec/git-core",
-            "mingw64/share/git-core/templates",
-            "usr/bin",
-        ] {
-            fs::create_dir_all(root.join(relative)).expect("create runtime directory");
-        }
-
-        let runtime = ResolvedGitRuntime {
-            program: root.join("cmd/git.exe").to_string_lossy().to_string(),
-            source: GitRuntimeSource::Bundled,
-            bundled_root: Some(root.clone()),
-        };
-        let envs = git_runtime_env(&runtime);
-        let path_env = envs
-            .iter()
-            .find(|(key, _)| key == "PATH")
-            .map(|(_, value)| value.clone())
-            .expect("path env");
-        let path_entries = env::split_paths(std::ffi::OsStr::new(&path_env)).collect::<Vec<_>>();
-        let expected_exec_path = root.join("mingw64").join("libexec").join("git-core");
-        let expected_template_dir = root
-            .join("mingw64")
-            .join("share")
-            .join("git-core")
-            .join("templates");
-
-        assert!(path_entries.contains(&root.join("cmd")));
-        assert!(path_entries.contains(&root.join("mingw64").join("bin")));
-        assert!(path_entries.contains(&root.join("usr").join("bin")));
-        assert!(
-            envs.iter().any(|(key, value)| {
-                key == "GIT_EXEC_PATH"
-                    && path_components_match(value, expected_exec_path.as_path())
-            })
+    fn bundled_windows_env_supports_classic_x64_layout() {
+        let root = create_temp_dir("bundled-root-classic");
+        create_fake_runtime_files(
+            &root,
+            &[
+                "cmd/git.exe",
+                "mingw64/bin/git.exe",
+                "mingw64/libexec/git-core",
+                "mingw64/share/git-core/templates",
+                "usr/bin",
+            ],
         );
-        assert!(
-            envs.iter().any(|(key, value)| {
-                key == "GIT_TEMPLATE_DIR" && path_components_match(value, expected_template_dir.as_path())
-            })
+
+        assert_bundled_runtime_env(
+            &root,
+            &root.join("cmd").join("git.exe"),
+            &[
+                root.join("cmd"),
+                root.join("mingw64").join("bin"),
+                root.join("usr").join("bin"),
+            ],
+            &root.join("mingw64").join("libexec").join("git-core"),
+            &root
+                .join("mingw64")
+                .join("share")
+                .join("git-core")
+                .join("templates"),
+        );
+    }
+
+    #[test]
+    fn bundled_windows_env_supports_nested_arm64_layout() {
+        let root = create_temp_dir("bundled-root-arm64");
+        create_fake_runtime_files(
+            &root,
+            &[
+                "cmd/git.exe",
+                "clangarm64/bin/git.exe",
+                "clangarm64/libexec/git-core",
+                "clangarm64/share/git-core/templates",
+                "usr/bin",
+            ],
+        );
+
+        assert_bundled_runtime_env(
+            &root,
+            &root.join("cmd").join("git.exe"),
+            &[
+                root.join("cmd"),
+                root.join("clangarm64").join("bin"),
+                root.join("usr").join("bin"),
+            ],
+            &root.join("clangarm64").join("libexec").join("git-core"),
+            &root
+                .join("clangarm64")
+                .join("share")
+                .join("git-core")
+                .join("templates"),
         );
     }
 

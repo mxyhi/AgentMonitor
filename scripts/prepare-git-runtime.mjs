@@ -155,58 +155,133 @@ function extractArchive(archivePath, outputDir) {
   run("unzip", ["-o", archivePath, "-d", outputDir]);
 }
 
-function resolveBundledGitPathEntries(root) {
-  return [
-    path.join(root, "cmd"),
-    path.join(root, "mingw64", "bin"),
-    path.join(root, "usr", "bin"),
-  ].filter((candidate) => fs.existsSync(candidate));
+function isDirectory(candidate) {
+  return fs.existsSync(candidate) && fs.statSync(candidate).isDirectory();
 }
 
-function bundledGitExecutable(root) {
-  return path.join(root, "cmd", "git.exe");
+function isFile(candidate) {
+  return fs.existsSync(candidate) && fs.statSync(candidate).isFile();
 }
 
-function bundledGitExecPath(root) {
-  return path.join(root, "mingw64", "libexec", "git-core");
+const preferredToolchainRootNames = ["mingw64", "clangarm64", "clang64", "ucrt64", "mingw32"];
+
+function compareToolchainRoots(left, right) {
+  const leftName = path.basename(left).toLowerCase();
+  const rightName = path.basename(right).toLowerCase();
+  const leftIndex = preferredToolchainRootNames.indexOf(leftName);
+  const rightIndex = preferredToolchainRootNames.indexOf(rightName);
+  const normalizedLeftIndex = leftIndex === -1 ? preferredToolchainRootNames.length : leftIndex;
+  const normalizedRightIndex = rightIndex === -1 ? preferredToolchainRootNames.length : rightIndex;
+  if (normalizedLeftIndex !== normalizedRightIndex) {
+    return normalizedLeftIndex - normalizedRightIndex;
+  }
+  return left.localeCompare(right);
+}
+
+function isBundledGitToolchainRoot(root) {
+  return (
+    isFile(path.join(root, "bin", "git.exe")) &&
+    isDirectory(path.join(root, "libexec", "git-core")) &&
+    isDirectory(path.join(root, "share", "git-core", "templates"))
+  );
+}
+
+function collectBundledGitToolchainRoots(root) {
+  if (!isDirectory(root)) {
+    return [];
+  }
+
+  return fs
+    .readdirSync(root, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => path.join(root, entry.name))
+    .filter((candidate) => isBundledGitToolchainRoot(candidate))
+    .sort(compareToolchainRoots);
+}
+
+function appendUniquePath(paths, candidate) {
+  if (!candidate || !isDirectory(candidate) || paths.includes(candidate)) {
+    return;
+  }
+  paths.push(candidate);
+}
+
+function createBundledGitLayout(containerRoot, toolchainRoot) {
+  const wrappedGit = path.join(containerRoot, "cmd", "git.exe");
+  const directGit = path.join(toolchainRoot, "bin", "git.exe");
+  const program = isFile(wrappedGit) ? wrappedGit : directGit;
+  const execPath = path.join(toolchainRoot, "libexec", "git-core");
+  const templateDir = path.join(toolchainRoot, "share", "git-core", "templates");
+  if (!isFile(program) || !isDirectory(execPath) || !isDirectory(templateDir)) {
+    return null;
+  }
+
+  const pathEntries = [];
+  if (isFile(wrappedGit)) {
+    appendUniquePath(pathEntries, path.join(containerRoot, "cmd"));
+  }
+  appendUniquePath(pathEntries, path.join(toolchainRoot, "bin"));
+  appendUniquePath(pathEntries, path.join(containerRoot, "usr", "bin"));
+
+  return {
+    program,
+    execPath,
+    templateDir,
+    pathEntries,
+    toolchainRoot,
+  };
+}
+
+// Git for Windows 2.54 keeps x64 MinGit in the classic root layout but arm64 now ships
+// under a nested clangarm64 toolchain root. Detect the usable layout from files on disk
+// instead of hard-coding one directory name per architecture.
+export function resolveBundledGitLayout(root) {
+  const nestedToolchainRoots = collectBundledGitToolchainRoots(root);
+  if (nestedToolchainRoots.length > 0) {
+    return createBundledGitLayout(root, nestedToolchainRoots[0]);
+  }
+
+  if (isBundledGitToolchainRoot(root)) {
+    return createBundledGitLayout(root, root);
+  }
+
+  return null;
 }
 
 function isWindowsTarget(targetTriple = cargoTargetTriple) {
   return targetTriple.endsWith("-pc-windows-msvc");
 }
 
-function bundledGitValidationEnv(root) {
+function bundledGitValidationEnv(layout) {
   return {
     ...process.env,
     PATH: [
-      ...resolveBundledGitPathEntries(root),
+      ...layout.pathEntries,
       process.env.PATH ?? "",
     ].filter(Boolean).join(path.delimiter),
-    GIT_EXEC_PATH: bundledGitExecPath(root),
+    GIT_EXEC_PATH: layout.execPath,
+    GIT_TEMPLATE_DIR: layout.templateDir,
   };
 }
 
 function isBundledGitUsable(root) {
-  const gitPath = bundledGitExecutable(root);
-  if (!fs.existsSync(gitPath)) {
-    return false;
-  }
-  if (!fs.existsSync(bundledGitExecPath(root))) {
+  const layout = resolveBundledGitLayout(root);
+  if (!layout) {
     return false;
   }
   if (process.platform !== "win32") {
     return true;
   }
 
-  const env = bundledGitValidationEnv(root);
-  const versionResult = spawnSync(gitPath, ["--version"], { encoding: "utf8", env });
+  const env = bundledGitValidationEnv(layout);
+  const versionResult = spawnSync(layout.program, ["--version"], { encoding: "utf8", env });
   if (versionResult.status !== 0) {
     return false;
   }
   if (!`${versionResult.stdout}\n${versionResult.stderr}`.includes(`git version ${bundledVersion}`)) {
     return false;
   }
-  const execPathResult = spawnSync(gitPath, ["--exec-path"], { encoding: "utf8", env });
+  const execPathResult = spawnSync(layout.program, ["--exec-path"], { encoding: "utf8", env });
   if (execPathResult.status !== 0) {
     return false;
   }
@@ -230,12 +305,12 @@ export function resolveBundledGitRoot(targetTriple = cargoTargetTriple) {
   return path.join(destinationDir, targetTriple);
 }
 
-function findExtractedBundledGitRoot(rootDir) {
+export function findExtractedBundledGitRoot(rootDir) {
   const queue = [rootDir];
   while (queue.length > 0) {
     const current = queue.shift();
     if (!current) continue;
-    if (fs.existsSync(path.join(current, "cmd", "git.exe"))) {
+    if (resolveBundledGitLayout(current)) {
       return current;
     }
     for (const entry of fs.readdirSync(current, { withFileTypes: true })) {

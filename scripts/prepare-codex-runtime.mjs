@@ -4,7 +4,6 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
 import { resolveBundledCodexTargetTriple } from "./codex-runtime-targets.mjs";
-import { ensureBundledGhRuntime } from "./prepare-gh-runtime.mjs";
 import { ensureBundledGitRuntime } from "./prepare-git-runtime.mjs";
 
 const repoRoot = process.cwd();
@@ -326,7 +325,6 @@ function ensureInternalDaemonSidecars() {
 
 export async function main() {
   await ensureBundledRuntime();
-  await ensureBundledGhRuntime();
   await ensureBundledGitRuntime();
   ensureInternalDaemonSidecars();
 }
