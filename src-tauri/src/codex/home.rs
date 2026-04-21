@@ -1,10 +1,18 @@
 use std::env;
+use std::fs;
+use std::io;
 use std::path::{Path, PathBuf};
 
 use crate::types::WorkspaceEntry;
 
 const CODEX_MONITOR_APP_DATA_DIR_ENV: &str = "CODEX_MONITOR_APP_DATA_DIR";
+const CODEX_MONITOR_BUNDLED_SKILLS_PATH_ENV: &str = "CODEX_MONITOR_BUNDLED_SKILLS_PATH";
 const APP_PRIVATE_CODEX_HOME_DIR: &str = "codex-home";
+const BUNDLED_SKILLS_DIR: &str = "bundled-skills";
+const CODEX_HOME_SKILLS_DIR: &str = "skills";
+const DEFAULT_AGENTS_SENTINEL: &str = "默认始终自动使用 `caveman`、`planning-with-files` skill";
+const DEFAULT_AGENTS_SNIPPET: &str =
+    "## 默认始终自动使用 `caveman`、`planning-with-files` skill；除非用户明确要求关闭，或 skill 不可用。";
 
 pub(crate) fn resolve_workspace_codex_home(
     _entry: &WorkspaceEntry,
@@ -23,14 +31,30 @@ pub(crate) fn configure_default_codex_home(data_dir: &Path) {
         return;
     }
     env::set_var(CODEX_MONITOR_APP_DATA_DIR_ENV, normalized);
-    let codex_home = app_private_codex_home(data_dir);
-    let _ = std::fs::create_dir_all(&codex_home);
+    let app_private_home = app_private_codex_home(data_dir);
+    let _ = fs::create_dir_all(&app_private_home);
     if env::var("CODEX_HOME")
         .ok()
         .and_then(|value| normalize_codex_home(&value))
         .is_none()
     {
-        env::set_var("CODEX_HOME", codex_home);
+        env::set_var("CODEX_HOME", &app_private_home);
+    }
+    let Some(active_codex_home) = resolve_default_codex_home() else {
+        return;
+    };
+    if let Err(err) = fs::create_dir_all(&active_codex_home) {
+        eprintln!(
+            "codex-home: failed to create active CODEX_HOME {}: {err}",
+            active_codex_home.display()
+        );
+        return;
+    }
+    if let Err(err) = sync_bundled_skills(&active_codex_home) {
+        eprintln!("codex-home: failed to sync bundled skills: {err}");
+    }
+    if let Err(err) = ensure_default_agents_md(&active_codex_home) {
+        eprintln!("codex-home: failed to update global AGENTS.md: {err}");
     }
 }
 
@@ -166,6 +190,186 @@ fn join_env_path(prefix: &str, remainder: &str) -> PathBuf {
     }
 }
 
+fn candidate_dir_if_exists(path: PathBuf) -> Option<PathBuf> {
+    path.is_dir().then_some(path)
+}
+
+fn resolve_bundled_skills_env_override() -> Option<PathBuf> {
+    let path = PathBuf::from(env::var_os(CODEX_MONITOR_BUNDLED_SKILLS_PATH_ENV)?);
+    candidate_dir_if_exists(path)
+}
+
+fn resolve_dev_bundled_skills_root() -> Option<PathBuf> {
+    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    candidate_dir_if_exists(manifest_dir.join(BUNDLED_SKILLS_DIR))
+}
+
+// Tauri resource layouts differ across dev, macOS app bundles, and Linux/Windows packages.
+// Probe a small deterministic set so both the desktop app and daemon find the same assets.
+fn bundled_skills_candidate_paths_for_exe_dir(exe_dir: &Path) -> Vec<PathBuf> {
+    let package_name = env!("CARGO_PKG_NAME");
+    vec![
+        exe_dir.join(BUNDLED_SKILLS_DIR),
+        exe_dir.join("resources").join(BUNDLED_SKILLS_DIR),
+        exe_dir.join("../resources").join(BUNDLED_SKILLS_DIR),
+        exe_dir.join("../Resources").join(BUNDLED_SKILLS_DIR),
+        exe_dir
+            .join("../lib")
+            .join(package_name)
+            .join(BUNDLED_SKILLS_DIR),
+    ]
+}
+
+fn resolve_current_exe_bundled_skills_candidates() -> Vec<PathBuf> {
+    let Ok(current_exe) = env::current_exe() else {
+        return Vec::new();
+    };
+    let Some(exe_dir) = current_exe.parent() else {
+        return Vec::new();
+    };
+    bundled_skills_candidate_paths_for_exe_dir(exe_dir)
+}
+
+fn resolve_bundled_skills_root() -> Option<PathBuf> {
+    resolve_bundled_skills_env_override()
+        .or_else(resolve_dev_bundled_skills_root)
+        .or_else(|| {
+            resolve_current_exe_bundled_skills_candidates()
+                .into_iter()
+                .find(|candidate| candidate.is_dir())
+        })
+}
+
+// Sync bundled defaults on every startup so fresh installs and existing users converge on the
+// same app-managed skills snapshot without relying on one-time install hooks.
+fn sync_bundled_skills(codex_home: &Path) -> Result<(), String> {
+    let Some(source_root) = resolve_bundled_skills_root() else {
+        return Ok(());
+    };
+    let destination_root = codex_home.join(CODEX_HOME_SKILLS_DIR);
+    copy_directory_contents(&source_root, &destination_root)
+}
+
+fn copy_directory_contents(source_root: &Path, destination_root: &Path) -> Result<(), String> {
+    fs::create_dir_all(destination_root).map_err(|err| {
+        format!(
+            "Failed to create destination skills directory {}: {err}",
+            destination_root.display()
+        )
+    })?;
+
+    for entry in fs::read_dir(source_root).map_err(|err| {
+        format!(
+            "Failed to read bundled skills directory {}: {err}",
+            source_root.display()
+        )
+    })? {
+        let entry = entry.map_err(|err| {
+            format!(
+                "Failed to inspect bundled skills entry under {}: {err}",
+                source_root.display()
+            )
+        })?;
+        let source_path = entry.path();
+        let destination_path = destination_root.join(entry.file_name());
+        copy_directory_entry(&source_path, &destination_path)?;
+    }
+
+    Ok(())
+}
+
+fn copy_directory_entry(source_path: &Path, destination_path: &Path) -> Result<(), String> {
+    let metadata = fs::symlink_metadata(source_path).map_err(|err| {
+        format!(
+            "Failed to inspect bundled asset {}: {err}",
+            source_path.display()
+        )
+    })?;
+
+    if metadata.file_type().is_symlink() {
+        return Ok(());
+    }
+
+    if metadata.is_dir() {
+        fs::create_dir_all(destination_path).map_err(|err| {
+            format!(
+                "Failed to create bundled asset directory {}: {err}",
+                destination_path.display()
+            )
+        })?;
+        for entry in fs::read_dir(source_path).map_err(|err| {
+            format!(
+                "Failed to read bundled asset directory {}: {err}",
+                source_path.display()
+            )
+        })? {
+            let entry = entry.map_err(|err| {
+                format!(
+                    "Failed to inspect bundled asset entry under {}: {err}",
+                    source_path.display()
+                )
+            })?;
+            let child_source = entry.path();
+            let child_destination = destination_path.join(entry.file_name());
+            copy_directory_entry(&child_source, &child_destination)?;
+        }
+        return Ok(());
+    }
+
+    if metadata.is_file() {
+        if let Some(parent) = destination_path.parent() {
+            fs::create_dir_all(parent).map_err(|err| {
+                format!(
+                    "Failed to create bundled asset parent {}: {err}",
+                    parent.display()
+                )
+            })?;
+        }
+        fs::copy(source_path, destination_path).map_err(|err| {
+            format!(
+                "Failed to copy bundled asset {} to {}: {err}",
+                source_path.display(),
+                destination_path.display()
+            )
+        })?;
+    }
+
+    Ok(())
+}
+
+// Preserve any existing user instructions, but ensure the default skill rule exists exactly once.
+fn ensure_default_agents_md(codex_home: &Path) -> Result<(), String> {
+    let agents_path = codex_home.join("AGENTS.md");
+    let existing = match fs::read_to_string(&agents_path) {
+        Ok(contents) => contents,
+        Err(err) if err.kind() == io::ErrorKind::NotFound => String::new(),
+        Err(err) => {
+            return Err(format!(
+                "Failed to read global AGENTS.md {}: {err}",
+                agents_path.display()
+            ))
+        }
+    };
+
+    if existing.contains(DEFAULT_AGENTS_SENTINEL) {
+        return Ok(());
+    }
+
+    let mut next = existing.trim_end().to_string();
+    if !next.is_empty() {
+        next.push_str("\n\n");
+    }
+    next.push_str(DEFAULT_AGENTS_SNIPPET);
+    next.push('\n');
+
+    fs::write(&agents_path, next).map_err(|err| {
+        format!(
+            "Failed to write global AGENTS.md {}: {err}",
+            agents_path.display()
+        )
+    })
+}
+
 pub(crate) fn resolve_home_dir() -> Option<PathBuf> {
     if let Ok(value) = env::var("HOME") {
         if !value.trim().is_empty() {
@@ -202,7 +406,9 @@ pub(crate) fn resolve_home_dir() -> Option<PathBuf> {
 mod tests {
     use super::*;
     use crate::types::{WorkspaceKind, WorkspaceSettings, WorktreeInfo};
+    use std::fs;
     use std::sync::Mutex;
+    use std::time::{SystemTime, UNIX_EPOCH};
 
     static ENV_LOCK: Mutex<()> = Mutex::new(());
 
@@ -222,6 +428,23 @@ mod tests {
             parent_id: None,
             worktree,
             settings: WorkspaceSettings::default(),
+        }
+    }
+
+    fn temp_dir(label: &str) -> PathBuf {
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("clock")
+            .as_nanos();
+        let path = std::env::temp_dir().join(format!("codex-monitor-{label}-{unique}"));
+        fs::create_dir_all(&path).expect("create temp dir");
+        path
+    }
+
+    fn restore_env_var(name: &str, previous: Option<String>) {
+        match previous {
+            Some(value) => std::env::set_var(name, value),
+            None => std::env::remove_var(name),
         }
     }
 
@@ -324,5 +547,115 @@ mod tests {
             Some(value) => std::env::set_var("APPDATA", value),
             None => std::env::remove_var("APPDATA"),
         }
+    }
+
+    #[test]
+    fn configure_default_codex_home_syncs_bundled_skills_and_default_agents_md() {
+        let _guard = ENV_LOCK
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let data_dir = temp_dir("codex-home-data");
+        let bundled_root = temp_dir("bundled-skills");
+        let nested_skill_dir = bundled_root
+            .join("ok-skills")
+            .join("impeccable")
+            .join("adapt");
+        fs::create_dir_all(&nested_skill_dir).expect("create nested skill");
+        fs::write(
+            bundled_root
+                .join("ok-skills")
+                .join("caveman")
+                .join("SKILL.md"),
+            "---\nname: caveman\ndescription: terse\n---\n",
+        )
+        .unwrap_or_else(|_| {
+            fs::create_dir_all(bundled_root.join("ok-skills").join("caveman"))
+                .expect("create caveman dir");
+            fs::write(
+                bundled_root
+                    .join("ok-skills")
+                    .join("caveman")
+                    .join("SKILL.md"),
+                "---\nname: caveman\ndescription: terse\n---\n",
+            )
+            .expect("write caveman skill");
+        });
+        fs::write(
+            nested_skill_dir.join("SKILL.md"),
+            "---\nname: adapt\ndescription: responsive\n---\n",
+        )
+        .expect("write nested skill");
+
+        let prev_codex_home = std::env::var("CODEX_HOME").ok();
+        let prev_monitor_data_dir = std::env::var("CODEX_MONITOR_APP_DATA_DIR").ok();
+        let prev_bundled_skills = std::env::var(CODEX_MONITOR_BUNDLED_SKILLS_PATH_ENV).ok();
+        std::env::remove_var("CODEX_HOME");
+        std::env::set_var(CODEX_MONITOR_BUNDLED_SKILLS_PATH_ENV, &bundled_root);
+
+        configure_default_codex_home(&data_dir);
+
+        let codex_home = data_dir.join("codex-home");
+        assert!(codex_home
+            .join("skills")
+            .join("ok-skills")
+            .join("caveman")
+            .join("SKILL.md")
+            .is_file());
+        assert!(codex_home
+            .join("skills")
+            .join("ok-skills")
+            .join("impeccable")
+            .join("adapt")
+            .join("SKILL.md")
+            .is_file());
+        let agents_md = fs::read_to_string(codex_home.join("AGENTS.md")).expect("read AGENTS.md");
+        assert!(agents_md.contains(DEFAULT_AGENTS_SENTINEL));
+
+        restore_env_var("CODEX_HOME", prev_codex_home);
+        restore_env_var(CODEX_MONITOR_APP_DATA_DIR_ENV, prev_monitor_data_dir);
+        restore_env_var(CODEX_MONITOR_BUNDLED_SKILLS_PATH_ENV, prev_bundled_skills);
+        let _ = fs::remove_dir_all(data_dir);
+        let _ = fs::remove_dir_all(bundled_root);
+    }
+
+    #[test]
+    fn configure_default_codex_home_appends_default_agents_once_for_existing_users() {
+        let _guard = ENV_LOCK
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let data_dir = temp_dir("codex-home-existing-data");
+        let codex_home = temp_dir("codex-home-existing");
+        let bundled_root = temp_dir("bundled-skills-existing");
+        fs::create_dir_all(bundled_root.join("ok-skills")).expect("create ok-skills dir");
+        fs::write(codex_home.join("AGENTS.md"), "# Existing\n").expect("seed AGENTS.md");
+
+        let prev_codex_home = std::env::var("CODEX_HOME").ok();
+        let prev_monitor_data_dir = std::env::var("CODEX_MONITOR_APP_DATA_DIR").ok();
+        let prev_bundled_skills = std::env::var(CODEX_MONITOR_BUNDLED_SKILLS_PATH_ENV).ok();
+        std::env::set_var("CODEX_HOME", &codex_home);
+        std::env::set_var(CODEX_MONITOR_BUNDLED_SKILLS_PATH_ENV, &bundled_root);
+
+        configure_default_codex_home(&data_dir);
+        configure_default_codex_home(&data_dir);
+
+        let agents_md = fs::read_to_string(codex_home.join("AGENTS.md")).expect("read AGENTS.md");
+        assert!(agents_md.starts_with("# Existing"));
+        assert_eq!(agents_md.matches(DEFAULT_AGENTS_SENTINEL).count(), 1);
+
+        restore_env_var("CODEX_HOME", prev_codex_home);
+        restore_env_var(CODEX_MONITOR_APP_DATA_DIR_ENV, prev_monitor_data_dir);
+        restore_env_var(CODEX_MONITOR_BUNDLED_SKILLS_PATH_ENV, prev_bundled_skills);
+        let _ = fs::remove_dir_all(data_dir);
+        let _ = fs::remove_dir_all(codex_home);
+        let _ = fs::remove_dir_all(bundled_root);
+    }
+
+    #[test]
+    fn bundled_skills_candidates_include_packaged_resources_dir() {
+        let exe_dir = Path::new("/Applications/Agent Monitor.app/Contents/MacOS");
+        let candidates = bundled_skills_candidate_paths_for_exe_dir(exe_dir);
+        assert!(candidates
+            .iter()
+            .any(|path| path == &exe_dir.join("../Resources").join(BUNDLED_SKILLS_DIR)));
     }
 }

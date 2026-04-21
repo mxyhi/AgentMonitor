@@ -119,3 +119,26 @@ fn bundled_git_resources_are_declared_in_desktop_config() {
         "tauri.conf.json bundle.resources must include bundled Git runtime resources"
     );
 }
+
+#[test]
+fn bundled_skills_resources_are_declared_in_desktop_config() {
+    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let config_path = manifest_dir.join("tauri.conf.json");
+    let config_contents = fs::read_to_string(&config_path)
+        .unwrap_or_else(|error| panic!("Failed to read {config_path:?}: {error}"));
+    let config: Value = serde_json::from_str(&config_contents)
+        .unwrap_or_else(|error| panic!("Failed to parse tauri.conf.json: {error}"));
+    let resources = config
+        .get("bundle")
+        .and_then(|bundle| bundle.get("resources"))
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+
+    assert!(
+        resources
+            .iter()
+            .any(|value| value.as_str() == Some("bundled-skills")),
+        "tauri.conf.json bundle.resources must include bundled skills resources"
+    );
+}

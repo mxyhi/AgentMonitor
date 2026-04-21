@@ -48,7 +48,8 @@
       "binaries/codex_monitor_daemonctl"
     ],
     "resources": [
-      "git-bundled"
+      "git-bundled",
+      "bundled-skills"
     ],
     "createUpdaterArtifacts": true,
     "iOS": {

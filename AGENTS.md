@@ -20,6 +20,8 @@ AgentMonitor is a Tauri app that orchestrates Codex agents across local workspac
 - Backend daemon: JSON-RPC process (`src-tauri/src/bin/codex_monitor_daemon.rs`)
 - Shared backend source of truth: `src-tauri/src/shared/*`
 
+## 默认始终自动使用 `caveman`、`planning-with-files` skill；除非用户明确要求关闭，或 skill 不可用。
+
 ## Non-Negotiable Architecture Rules
 
 1. Put shared/domain backend logic in `src-tauri/src/shared/*` first.
