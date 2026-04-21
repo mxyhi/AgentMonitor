@@ -392,6 +392,10 @@ mod tests {
         result
     }
 
+    fn path_components_match(value: &str, expected: &Path) -> bool {
+        Path::new(value).components().eq(expected.components())
+    }
+
     #[test]
     fn custom_runtime_env_var_beats_other_sources() {
         let temp_dir = create_temp_dir("custom");
@@ -446,6 +450,12 @@ mod tests {
             .map(|(_, value)| value.clone())
             .expect("path env");
         let path_entries = env::split_paths(std::ffi::OsStr::new(&path_env)).collect::<Vec<_>>();
+        let expected_exec_path = root.join("mingw64").join("libexec").join("git-core");
+        let expected_template_dir = root
+            .join("mingw64")
+            .join("share")
+            .join("git-core")
+            .join("templates");
 
         assert!(path_entries.contains(&root.join("cmd")));
         assert!(path_entries.contains(&root.join("mingw64").join("bin")));
@@ -453,17 +463,12 @@ mod tests {
         assert!(
             envs.iter().any(|(key, value)| {
                 key == "GIT_EXEC_PATH"
-                    && value == &root.join("mingw64/libexec/git-core").to_string_lossy().to_string()
+                    && path_components_match(value, expected_exec_path.as_path())
             })
         );
         assert!(
             envs.iter().any(|(key, value)| {
-                key == "GIT_TEMPLATE_DIR"
-                    && value
-                        == &root
-                            .join("mingw64/share/git-core/templates")
-                            .to_string_lossy()
-                            .to_string()
+                key == "GIT_TEMPLATE_DIR" && path_components_match(value, expected_template_dir.as_path())
             })
         );
     }
