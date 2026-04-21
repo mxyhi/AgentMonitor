@@ -445,10 +445,11 @@ mod tests {
             .find(|(key, _)| key == "PATH")
             .map(|(_, value)| value.clone())
             .expect("path env");
+        let path_entries = env::split_paths(std::ffi::OsStr::new(&path_env)).collect::<Vec<_>>();
 
-        assert!(path_env.contains(&root.join("cmd").to_string_lossy().to_string()));
-        assert!(path_env.contains(&root.join("mingw64/bin").to_string_lossy().to_string()));
-        assert!(path_env.contains(&root.join("usr/bin").to_string_lossy().to_string()));
+        assert!(path_entries.contains(&root.join("cmd")));
+        assert!(path_entries.contains(&root.join("mingw64").join("bin")));
+        assert!(path_entries.contains(&root.join("usr").join("bin")));
         assert!(
             envs.iter().any(|(key, value)| {
                 key == "GIT_EXEC_PATH"
