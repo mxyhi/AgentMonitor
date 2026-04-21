@@ -269,8 +269,11 @@ Recommended validation commands:
 pnpm lint
 pnpm test
 pnpm typecheck
+pnpm prepare:codex-runtime
 cd src-tauri && cargo check
 ```
+
+`cargo check` reads Tauri bundle config, so prepare bundled runtimes first when validating from `src-tauri`.
 
 ## Codebase Navigation
 

@@ -47,6 +47,12 @@ import { useDiffFileSelection } from "../hooks/useDiffFileSelection";
 import type { GitPanelMode } from "../types";
 import type { PerFileDiffGroup } from "../utils/perFileThreadDiffs";
 
+const GH_AUTH_LOGIN_COMMAND = "gh auth login --web";
+
+function isGitHubAuthRequiredError(message: string | null | undefined) {
+  return Boolean(message?.includes(GH_AUTH_LOGIN_COMMAND));
+}
+
 type GitDiffPanelProps = {
   workspaceId?: string | null;
   workspacePath?: string | null;
@@ -278,6 +284,26 @@ export function GitDiffPanel({
     void _onSync?.();
   }, [_onSync]);
 
+  const handleCopyGitHubAuthCommand = useCallback(async () => {
+    const clipboard = typeof navigator === "undefined" ? null : navigator.clipboard;
+    if (!clipboard?.writeText) {
+      pushErrorToast({
+        title: "Couldn't copy GitHub login command",
+        message: "Clipboard access is unavailable.",
+      });
+      return;
+    }
+
+    try {
+      await clipboard.writeText(GH_AUTH_LOGIN_COMMAND);
+    } catch (error) {
+      pushErrorToast({
+        title: "Couldn't copy GitHub login command",
+        message: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }, []);
+
   const pushErrorAction = useMemo<SidebarErrorAction | null>(() => {
     if (!pushNeedsSync || !_onSync) {
       return null;
@@ -289,6 +315,19 @@ export function GitDiffPanel({
       loading: _syncLoading,
     };
   }, [pushNeedsSync, _onSync, _syncLoading, handleSyncFromError]);
+
+  const githubAuthErrorAction = useCallback(
+    (message: string | null | undefined): SidebarErrorAction | undefined => {
+      if (!isGitHubAuthRequiredError(message)) {
+        return undefined;
+      }
+      return {
+        label: "Copy gh auth login",
+        onAction: handleCopyGitHubAuthCommand,
+      };
+    },
+    [handleCopyGitHubAuthCommand],
+  );
 
   const githubBaseUrl = useMemo(() => getGitHubBaseUrl(gitRemoteUrl), [gitRemoteUrl]);
 
@@ -598,8 +637,20 @@ export function GitDiffPanel({
         : mode === "log"
           ? [{ key: "log", message: logError }]
           : mode === "issues"
-            ? [{ key: "issues", message: issuesError }]
-            : [{ key: "pullRequests", message: pullRequestsError }];
+            ? [
+                {
+                  key: "issues",
+                  message: issuesError,
+                  action: githubAuthErrorAction(issuesError),
+                },
+              ]
+            : [
+                {
+                  key: "pullRequests",
+                  message: pullRequestsError,
+                  action: githubAuthErrorAction(pullRequestsError),
+                },
+              ];
 
     return options
       .filter((entry) => Boolean(entry.message))
@@ -623,6 +674,7 @@ export function GitDiffPanel({
     syncError,
     worktreeApplyError,
     errorScope,
+    githubAuthErrorAction,
     mode,
   ]);
 

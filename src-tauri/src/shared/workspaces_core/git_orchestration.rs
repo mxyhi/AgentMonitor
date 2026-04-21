@@ -7,6 +7,9 @@ use tokio::io::AsyncWriteExt;
 use tokio::sync::Mutex;
 
 use crate::git_utils::resolve_git_root;
+use crate::shared::git_runtime_core::{
+    format_git_command_error, format_git_spawn_error, git_runtime_env, resolve_git_runtime,
+};
 use crate::shared::process_core::tokio_command;
 use crate::shared::{git_core, worktree_core};
 use crate::types::WorkspaceEntry;
@@ -116,17 +119,16 @@ pub(super) async fn apply_worktree_changes_inner_core(
         return Err("No changes to apply.".to_string());
     }
 
-    let git_bin =
-        crate::utils::resolve_git_binary().map_err(|e| format!("Failed to run git: {e}"))?;
-    let mut child = tokio_command(git_bin)
+    let runtime = resolve_git_runtime()?;
+    let mut child = tokio_command(&runtime.program)
         .args(["apply", "--3way", "--whitespace=nowarn", "-"])
         .current_dir(&parent_root)
-        .env("PATH", crate::utils::git_env_path())
+        .envs(git_runtime_env(&runtime))
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
-        .map_err(|e| format!("Failed to run git: {e}"))?;
+        .map_err(|error| format_git_spawn_error(&error))?;
 
     if let Some(mut stdin) = child.stdin.take() {
         stdin
@@ -138,19 +140,13 @@ pub(super) async fn apply_worktree_changes_inner_core(
     let output = child
         .wait_with_output()
         .await
-        .map_err(|e| format!("Failed to run git: {e}"))?;
+        .map_err(|error| format_git_spawn_error(&error))?;
 
     if output.status.success() {
         return Ok(());
     }
 
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    let detail = if stderr.trim().is_empty() {
-        stdout.trim()
-    } else {
-        stderr.trim()
-    };
+    let detail = format_git_command_error(&output.stdout, &output.stderr);
     if detail.is_empty() {
         return Err("Git apply failed.".to_string());
     }

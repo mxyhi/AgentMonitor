@@ -4,8 +4,6 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
 import { resolveBundledCodexTargetTriple } from "./codex-runtime-targets.mjs";
-import { ensureBundledGhRuntime } from "./prepare-gh-runtime.mjs";
-import { ensureBundledGitRuntime } from "./prepare-git-runtime.mjs";
 
 const repoRoot = process.cwd();
 const runtimeCorePath = path.join(
@@ -13,47 +11,28 @@ const runtimeCorePath = path.join(
   "src-tauri",
   "src",
   "shared",
-  "codex_runtime_core.rs",
+  "gh_runtime_core.rs",
 );
 const runtimeCore = fs.readFileSync(runtimeCorePath, "utf8");
 
 function readRustConst(name) {
   const match = runtimeCore.match(new RegExp(`const ${name}: &str = "([^"]+)"`));
   if (!match) {
-    throw new Error(`Could not find ${name} in codex_runtime_core.rs`);
+    throw new Error(`Could not find ${name} in gh_runtime_core.rs`);
   }
   return match[1];
 }
 
-const bundledVersion = readRustConst("BUNDLED_CODEX_VERSION");
-const sidecarName = readRustConst("BUNDLED_CODEX_SIDECAR_NAME");
-const releaseTag = `rust-v${bundledVersion}`;
+const bundledVersion = readRustConst("BUNDLED_GH_VERSION");
+const sidecarName = readRustConst("BUNDLED_GH_SIDECAR_NAME");
+const releaseTag = `v${bundledVersion}`;
 const defaultDownloadRetryAttempts = 6;
 const defaultDownloadRetryDelaySeconds = 2;
 const defaultDownloadRetryMaxTimeSeconds = 120;
-
-function resolveTargetTriple() {
-  return resolveBundledCodexTargetTriple(process.platform, process.arch);
-}
-
-const detectedTargetTriple = resolveTargetTriple();
 const destinationDir = path.join(repoRoot, "src-tauri", "binaries");
-const srcTauriDir = path.join(repoRoot, "src-tauri");
 const configuredCargoTargetTriple = process.env.CARGO_BUILD_TARGET?.trim() || "";
+const detectedTargetTriple = resolveBundledCodexTargetTriple(process.platform, process.arch);
 const cargoTargetTriple = configuredCargoTargetTriple || detectedTargetTriple;
-const cargoTargetArgs =
-  cargoTargetTriple === detectedTargetTriple ? [] : ["--target", cargoTargetTriple];
-const rustReleaseDir =
-  configuredCargoTargetTriple
-    ? path.join(srcTauriDir, "target", cargoTargetTriple, "release")
-    : path.join(srcTauriDir, "target", "release");
-
-function expectedAssetName() {
-  if (process.platform === "win32") {
-    return `codex-${cargoTargetTriple}.exe`;
-  }
-  return `codex-${cargoTargetTriple}.tar.gz`;
-}
 
 function run(command, args, options = {}) {
   const result = spawnSync(command, args, {
@@ -97,35 +76,6 @@ export function getDownloadRetryConfig() {
       defaultDownloadRetryMaxTimeSeconds,
     ),
   };
-}
-
-function isBundledRuntimeUsable(filePath) {
-  if (!fs.existsSync(filePath)) return false;
-  const result = spawnSync(filePath, ["--version"], { encoding: "utf8" });
-  if (result.status !== 0) return false;
-  return result.stdout.includes(bundledVersion);
-}
-
-function binaryFilename(baseName) {
-  return process.platform === "win32" ? `${baseName}.exe` : baseName;
-}
-
-function sidecarDestinationPath(baseName) {
-  const destinationName =
-    process.platform === "win32"
-      ? `${baseName}-${cargoTargetTriple}.exe`
-      : `${baseName}-${cargoTargetTriple}`;
-  return path.join(destinationDir, destinationName);
-}
-
-function builtRustBinaryPath(baseName) {
-  return path.join(rustReleaseDir, binaryFilename(baseName));
-}
-
-function isExecutableUsable(filePath, args = ["--help"]) {
-  if (!fs.existsSync(filePath)) return false;
-  const result = spawnSync(filePath, args, { encoding: "utf8" });
-  return result.status === 0;
 }
 
 export function buildCurlDownloadArgs(url, destination) {
@@ -185,17 +135,10 @@ function downloadFile(url, destination) {
     return;
   }
 
-  // GitHub Releases asset downloads occasionally return transient 5xx responses in CI.
-  // Retrying here is cheaper and safer than failing the whole Rust matrix on a single CDN blip.
   run("curl", buildCurlDownloadArgs(url, destination));
 }
 
 function extractArchive(archivePath, outputDir) {
-  if (archivePath.endsWith(".tar.gz")) {
-    run("tar", ["-xzf", archivePath, "-C", outputDir]);
-    return;
-  }
-
   if (archivePath.endsWith(".zip")) {
     if (process.platform === "win32") {
       run("powershell", [
@@ -209,11 +152,21 @@ function extractArchive(archivePath, outputDir) {
     return;
   }
 
+  if (archivePath.endsWith(".tar.gz")) {
+    run("tar", ["-xzf", archivePath, "-C", outputDir]);
+    return;
+  }
+
   throw new Error(`Unsupported archive format: ${archivePath}`);
 }
 
-function findExtractedBinary(rootDir) {
+function expectedBinaryName() {
+  return process.platform === "win32" ? "gh.exe" : "gh";
+}
+
+function findExtractedGhBinary(rootDir) {
   const queue = [rootDir];
+  const expected = expectedBinaryName();
   while (queue.length > 0) {
     const current = queue.shift();
     if (!current) continue;
@@ -223,112 +176,86 @@ function findExtractedBinary(rootDir) {
         queue.push(fullPath);
         continue;
       }
-      const expected = process.platform === "win32" ? "codex.exe" : "codex";
-      if (
-        entry.name === expected ||
-        entry.name.startsWith(`${expected}-`) ||
-        entry.name.startsWith("codex-")
-      ) {
+      if (entry.name === expected) {
         return fullPath;
       }
     }
   }
-  throw new Error(`Could not find extracted codex binary under ${rootDir}`);
+  throw new Error(`Could not find extracted gh binary under ${rootDir}`);
 }
 
-async function ensureBundledRuntime() {
+function isBundledGhUsable(filePath) {
+  if (!fs.existsSync(filePath)) return false;
+  const result = spawnSync(filePath, ["--version"], { encoding: "utf8" });
+  if (result.status !== 0) return false;
+  const output = `${result.stdout}\n${result.stderr}`;
+  return output.includes(`gh version ${bundledVersion}`);
+}
+
+export function resolveGhAssetName(targetTriple = cargoTargetTriple) {
+  const assetSuffix = {
+    "x86_64-apple-darwin": "macOS_amd64.zip",
+    "aarch64-apple-darwin": "macOS_arm64.zip",
+    "x86_64-unknown-linux-gnu": "linux_amd64.tar.gz",
+    "aarch64-unknown-linux-gnu": "linux_arm64.tar.gz",
+    "x86_64-pc-windows-msvc": "windows_amd64.zip",
+    "aarch64-pc-windows-msvc": "windows_arm64.zip",
+  }[targetTriple];
+
+  if (!assetSuffix) {
+    throw new Error(`Unsupported bundled gh target triple: ${targetTriple}`);
+  }
+
+  return `gh_${bundledVersion}_${assetSuffix}`;
+}
+
+export function resolveGhSidecarDestination(targetTriple = cargoTargetTriple) {
+  const destinationName =
+    process.platform === "win32"
+      ? `${sidecarName}-${targetTriple}.exe`
+      : `${sidecarName}-${targetTriple}`;
+  return path.join(destinationDir, destinationName);
+}
+
+export async function ensureBundledGhRuntime() {
   fs.mkdirSync(destinationDir, { recursive: true });
-  const destinationPath = sidecarDestinationPath(sidecarName);
-  if (isBundledRuntimeUsable(destinationPath)) {
-    console.log(`Bundled Codex runtime ready: ${destinationPath}`);
+  const destinationPath = resolveGhSidecarDestination();
+  if (isBundledGhUsable(destinationPath)) {
+    console.log(`Bundled GitHub CLI ready: ${destinationPath}`);
     return;
   }
 
-  const assetName = expectedAssetName();
-  const assetUrl = `https://github.com/openai/codex/releases/download/${releaseTag}/${assetName}`;
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-monitor-bundled-"));
+  const assetName = resolveGhAssetName();
+  const assetUrl = `https://github.com/cli/cli/releases/download/${releaseTag}/${assetName}`;
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-monitor-gh-bundled-"));
   const downloadPath = path.join(tempRoot, assetName);
-  console.log(
-    `Downloading bundled Codex runtime ${bundledVersion} for ${cargoTargetTriple}...`,
-  );
+  console.log(`Downloading bundled GitHub CLI ${bundledVersion} for ${cargoTargetTriple}...`);
   downloadFile(assetUrl, downloadPath);
 
   let binaryPath = downloadPath;
-  if (assetName.endsWith(".tar.gz") || assetName.endsWith(".zip")) {
+  if (assetName.endsWith(".zip") || assetName.endsWith(".tar.gz")) {
     const extractedDir = path.join(tempRoot, "extracted");
     fs.mkdirSync(extractedDir, { recursive: true });
     extractArchive(downloadPath, extractedDir);
-    binaryPath = findExtractedBinary(extractedDir);
+    binaryPath = findExtractedGhBinary(extractedDir);
   }
 
-  console.log(`Installing bundled Codex runtime to ${destinationPath}...`);
+  console.log(`Installing bundled GitHub CLI to ${destinationPath}...`);
   fs.copyFileSync(binaryPath, destinationPath);
   if (process.platform !== "win32") {
     fs.chmodSync(destinationPath, 0o755);
   }
-  if (!isBundledRuntimeUsable(destinationPath)) {
-    throw new Error(`Prepared bundled Codex runtime failed validation: ${destinationPath}`);
+  if (!isBundledGhUsable(destinationPath)) {
+    throw new Error(`Prepared bundled GitHub CLI failed validation: ${destinationPath}`);
   }
 
   console.log(
-    `Bundled Codex runtime prepared: ${destinationPath} (${bundledVersion}, ${cargoTargetTriple})`,
+    `Bundled GitHub CLI prepared: ${destinationPath} (${bundledVersion}, ${cargoTargetTriple})`,
   );
-}
-
-function ensureInternalDaemonSidecars() {
-  const sidecars = [
-    { baseName: "codex_monitor_daemon", args: ["--help"] },
-    { baseName: "codex_monitor_daemonctl", args: ["--help"] },
-  ];
-
-  console.log(
-    `Building managed daemon sidecars for ${cargoTargetTriple}...`,
-  );
-  // Building standalone daemon bins still runs the Tauri build script for this crate.
-  // Override externalBin during this step to avoid a circular dependency on not-yet-copied sidecars.
-  run("cargo", [
-    "build",
-    "--manifest-path",
-    path.join(srcTauriDir, "Cargo.toml"),
-    "--release",
-    ...cargoTargetArgs,
-    "--bin",
-    "codex_monitor_daemon",
-    "--bin",
-    "codex_monitor_daemonctl",
-  ], {
-    env: {
-      TAURI_CONFIG: JSON.stringify({
-        bundle: {
-          externalBin: [],
-        },
-      }),
-    },
-  });
-
-  for (const sidecar of sidecars) {
-    const sourcePath = builtRustBinaryPath(sidecar.baseName);
-    if (!fs.existsSync(sourcePath)) {
-      throw new Error(`Built daemon sidecar missing: ${sourcePath}`);
-    }
-
-    const destinationPath = sidecarDestinationPath(sidecar.baseName);
-    fs.copyFileSync(sourcePath, destinationPath);
-    if (process.platform !== "win32") {
-      fs.chmodSync(destinationPath, 0o755);
-    }
-    if (!isExecutableUsable(destinationPath, sidecar.args)) {
-      throw new Error(`Prepared daemon sidecar failed validation: ${destinationPath}`);
-    }
-    console.log(`Daemon sidecar prepared: ${destinationPath}`);
-  }
 }
 
 export async function main() {
-  await ensureBundledRuntime();
   await ensureBundledGhRuntime();
-  await ensureBundledGitRuntime();
-  ensureInternalDaemonSidecars();
 }
 
 const isDirectExecution = process.argv[1]

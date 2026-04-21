@@ -44,8 +44,12 @@
     "targets": "all",
     "externalBin": [
       "binaries/codex-bundled",
+      "binaries/gh-bundled",
       "binaries/codex_monitor_daemon",
       "binaries/codex_monitor_daemonctl"
+    ],
+    "resources": [
+      "git-bundled"
     ],
     "createUpdaterArtifacts": true,
     "iOS": {

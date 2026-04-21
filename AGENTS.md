@@ -123,7 +123,7 @@ Run validations based on touched areas:
 
 - Always: `pnpm run typecheck`
 - Frontend behavior/state/hooks/components: `pnpm run test`
-- Rust backend changes: `cd src-tauri && cargo check`
+- Rust backend changes: `pnpm prepare:codex-runtime && cd src-tauri && cargo check`
 - Use targeted tests for touched modules before full-suite runs when iterating.
 
 ## Quick Runbook
@@ -136,6 +136,7 @@ pnpm run doctor:strict
 pnpm run tauri:dev
 pnpm run test
 pnpm run typecheck
+pnpm prepare:codex-runtime
 cd src-tauri && cargo check
 ```
 

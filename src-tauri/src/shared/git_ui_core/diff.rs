@@ -12,9 +12,10 @@ use tokio::sync::Mutex;
 use crate::git_utils::{
     diff_patch_to_string, diff_stats_for_path, image_mime_type, resolve_git_root,
 };
+use crate::shared::git_runtime_core::{git_runtime_env, resolve_git_runtime};
 use crate::shared::process_core::std_command;
 use crate::types::{AppSettings, GitCommitDiff, GitFileDiff, GitFileStatus, WorkspaceEntry};
-use crate::utils::{git_env_path, normalize_git_path, resolve_git_binary};
+use crate::utils::normalize_git_path;
 
 use super::context::workspace_entry_for_id;
 
@@ -147,13 +148,13 @@ pub(super) fn collect_ignored_paths_with_git(
     }
 
     let repo_root = repo.workdir()?;
-    let git_bin = resolve_git_binary().ok()?;
-    let mut child = std_command(git_bin)
+    let runtime = resolve_git_runtime().ok()?;
+    let mut child = std_command(&runtime.program)
         .arg("check-ignore")
         .arg("--stdin")
         .arg("-z")
         .current_dir(repo_root)
-        .env("PATH", git_env_path())
+        .envs(git_runtime_env(&runtime))
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::null())

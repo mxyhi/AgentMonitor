@@ -9,46 +9,44 @@ use tokio::sync::Mutex;
 use crate::git_utils::{
     checkout_branch, list_git_roots as scan_git_roots, parse_github_repo, resolve_git_root,
 };
+use crate::shared::gh_runtime_core::{
+    format_gh_command_error, format_gh_spawn_error, gh_command_env, resolve_gh_runtime,
+};
+use crate::shared::git_runtime_core::{
+    format_git_command_error, format_git_spawn_error, git_runtime_env, resolve_git_runtime,
+};
 use crate::shared::process_core::tokio_command;
 use crate::types::{BranchInfo, WorkspaceEntry};
-use crate::utils::{git_env_path, normalize_git_path, resolve_git_binary};
+use crate::utils::normalize_git_path;
 
 use super::context::workspace_entry_for_id;
 
 async fn run_git_command(repo_root: &Path, args: &[&str]) -> Result<(), String> {
-    let git_bin = resolve_git_binary().map_err(|e| format!("Failed to run git: {e}"))?;
-    let output = tokio_command(git_bin)
+    let runtime = resolve_git_runtime()?;
+    let output = tokio_command(&runtime.program)
         .args(args)
         .current_dir(repo_root)
-        .env("PATH", git_env_path())
+        .envs(git_runtime_env(&runtime))
         .output()
         .await
-        .map_err(|e| format!("Failed to run git: {e}"))?;
+        .map_err(|error| format_git_spawn_error(&error))?;
 
     if output.status.success() {
         return Ok(());
     }
 
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    let detail = if stderr.trim().is_empty() {
-        stdout.trim()
-    } else {
-        stderr.trim()
-    };
-    if detail.is_empty() {
-        return Err("Git command failed.".to_string());
-    }
-    Err(detail.to_string())
+    Err(format_git_command_error(&output.stdout, &output.stderr))
 }
 
 async fn run_gh_command(repo_root: &Path, args: &[&str]) -> Result<(String, String), String> {
-    let output = tokio_command("gh")
+    let runtime = resolve_gh_runtime(None)?;
+    let output = tokio_command(&runtime.program)
         .args(args)
         .current_dir(repo_root)
+        .envs(gh_command_env())
         .output()
         .await
-        .map_err(|e| format!("Failed to run gh: {e}"))?;
+        .map_err(|error| format_gh_spawn_error(&error))?;
 
     let stdout = String::from_utf8_lossy(&output.stdout).to_string();
     let stderr = String::from_utf8_lossy(&output.stderr).to_string();
@@ -56,15 +54,7 @@ async fn run_gh_command(repo_root: &Path, args: &[&str]) -> Result<(String, Stri
         return Ok((stdout, stderr));
     }
 
-    let detail = if stderr.trim().is_empty() {
-        stdout.trim()
-    } else {
-        stderr.trim()
-    };
-    if detail.is_empty() {
-        return Err("GitHub CLI command failed.".to_string());
-    }
-    Err(detail.to_string())
+    Err(format_gh_command_error(&output.stdout, &output.stderr))
 }
 
 async fn gh_stdout_trim(repo_root: &Path, args: &[&str]) -> Result<String, String> {

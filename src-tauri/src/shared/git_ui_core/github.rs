@@ -5,6 +5,9 @@ use git2::Repository;
 use tokio::sync::Mutex;
 
 use crate::git_utils::{parse_github_repo, resolve_git_root};
+use crate::shared::gh_runtime_core::{
+    format_gh_command_error, format_gh_spawn_error, gh_command_env, resolve_gh_runtime,
+};
 use crate::shared::process_core::tokio_command;
 use crate::types::{
     GitHubIssue, GitHubIssuesResponse, GitHubPullRequest, GitHubPullRequestComment,
@@ -125,19 +128,15 @@ fn parse_pr_diff(diff: &str) -> Vec<GitHubPullRequestDiff> {
     entries
 }
 
-fn command_failure_detail(stdout: &[u8], stderr: &[u8], fallback: &str) -> String {
-    let stderr = String::from_utf8_lossy(stderr);
-    let stdout = String::from_utf8_lossy(stdout);
-    let detail = if stderr.trim().is_empty() {
-        stdout.trim()
-    } else {
-        stderr.trim()
-    };
-    if detail.is_empty() {
-        fallback.to_string()
-    } else {
-        detail.to_string()
-    }
+async fn run_gh_output(repo_root: &Path, args: &[&str]) -> Result<std::process::Output, String> {
+    let runtime = resolve_gh_runtime(None)?;
+    tokio_command(&runtime.program)
+        .args(args)
+        .current_dir(repo_root)
+        .envs(gh_command_env())
+        .output()
+        .await
+        .map_err(|error| format_gh_spawn_error(&error))
 }
 
 pub(super) async fn checkout_github_pull_request_inner(
@@ -149,19 +148,10 @@ pub(super) async fn checkout_github_pull_request_inner(
     let repo_root = resolve_git_root(&entry)?;
     let pr_number_text = pr_number.to_string();
 
-    let output = tokio_command("gh")
-        .args(["pr", "checkout", &pr_number_text])
-        .current_dir(&repo_root)
-        .output()
-        .await
-        .map_err(|e| format!("Failed to run gh: {e}"))?;
+    let output = run_gh_output(&repo_root, &["pr", "checkout", &pr_number_text]).await?;
 
     if !output.status.success() {
-        return Err(command_failure_detail(
-            &output.stdout,
-            &output.stderr,
-            "GitHub CLI command failed.",
-        ));
+        return Err(format_gh_command_error(&output.stdout, &output.stderr));
     }
 
     Ok(())
@@ -175,8 +165,9 @@ pub(super) async fn get_github_issues_inner(
     let repo_root = resolve_git_root(&entry)?;
     let repo_name = github_repo_from_path(&repo_root)?;
 
-    let output = tokio_command("gh")
-        .args([
+    let output = run_gh_output(
+        &repo_root,
+        &[
             "issue",
             "list",
             "--repo",
@@ -185,34 +176,28 @@ pub(super) async fn get_github_issues_inner(
             "50",
             "--json",
             "number,title,url,updatedAt",
-        ])
-        .current_dir(&repo_root)
-        .output()
-        .await
-        .map_err(|e| format!("Failed to run gh: {e}"))?;
+        ],
+    )
+    .await?;
 
     if !output.status.success() {
-        return Err(command_failure_detail(
-            &output.stdout,
-            &output.stderr,
-            "GitHub CLI command failed.",
-        ));
+        return Err(format_gh_command_error(&output.stdout, &output.stderr));
     }
 
     let issues: Vec<GitHubIssue> =
         serde_json::from_slice(&output.stdout).map_err(|e| e.to_string())?;
 
     let search_query = format!("repo:{repo_name} is:issue is:open").replace(' ', "+");
-    let total = match tokio_command("gh")
-        .args([
+    let total = match run_gh_output(
+        &repo_root,
+        &[
             "api",
             &format!("/search/issues?q={search_query}"),
             "--jq",
             ".total_count",
-        ])
-        .current_dir(&repo_root)
-        .output()
-        .await
+        ],
+    )
+    .await
     {
         Ok(output) if output.status.success() => String::from_utf8_lossy(&output.stdout)
             .trim()
@@ -232,8 +217,9 @@ pub(super) async fn get_github_pull_requests_inner(
     let repo_root = resolve_git_root(&entry)?;
     let repo_name = github_repo_from_path(&repo_root)?;
 
-    let output = tokio_command("gh")
-        .args([
+    let output = run_gh_output(
+        &repo_root,
+        &[
             "pr",
             "list",
             "--repo",
@@ -244,34 +230,28 @@ pub(super) async fn get_github_pull_requests_inner(
             "50",
             "--json",
             "number,title,url,updatedAt,createdAt,body,headRefName,baseRefName,isDraft,author",
-        ])
-        .current_dir(&repo_root)
-        .output()
-        .await
-        .map_err(|e| format!("Failed to run gh: {e}"))?;
+        ],
+    )
+    .await?;
 
     if !output.status.success() {
-        return Err(command_failure_detail(
-            &output.stdout,
-            &output.stderr,
-            "GitHub CLI command failed.",
-        ));
+        return Err(format_gh_command_error(&output.stdout, &output.stderr));
     }
 
     let pull_requests: Vec<GitHubPullRequest> =
         serde_json::from_slice(&output.stdout).map_err(|e| e.to_string())?;
 
     let search_query = format!("repo:{repo_name} is:pr is:open").replace(' ', "+");
-    let total = match tokio_command("gh")
-        .args([
+    let total = match run_gh_output(
+        &repo_root,
+        &[
             "api",
             &format!("/search/issues?q={search_query}"),
             "--jq",
             ".total_count",
-        ])
-        .current_dir(&repo_root)
-        .output()
-        .await
+        ],
+    )
+    .await
     {
         Ok(output) if output.status.success() => String::from_utf8_lossy(&output.stdout)
             .trim()
@@ -295,8 +275,9 @@ pub(super) async fn get_github_pull_request_diff_inner(
     let repo_root = resolve_git_root(&entry)?;
     let repo_name = github_repo_from_path(&repo_root)?;
 
-    let output = tokio_command("gh")
-        .args([
+    let output = run_gh_output(
+        &repo_root,
+        &[
             "pr",
             "diff",
             &pr_number.to_string(),
@@ -304,18 +285,12 @@ pub(super) async fn get_github_pull_request_diff_inner(
             &repo_name,
             "--color",
             "never",
-        ])
-        .current_dir(&repo_root)
-        .output()
-        .await
-        .map_err(|e| format!("Failed to run gh: {e}"))?;
+        ],
+    )
+    .await?;
 
     if !output.status.success() {
-        return Err(command_failure_detail(
-            &output.stdout,
-            &output.stderr,
-            "GitHub CLI command failed.",
-        ));
+        return Err(format_gh_command_error(&output.stdout, &output.stderr));
     }
 
     let diff_text = String::from_utf8_lossy(&output.stdout);
@@ -334,19 +309,10 @@ pub(super) async fn get_github_pull_request_comments_inner(
     let comments_endpoint = format!("/repos/{repo_name}/issues/{pr_number}/comments?per_page=30");
     let jq_filter = r#"[.[] | {id, body, createdAt: .created_at, url: .html_url, author: (if .user then {login: .user.login} else null end)}]"#;
 
-    let output = tokio_command("gh")
-        .args(["api", &comments_endpoint, "--jq", jq_filter])
-        .current_dir(&repo_root)
-        .output()
-        .await
-        .map_err(|e| format!("Failed to run gh: {e}"))?;
+    let output = run_gh_output(&repo_root, &["api", &comments_endpoint, "--jq", jq_filter]).await?;
 
     if !output.status.success() {
-        return Err(command_failure_detail(
-            &output.stdout,
-            &output.stderr,
-            "GitHub CLI command failed.",
-        ));
+        return Err(format_gh_command_error(&output.stdout, &output.stderr));
     }
 
     let comments: Vec<GitHubPullRequestComment> =

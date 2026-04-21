@@ -332,4 +332,21 @@ describe("GitDiffPanel", () => {
     );
   });
 
+  it("offers to copy gh auth login command for GitHub auth errors", async () => {
+    clipboardWriteText.mockClear();
+    render(
+      <GitDiffPanel
+        {...baseProps}
+        mode="issues"
+        issuesError="GitHub CLI is not authenticated. Run `gh auth login --web` in a terminal, then retry."
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Copy gh auth login" }));
+
+    await waitFor(() => {
+      expect(clipboardWriteText).toHaveBeenCalledWith("gh auth login --web");
+    });
+  });
+
 });
