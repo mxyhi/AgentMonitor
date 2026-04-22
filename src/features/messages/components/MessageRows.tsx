@@ -36,6 +36,11 @@ import {
   type StatusTone,
   type ToolSummary,
 } from "../utils/messageRenderUtils";
+import {
+  createPreviewObjectUrl,
+  createObjectUrlFromDataUrl,
+  isDataUrlImageSource,
+} from "../utils/messageImageSources";
 import { Markdown } from "./Markdown";
 import { isStandaloneMarkdownTable } from "./Markdown";
 
@@ -118,13 +123,13 @@ const MessageImageGrid = memo(function MessageImageGrid({
     >
       {images.map((image, index) => (
         <button
-          key={`${image.src}-${index}`}
+          key={`${index}-${image.label}`}
           type="button"
           className="message-image-thumb"
           onClick={() => onOpen(index)}
           aria-label={m.message_open_image({ value: index + 1 }, { locale })}
         >
-          <img src={image.src} alt={image.label} loading="lazy" />
+          <img src={image.src} alt={image.label} loading="lazy" decoding="async" />
         </button>
       ))}
     </div>
@@ -142,6 +147,8 @@ const ImageLightbox = memo(function ImageLightbox({
 }) {
   const locale = useAppLocale();
   const activeImage = images[activeIndex];
+  const [lightboxSrc, setLightboxSrc] = useState("");
+  const [lightboxLoading, setLightboxLoading] = useState(true);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -162,6 +169,39 @@ const ImageLightbox = memo(function ImageLightbox({
       document.body.style.overflow = previous;
     };
   }, []);
+
+  useEffect(() => {
+    if (!activeImage) {
+      setLightboxSrc("");
+      setLightboxLoading(false);
+      return undefined;
+    }
+    let cancelled = false;
+    let generatedUrl: string | null = null;
+    setLightboxSrc("");
+    setLightboxLoading(true);
+
+    // Generate a capped preview off the click path so very large images do not
+    // synchronously lock the renderer when the dialog mounts.
+    void createPreviewObjectUrl(activeImage.source).then((previewUrl) => {
+      if (cancelled) {
+        if (previewUrl) {
+          URL.revokeObjectURL(previewUrl);
+        }
+        return;
+      }
+      generatedUrl = previewUrl;
+      setLightboxSrc(previewUrl ?? activeImage.src);
+      setLightboxLoading(false);
+    });
+
+    return () => {
+      cancelled = true;
+      if (generatedUrl) {
+        URL.revokeObjectURL(generatedUrl);
+      }
+    };
+  }, [activeImage?.source, activeImage?.src]);
 
   if (!activeImage) {
     return null;
@@ -186,12 +226,106 @@ const ImageLightbox = memo(function ImageLightbox({
         >
           <X size={16} aria-hidden />
         </button>
-        <img src={activeImage.src} alt={activeImage.label} />
+        {lightboxLoading && !lightboxSrc ? (
+          <div className="message-image-lightbox-loading" aria-live="polite">
+            <span className="working-spinner" aria-hidden />
+          </div>
+        ) : (
+          <img src={lightboxSrc} alt={activeImage.label} decoding="async" />
+        )}
       </div>
     </div>,
     document.body,
   );
 });
+
+function useResolvedMessageImages(images?: string[]) {
+  const baseImages = useMemo(() => {
+    if (!images || images.length === 0) {
+      return [];
+    }
+    return images
+      .map((image, index) => {
+        const source = normalizeMessageImageSrc(image);
+        if (!source) {
+          return null;
+        }
+        return { source, label: `Image ${index + 1}` };
+      })
+      .filter(Boolean) as Array<{ source: string; label: string }>;
+  }, [images]);
+  const [resolvedDataImages, setResolvedDataImages] = useState<Record<number, string>>({});
+
+  useEffect(() => {
+    setResolvedDataImages({});
+    if (
+      baseImages.length === 0 ||
+      baseImages.every((image) => !isDataUrlImageSource(image.source))
+    ) {
+      return undefined;
+    }
+
+    let cancelled = false;
+    const createdUrls: string[] = [];
+
+    // Convert inline data URLs to blob URLs once so opening the lightbox does not
+    // force the renderer to diff and retain huge base64 strings in multiple nodes.
+    void Promise.all(
+      baseImages.map(async (image, index) => {
+        if (!isDataUrlImageSource(image.source)) {
+          return null;
+        }
+        const objectUrl = await createObjectUrlFromDataUrl(image.source);
+        if (!objectUrl) {
+          return [index, image.source] as const;
+        }
+        if (cancelled) {
+          URL.revokeObjectURL(objectUrl);
+          return null;
+        }
+        createdUrls.push(objectUrl);
+        return [index, objectUrl] as const;
+      }),
+    ).then((entries) => {
+      if (cancelled) {
+        return;
+      }
+      const next: Record<number, string> = {};
+      entries.forEach((entry) => {
+        if (!entry) {
+          return;
+        }
+        next[entry[0]] = entry[1];
+      });
+      setResolvedDataImages(next);
+    });
+
+    return () => {
+      cancelled = true;
+      createdUrls.forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, [baseImages]);
+
+  return useMemo(
+    () =>
+      baseImages
+        .map((image, index) => {
+          const src = isDataUrlImageSource(image.source)
+            ? resolvedDataImages[index] ?? ""
+            : image.source;
+          if (!src) {
+            return null;
+          }
+          return {
+            src,
+            source: image.source,
+            label: image.label,
+          };
+        })
+        .filter(Boolean) as MessageImage[],
+    [baseImages, resolvedDataImages],
+  );
+}
 
 const CommandOutput = memo(function CommandOutput({ output }: CommandOutputProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -396,20 +530,7 @@ export const MessageRow = memo(function MessageRow({
   const bubbleRef = useRef<HTMLDivElement | null>(null);
   const selectionSnapshotRef = useRef<string | null>(null);
   const hasText = item.text.trim().length > 0;
-  const imageItems = useMemo(() => {
-    if (!item.images || item.images.length === 0) {
-      return [];
-    }
-    return item.images
-      .map((image, index) => {
-        const src = normalizeMessageImageSrc(image);
-        if (!src) {
-          return null;
-        }
-        return { src, label: `Image ${index + 1}` };
-      })
-      .filter(Boolean) as MessageImage[];
-  }, [item.images]);
+  const imageItems = useResolvedMessageImages(item.images);
   const isTableOnlyAssistantMessage =
     item.role === "assistant" &&
     hasText &&

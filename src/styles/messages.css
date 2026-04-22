@@ -356,6 +356,14 @@
   max-height: 90vh;
 }
 
+.message-image-lightbox-loading {
+  width: min(72vw, 320px);
+  height: min(72vh, 320px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .message-image-lightbox-content img {
   display: block;
   max-width: 90vw;

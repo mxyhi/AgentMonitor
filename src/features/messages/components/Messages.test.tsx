@@ -37,6 +37,10 @@ vi.mock("@services/tauri", async () => {
 });
 
 describe("Messages", () => {
+  const originalCreateObjectURL = URL.createObjectURL;
+  const originalRevokeObjectURL = URL.revokeObjectURL;
+  const originalFetch = globalThis.fetch;
+
   beforeAll(() => {
     if (!HTMLElement.prototype.scrollIntoView) {
       HTMLElement.prototype.scrollIntoView = vi.fn();
@@ -52,6 +56,9 @@ describe("Messages", () => {
     openFileLinkMock.mockReset();
     showFileLinkMenuMock.mockReset();
     exportMarkdownFileMock.mockReset();
+    URL.createObjectURL = originalCreateObjectURL;
+    URL.revokeObjectURL = originalRevokeObjectURL;
+    globalThis.fetch = originalFetch;
   });
 
   it("renders image grid above message text and opens lightbox", () => {
@@ -61,7 +68,7 @@ describe("Messages", () => {
         kind: "message",
         role: "user",
         text: "Hello",
-        images: ["data:image/png;base64,AAA"],
+        images: ["https://example.com/image.png"],
       },
     ];
 
@@ -88,6 +95,52 @@ describe("Messages", () => {
     const openButton = screen.getByRole("button", { name: "Open image 1" });
     fireEvent.click(openButton);
     expect(screen.getByRole("dialog")).toBeTruthy();
+  });
+
+  it("converts inline data images to blob urls and revokes them on unmount", async () => {
+    const createObjectURLMock = vi.fn(() => "blob:message-image-1");
+    const revokeObjectURLMock = vi.fn();
+    const fetchMock = vi.fn<typeof fetch>(async () =>
+      new Response(new Blob(["image"], { type: "image/png" })),
+    );
+    URL.createObjectURL = createObjectURLMock;
+    URL.revokeObjectURL = revokeObjectURLMock;
+    globalThis.fetch = fetchMock;
+
+    const items: ConversationItem[] = [
+      {
+        id: "msg-data-url-1",
+        kind: "message",
+        role: "user",
+        text: "Hello",
+        images: ["data:image/png;base64,AAA"],
+      },
+    ];
+
+    const { unmount } = render(
+      <Messages
+        items={items}
+        threadId="thread-1"
+        workspaceId="ws-1"
+        isThinking={false}
+        openTargets={[]}
+        selectedOpenAppId=""
+      />,
+    );
+
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith("data:image/png;base64,AAA"),
+    );
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Open image 1" })).toBeTruthy(),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Open image 1" }));
+    expect(screen.getByRole("dialog")).toBeTruthy();
+    expect(createObjectURLMock).toHaveBeenCalledTimes(1);
+
+    unmount();
+    expect(revokeObjectURLMock).toHaveBeenCalledWith("blob:message-image-1");
   });
 
   it("preserves newlines when images are attached", () => {

@@ -19,6 +19,7 @@ export type ParsedReasoning = {
 
 export type MessageImage = {
   src: string;
+  source: string;
   label: string;
 };
 
