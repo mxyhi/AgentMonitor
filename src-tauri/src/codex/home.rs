@@ -556,11 +556,18 @@ mod tests {
             .unwrap_or_else(|poisoned| poisoned.into_inner());
         let data_dir = temp_dir("codex-home-data");
         let bundled_root = temp_dir("bundled-skills");
+        let system_skill_dir = bundled_root.join(".system").join("openai-docs");
         let nested_skill_dir = bundled_root
             .join("ok-skills")
             .join("impeccable")
             .join("adapt");
+        fs::create_dir_all(&system_skill_dir).expect("create system skill dir");
         fs::create_dir_all(&nested_skill_dir).expect("create nested skill");
+        fs::write(
+            system_skill_dir.join("SKILL.md"),
+            "---\nname: openai-docs\ndescription: docs\n---\n",
+        )
+        .expect("write system skill");
         fs::write(
             bundled_root
                 .join("ok-skills")
@@ -595,6 +602,12 @@ mod tests {
         configure_default_codex_home(&data_dir);
 
         let codex_home = data_dir.join("codex-home");
+        assert!(codex_home
+            .join("skills")
+            .join(".system")
+            .join("openai-docs")
+            .join("SKILL.md")
+            .is_file());
         assert!(codex_home
             .join("skills")
             .join("ok-skills")

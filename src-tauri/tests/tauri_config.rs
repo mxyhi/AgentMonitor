@@ -142,3 +142,24 @@ fn bundled_skills_resources_are_declared_in_desktop_config() {
         "tauri.conf.json bundle.resources must include bundled skills resources"
     );
 }
+
+#[test]
+fn bundled_system_skills_snapshot_exists() {
+    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let bundled_system_root = manifest_dir.join("bundled-skills").join(".system");
+
+    assert!(
+        bundled_system_root
+            .join("openai-docs")
+            .join("SKILL.md")
+            .is_file(),
+        "bundled system skills snapshot must include openai-docs"
+    );
+    assert!(
+        bundled_system_root
+            .join("skill-installer")
+            .join("SKILL.md")
+            .is_file(),
+        "bundled system skills snapshot must include skill-installer"
+    );
+}

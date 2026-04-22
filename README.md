@@ -38,6 +38,11 @@ Agent Monitor is a Tauri app for orchestrating multiple Codex agents across loca
 - File tree with search, file-type icons, and Reveal in Finder/Explorer.
 - Prompt library for global/workspace prompts: create/edit/delete/move and run in current or new threads.
 
+### Defaults & Bundled Skills
+
+- On startup, the app seeds its app-private `CODEX_HOME` with vendored skills bundles so fresh installs and existing users converge on the same defaults.
+- The bundled defaults currently include the official Codex system skills under `skills/.system`, the vendored `ok-skills` bundle under `skills/ok-skills`, and a global `AGENTS.md` snippet that enables `caveman` plus `planning-with-files` by default.
+
 ### UI & Experience
 
 - Resizable sidebar/right/plan/terminal/debug panels with persisted sizes.
