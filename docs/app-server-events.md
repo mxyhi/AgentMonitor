@@ -1,4 +1,4 @@
-# App-Server Events Reference (Codex `8494e5bd7bb9fda5df56e232d7ef890108a3d8d4`)
+# App-Server Events Reference (Codex `230dcadee609fa99d6162fe1107457030e5270a7`)
 
 This document helps agents quickly answer:
 - Which app-server events CodexMonitor supports right now.
@@ -7,8 +7,8 @@ This document helps agents quickly answer:
 - Where to look in `.ref/codex` to compare event lists and find emitters.
 
 When updating this document:
-1. Update the Codex hash in the title using `git -C .ref/codex rev-parse HEAD`.
-2. Prefer strict schema baselines from `codex app-server generate-ts` / `codex app-server generate-json-schema`, or the vendored `.ref/codex/codex-rs/app-server-protocol/schema/*` fixtures.
+1. Update the Codex hash in the title using the exact upstream build or tag under test.
+2. CodexMonitor initializes app-server with `experimentalApi: true`, so prefer `codex app-server generate-ts --experimental` / `codex app-server generate-json-schema --experimental` as the first schema baseline, then fall back to the vendored `.ref/codex/codex-rs/app-server-protocol/schema/*` fixtures or source.
 3. Compare Codex events vs CodexMonitor routing.
 4. Compare Codex client request methods vs CodexMonitor outgoing request methods.
 5. Compare Codex server request methods vs CodexMonitor inbound request handling.
@@ -140,8 +140,13 @@ events are currently not routed:
 - `thread/realtime/error`
 - `thread/realtime/itemAdded`
 - `thread/realtime/outputAudio/delta`
+- `thread/realtime/sdp`
 - `thread/realtime/started`
-- `thread/realtime/transcriptUpdated`
+- `thread/realtime/transcript/delta`
+- `thread/realtime/transcript/done`
+- `warning`
+- `externalAgentConfig/import/completed`
+- `fs/changed`
 - `windows/worldWritableWarning`
 - `windowsSandbox/setupCompleted`
 
@@ -179,6 +184,7 @@ Notes:
 Compared against Codex v2 request methods, CodexMonitor currently does not send:
 
 - `account/logout`
+- `account/sendAddCreditsNudgeEmail`
 - `command/exec`
 - `command/exec/resize`
 - `command/exec/terminate`
@@ -188,6 +194,7 @@ Compared against Codex v2 request methods, CodexMonitor currently does not send:
 - `config/read`
 - `config/value/write`
 - `configRequirements/read`
+- `experimentalFeature/enablement/set`
 - `externalAgentConfig/detect`
 - `externalAgentConfig/import`
 - `feedback/upload`
@@ -197,12 +204,24 @@ Compared against Codex v2 request methods, CodexMonitor currently does not send:
 - `fs/readDirectory`
 - `fs/readFile`
 - `fs/remove`
+- `fs/unwatch`
+- `fs/watch`
 - `fs/writeFile`
+- `fuzzyFileSearch`
 - `fuzzyFileSearch/sessionStart`
 - `fuzzyFileSearch/sessionStop`
 - `fuzzyFileSearch/sessionUpdate`
+- `getAuthStatus`
+- `getConversationSummary`
+- `gitDiffToRemote`
+- `initialize`
+- `marketplace/add`
+- `marketplace/remove`
+- `mcpServer/resource/read`
+- `mcpServer/tool/call`
 - `mcpServer/oauth/login`
 - `mock/experimentalMethod`
+- `memory/reset`
 - `plugin/install`
 - `plugin/list`
 - `plugin/read`
@@ -210,16 +229,20 @@ Compared against Codex v2 request methods, CodexMonitor currently does not send:
 - `skills/config/write`
 - `thread/backgroundTerminals/clean`
 - `thread/decrement_elicitation`
+- `thread/inject_items`
 - `thread/increment_elicitation`
 - `thread/loaded/list`
+- `thread/memoryMode/set`
 - `thread/metadata/update`
 - `thread/read`
 - `thread/realtime/appendAudio`
 - `thread/realtime/appendText`
+- `thread/realtime/listVoices`
 - `thread/realtime/start`
 - `thread/realtime/stop`
 - `thread/rollback`
 - `thread/shellCommand`
+- `thread/turns/list`
 - `thread/unarchive`
 - `thread/unsubscribe`
 - `windowsSandbox/setupStart`
@@ -238,15 +261,17 @@ Missing server requests:
 - `item/tool/call`
 - `account/chatgptAuthTokens/refresh`
 - `mcpServer/elicitation/request`
+- `applyPatchApproval` (deprecated legacy API for `SendUserTurn` / `SendUserMessage`)
+- `execCommandApproval` (deprecated legacy API for `SendUserTurn` / `SendUserMessage`)
 
 ## Strict Baseline
 
 Prefer this order when validating protocol compatibility:
 
 1. Generated TypeScript bindings:
-   - `codex app-server generate-ts --out DIR`
+   - `codex app-server generate-ts --experimental --out DIR`
 2. Generated JSON Schema bundle:
-   - `codex app-server generate-json-schema --out DIR`
+   - `codex app-server generate-json-schema --experimental --out DIR`
 3. Vendored upstream fixtures in this repo:
    - `.ref/codex/codex-rs/app-server-protocol/schema/typescript`
    - `.ref/codex/codex-rs/app-server-protocol/schema/json`
@@ -296,6 +321,7 @@ Use this workflow to update the lists above:
 
 1. Get the current Codex hash:
    - `git -C .ref/codex rev-parse HEAD`
+   - Or use the exact bundled/upstream tag under test when `.ref/codex` is stale.
 2. List Codex v2 notification methods:
    - `awk '/server_notification_definitions! \\{/,/client_notification_definitions! \\{/' .ref/codex/codex-rs/app-server-protocol/src/protocol/common.rs | rg -N -o '=>\\s*\"[^\"]+\"|rename = \"[^\"]+\"' | sed -E 's/.*\"([^\"]+)\".*/\\1/' | sort -u`
 3. List CodexMonitor routed methods:
@@ -308,6 +334,7 @@ Use this workflow to update request support lists:
 
 1. Get the current Codex hash:
    - `git -C .ref/codex rev-parse HEAD`
+   - Or use the exact bundled/upstream tag under test when `.ref/codex` is stale.
 2. List Codex client request methods:
    - `awk '/client_request_definitions! \\{/,/\\/\\/\\/ DEPRECATED APIs below/' .ref/codex/codex-rs/app-server-protocol/src/protocol/common.rs | rg -N -o '=>\\s*\"[^\"]+\"\\s*\\{' | sed -E 's/.*\"([^\"]+)\".*/\\1/' | sort -u`
 3. List Codex server request methods:
@@ -322,6 +349,7 @@ Use this when the method list is unchanged but behavior looks off.
 
 1. Confirm the current Codex hash:
    - `git -C .ref/codex rev-parse HEAD`
+   - Or use the exact bundled/upstream tag under test when `.ref/codex` is stale.
 2. Inspect the authoritative notification structs:
    - `rg -n \"struct .*Notification\" .ref/codex/codex-rs/app-server-protocol/src/protocol/v2.rs`
 3. For a specific method, jump to its struct definition:
