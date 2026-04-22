@@ -808,11 +808,8 @@ pub(crate) async fn spawn_workspace_session<E: EventSink>(
     let _ = check_codex_installation(codex_bin.clone()).await?;
     let app_server_args = build_app_server_launch_args(codex_home.as_deref())?;
 
-    let mut command = build_codex_command_with_bin(
-        codex_bin,
-        codex_args.as_deref(),
-        app_server_args,
-    )?;
+    let mut command =
+        build_codex_command_with_bin(codex_bin, codex_args.as_deref(), app_server_args)?;
     command.current_dir(&entry.path);
     if let Some(path) = codex_home.as_ref() {
         command.env("CODEX_HOME", path);
@@ -1165,10 +1162,9 @@ pub(crate) async fn spawn_workspace_session<E: EventSink>(
 mod tests {
     use super::{
         build_app_server_launch_args, build_codex_path_env, build_initialize_params,
-        extract_related_thread_ids,
-        extract_thread_entries_from_thread_list_result, extract_thread_id, normalize_root_path,
-        resolve_codex_runtime_for_bin, resolve_workspace_for_cwd,
-        should_suppress_hidden_thread_event, source_subagent_kind,
+        extract_related_thread_ids, extract_thread_entries_from_thread_list_result,
+        extract_thread_id, normalize_root_path, resolve_codex_runtime_for_bin,
+        resolve_workspace_for_cwd, should_suppress_hidden_thread_event, source_subagent_kind,
         thread_started_is_memory_consolidation,
     };
     use crate::shared::codex_runtime_core::CodexRuntimeSource;
@@ -1513,27 +1509,25 @@ experimental_bearer_token = "sk-888"
         let _ = fs::remove_dir_all(&codex_home);
 
         assert_eq!(args.first().map(String::as_str), Some("app-server"));
-        assert!(args.windows(2).any(
-            |pair| pair[0] == "--config" && pair[1] == "model_provider=\"local\""
-        ));
-        assert!(args.windows(2).any(
-            |pair| pair[0] == "--config" && pair[1] == "model=\"gpt-5.4\""
-        ));
-        assert!(args.windows(2).any(
-            |pair| pair[0] == "--config" && pair[1] == "model_reasoning_effort=\"high\""
-        ));
+        assert!(args
+            .windows(2)
+            .any(|pair| pair[0] == "--config" && pair[1] == "model_provider=\"local\""));
+        assert!(args
+            .windows(2)
+            .any(|pair| pair[0] == "--config" && pair[1] == "model=\"gpt-5.4\""));
+        assert!(args
+            .windows(2)
+            .any(|pair| pair[0] == "--config" && pair[1] == "model_reasoning_effort=\"high\""));
 
         let provider_override = args
             .windows(2)
             .find(|pair| pair[0] == "--config" && pair[1].starts_with("model_providers="))
             .map(|pair| pair[1].clone())
             .expect("model_providers override");
-        assert!(provider_override.contains(
-            r#"airouter={name="airouter",base_url="https://airouter.mxyhi.com/v1"}"#
-        ));
-        assert!(provider_override.contains(
-            r#"OpenAI={name="OpenAI",base_url="https://api.openai.com/v1"}"#
-        ));
+        assert!(provider_override
+            .contains(r#"airouter={name="airouter",base_url="https://airouter.mxyhi.com/v1"}"#));
+        assert!(provider_override
+            .contains(r#"OpenAI={name="OpenAI",base_url="https://api.openai.com/v1"}"#));
         assert!(provider_override.contains(
             r#"local={name="local",base_url="http://127.0.0.1:9208/v1",experimental_bearer_token="sk-888"}"#
         ));

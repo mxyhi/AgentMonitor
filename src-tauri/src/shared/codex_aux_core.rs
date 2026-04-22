@@ -420,8 +420,7 @@ where
 {
     let codex_home = resolve_codex_home_for_workspace_core(workspaces, &workspace_id).await?;
     let selected_provider = codex_config::read_config_model_provider(Some(codex_home.clone()))?;
-    let selected_provider_api_key =
-        codex_config::read_selected_provider_api_key(Some(codex_home))?;
+    let selected_provider_api_key = codex_config::read_selected_provider_api_key(Some(codex_home))?;
     let account_response = account_read_core(sessions, workspaces, workspace_id.clone()).await?;
     if requires_openai_auth_for_selected_provider(
         selected_provider.as_deref(),

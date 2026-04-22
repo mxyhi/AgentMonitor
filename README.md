@@ -40,8 +40,8 @@ Agent Monitor is a Tauri app for orchestrating multiple Codex agents across loca
 
 ### Defaults & Bundled Skills
 
-- On startup, the app seeds its app-private `CODEX_HOME` with vendored skills bundles so fresh installs and existing users converge on the same defaults.
-- The bundled defaults currently include the official Codex system skills under `skills/.system`, the vendored `ok-skills` bundle under `skills/ok-skills`, and a global `AGENTS.md` snippet that enables `caveman` plus `planning-with-files` by default.
+- On startup, the app seeds its app-private `CODEX_HOME` with app-managed skill defaults so fresh installs and existing users converge on the same defaults.
+- The packaged defaults currently include a build-generated `skills/.system` snapshot pulled from `openai/skills` (`skills/.system`), a build-generated `skills/ok-skills` snapshot, and a global `AGENTS.md` snippet that enables `caveman` plus `planning-with-files` by default.
 
 ### UI & Experience
 
@@ -78,6 +78,12 @@ Prepare bundled Codex runtime for local dev (the Tauri scripts do this automatic
 
 ```bash
 pnpm prepare:codex-runtime
+```
+
+For release-grade desktop builds, refresh the generated `ok-skills` snapshot first:
+
+```bash
+pnpm prepare:bundled-skills
 ```
 
 Run in dev mode:
@@ -231,6 +237,8 @@ pnpm tauri:build
 
 If `TAURI_SIGNING_PRIVATE_KEY` is not set locally, `pnpm tauri:build` still builds the desktop app and installer bundles, but skips updater artifact generation. CI/release builds keep generating updater artifacts when the signing key is present.
 
+`pnpm tauri:build` now pulls the current `.system` skills from `openai/skills` plus the latest `mxyhi/ok-skills` into the gitignored `src-tauri/generated-bundled-skills/` directory before packaging. Local builds fall back to the tracked snapshots if generation/fetch fails; CI/release builds pass `--strict` and fail instead of shipping stale skills.
+
 Artifacts will be in `src-tauri/target/release/bundle/` (platform-specific subfolders).
 
 发布流程分为两段：
@@ -274,11 +282,12 @@ Recommended validation commands:
 pnpm lint
 pnpm test
 pnpm typecheck
+pnpm prepare:bundled-skills
 pnpm prepare:codex-runtime
 cd src-tauri && cargo check
 ```
 
-`cargo check` reads Tauri bundle config, so prepare bundled runtimes first when validating from `src-tauri`.
+`cargo check` reads Tauri bundle config, so prepare bundled skills/resources first when validating from `src-tauri`.
 
 ## Codebase Navigation
 

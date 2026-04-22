@@ -624,7 +624,9 @@ pub(crate) async fn update_global_ai_session_defaults(
         return serde_json::from_value(response).map_err(|err| err.to_string());
     }
 
-    ai_settings_core::update_global_ai_session_defaults_core(input)
+    let next = ai_settings_core::update_global_ai_session_defaults_core(input)?;
+    crate::shared::workspaces_core::invalidate_all_workspace_sessions_core(&state.sessions).await;
+    Ok(next)
 }
 
 #[tauri::command]
@@ -644,7 +646,9 @@ pub(crate) async fn update_ai_provider_settings(
         return serde_json::from_value(response).map_err(|err| err.to_string());
     }
 
-    ai_settings_core::update_ai_provider_settings_core(input)
+    let next = ai_settings_core::update_ai_provider_settings_core(input)?;
+    crate::shared::workspaces_core::invalidate_all_workspace_sessions_core(&state.sessions).await;
+    Ok(next)
 }
 
 #[tauri::command]

@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::future::Future;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -48,6 +48,32 @@ pub(super) async fn take_live_shared_session(
             return Some(existing_session);
         }
         remove_session_references(sessions, &existing_session).await;
+    }
+}
+
+pub(crate) async fn invalidate_all_workspace_sessions_core(
+    sessions: &Mutex<HashMap<String, Arc<WorkspaceSession>>>,
+) {
+    let removed_sessions = {
+        let mut sessions = sessions.lock().await;
+        let mut unique_sessions = Vec::new();
+        let mut seen = HashSet::new();
+        for session in sessions.values() {
+            let session_ptr = Arc::as_ptr(session) as usize;
+            if seen.insert(session_ptr) {
+                unique_sessions.push(Arc::clone(session));
+            }
+        }
+        sessions.clear();
+        unique_sessions
+    };
+
+    for session in removed_sessions {
+        for workspace_id in session.workspace_ids_snapshot().await {
+            session.unregister_workspace(&workspace_id).await;
+        }
+        let mut child = session.child.lock().await;
+        kill_child_process_tree(&mut child).await;
     }
 }
 
@@ -248,6 +274,24 @@ mod tests {
             assert_eq!(spawn_calls.load(Ordering::SeqCst), 1);
             assert!(sessions.lock().await.contains_key(&entry.id));
             kill_session_by_id(&sessions, &entry.id).await;
+        });
+    }
+
+    #[test]
+    fn invalidate_all_workspace_sessions_clears_and_stops_shared_session() {
+        tokio::runtime::Runtime::new().unwrap().block_on(async {
+            let shared = make_session(make_workspace_entry("ws-1"));
+            shared.register_workspace("ws-1").await;
+            shared.register_workspace("ws-2").await;
+            let sessions = Mutex::new(HashMap::from([
+                ("ws-1".to_string(), Arc::clone(&shared)),
+                ("ws-2".to_string(), Arc::clone(&shared)),
+            ]));
+
+            invalidate_all_workspace_sessions_core(&sessions).await;
+
+            assert!(sessions.lock().await.is_empty());
+            assert!(!session_process_is_alive(&shared).await);
         });
     }
 }

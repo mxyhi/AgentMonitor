@@ -14,6 +14,7 @@
     "pretest": "pnpm i18n:compile",
     "build": "tsc && vite build",
     "pretypecheck": "pnpm i18n:compile",
+    "prepare:bundled-skills": "node scripts/prepare-bundled-skills.mjs",
     "prepare:codex-runtime": "node scripts/prepare-codex-runtime.mjs",
     "build:appimage": "NO_STRIP=1 tauri build --bundles appimage",
     "doctor": "sh scripts/doctor.sh",
@@ -33,11 +34,11 @@
     "tauri": "tauri",
     "pretauri:dev": "pnpm sync:material-icons && pnpm prepare:codex-runtime",
     "tauri:dev": "pnpm doctor:strict && pnpm exec tauri dev",
-    "pretauri:build": "pnpm sync:material-icons && pnpm prepare:codex-runtime",
+    "pretauri:build": "pnpm sync:material-icons && pnpm prepare:bundled-skills && pnpm prepare:codex-runtime",
     "tauri:build": "pnpm doctor:strict && node scripts/run-tauri-build.mjs",
     "pretauri:dev:win": "pnpm sync:material-icons && pnpm prepare:codex-runtime",
     "tauri:dev:win": "pnpm doctor:win && pnpm exec tauri dev --config src-tauri/tauri.windows.conf.json",
-    "pretauri:build:win": "pnpm sync:material-icons && pnpm prepare:codex-runtime",
+    "pretauri:build:win": "pnpm sync:material-icons && pnpm prepare:bundled-skills && pnpm prepare:codex-runtime",
     "tauri:build:win": "pnpm doctor:win && node scripts/run-tauri-build.mjs --config src-tauri/tauri.windows.conf.json"
   },
   "dependencies": {

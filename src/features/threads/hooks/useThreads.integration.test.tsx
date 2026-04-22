@@ -968,6 +968,63 @@ describe("useThreads UX integration", () => {
     expect(interruptMock).toHaveBeenCalledTimes(2);
   });
 
+  it("keeps stop latched when late active events arrive after interrupt", async () => {
+    const interruptMock = vi.mocked(interruptTurn);
+    interruptMock.mockResolvedValue({ result: {} });
+    vi.mocked(resumeThread).mockResolvedValue({
+      result: {
+        thread: {
+          id: "thread-1",
+          preview: "Thread 1",
+          activeTurnId: null,
+          turns: [],
+        },
+      },
+    } as Awaited<ReturnType<typeof resumeThread>>);
+
+    const { result } = renderHook(() =>
+      useThreads({
+        activeWorkspace: workspace,
+        onWorkspaceConnected: vi.fn(),
+      }),
+    );
+
+    act(() => {
+      result.current.setActiveThreadId("thread-1");
+      handlers?.onTurnStarted?.("ws-1", "thread-1", "turn-1");
+    });
+
+    expect(result.current.threadStatusById["thread-1"]?.isProcessing).toBe(true);
+    expect(result.current.activeTurnIdByThread["thread-1"]).toBe("turn-1");
+
+    await act(async () => {
+      await result.current.interruptTurn();
+    });
+
+    expect(interruptMock).toHaveBeenCalledWith("ws-1", "thread-1", "turn-1");
+    await waitFor(() => {
+      expect(result.current.threadStatusById["thread-1"]?.isProcessing).toBe(false);
+      expect(result.current.activeTurnIdByThread["thread-1"]).toBeNull();
+    });
+
+    act(() => {
+      handlers?.onThreadStatusChanged?.("ws-1", "thread-1", { type: "active" });
+    });
+
+    expect(result.current.threadStatusById["thread-1"]?.isProcessing).toBe(false);
+    expect(result.current.activeTurnIdByThread["thread-1"]).toBeNull();
+
+    act(() => {
+      handlers?.onTurnStarted?.("ws-1", "thread-1", "turn-2");
+    });
+
+    await waitFor(() => {
+      expect(interruptMock).toHaveBeenCalledWith("ws-1", "thread-1", "turn-2");
+    });
+    expect(result.current.threadStatusById["thread-1"]?.isProcessing).toBe(false);
+    expect(result.current.activeTurnIdByThread["thread-1"]).toBeNull();
+  });
+
   it("keeps queued sends blocked while request user input is pending", async () => {
     vi.mocked(sendUserMessageService)
       .mockResolvedValueOnce({

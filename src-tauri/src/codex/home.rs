@@ -7,12 +7,24 @@ use crate::types::WorkspaceEntry;
 
 const CODEX_MONITOR_APP_DATA_DIR_ENV: &str = "CODEX_MONITOR_APP_DATA_DIR";
 const CODEX_MONITOR_BUNDLED_SKILLS_PATH_ENV: &str = "CODEX_MONITOR_BUNDLED_SKILLS_PATH";
+const GENERATED_BUNDLED_SKILLS_DIR: &str = "generated-bundled-skills";
 const APP_PRIVATE_CODEX_HOME_DIR: &str = "codex-home";
 const BUNDLED_SKILLS_DIR: &str = "bundled-skills";
 const CODEX_HOME_SKILLS_DIR: &str = "skills";
-const DEFAULT_AGENTS_SENTINEL: &str = "默认始终自动使用 `caveman`、`planning-with-files` skill";
-const DEFAULT_AGENTS_SNIPPET: &str =
-    "## 默认始终自动使用 `caveman`、`planning-with-files` skill；除非用户明确要求关闭，或 skill 不可用。";
+const DEFAULT_AGENTS_DEFAULT_SKILLS_SENTINEL: &str =
+    "默认始终自动使用 `caveman`、`planning-with-files` skill";
+const DEFAULT_AGENTS_SUBAGENT_SENTINEL: &str =
+    "默认显式传入与当前主代理相同的 `model` 与 `reasoning_effort`";
+const DEFAULT_AGENTS_SNIPPETS: &[(&str, &str)] = &[
+    (
+        DEFAULT_AGENTS_DEFAULT_SKILLS_SENTINEL,
+        "## 默认始终自动使用 `caveman`、`planning-with-files` skill；除非用户明确要求关闭，或 skill 不可用。",
+    ),
+    (
+        DEFAULT_AGENTS_SUBAGENT_SENTINEL,
+        "## 使用 `spawn_agent` / sub agent 时，默认显式传入与当前主代理相同的 `model` 与 `reasoning_effort`；除非用户明确要求，或任务确实需要不同模型/思考深度，否则不要默认改成别的模型，也不要回落到 `gpt-5.1-codex-mini`、`medium` 之类的独立默认值。",
+    ),
+];
 
 pub(crate) fn resolve_workspace_codex_home(
     _entry: &WorkspaceEntry,
@@ -201,23 +213,25 @@ fn resolve_bundled_skills_env_override() -> Option<PathBuf> {
 
 fn resolve_dev_bundled_skills_root() -> Option<PathBuf> {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    candidate_dir_if_exists(manifest_dir.join(BUNDLED_SKILLS_DIR))
+    // Release builds generate a fresh ok-skills snapshot into generated-bundled-skills.
+    // Keep the tracked bundled-skills tree as a dev/offline fallback.
+    candidate_dir_if_exists(manifest_dir.join(GENERATED_BUNDLED_SKILLS_DIR))
+        .or_else(|| candidate_dir_if_exists(manifest_dir.join(BUNDLED_SKILLS_DIR)))
 }
 
 // Tauri resource layouts differ across dev, macOS app bundles, and Linux/Windows packages.
 // Probe a small deterministic set so both the desktop app and daemon find the same assets.
 fn bundled_skills_candidate_paths_for_exe_dir(exe_dir: &Path) -> Vec<PathBuf> {
     let package_name = env!("CARGO_PKG_NAME");
-    vec![
-        exe_dir.join(BUNDLED_SKILLS_DIR),
-        exe_dir.join("resources").join(BUNDLED_SKILLS_DIR),
-        exe_dir.join("../resources").join(BUNDLED_SKILLS_DIR),
-        exe_dir.join("../Resources").join(BUNDLED_SKILLS_DIR),
-        exe_dir
-            .join("../lib")
-            .join(package_name)
-            .join(BUNDLED_SKILLS_DIR),
-    ]
+    let mut candidates = Vec::new();
+    for dir_name in [GENERATED_BUNDLED_SKILLS_DIR, BUNDLED_SKILLS_DIR] {
+        candidates.push(exe_dir.join(dir_name));
+        candidates.push(exe_dir.join("resources").join(dir_name));
+        candidates.push(exe_dir.join("../resources").join(dir_name));
+        candidates.push(exe_dir.join("../Resources").join(dir_name));
+        candidates.push(exe_dir.join("../lib").join(package_name).join(dir_name));
+    }
+    candidates
 }
 
 fn resolve_current_exe_bundled_skills_candidates() -> Vec<PathBuf> {
@@ -351,16 +365,31 @@ fn ensure_default_agents_md(codex_home: &Path) -> Result<(), String> {
         }
     };
 
-    if existing.contains(DEFAULT_AGENTS_SENTINEL) {
+    let missing_snippets = DEFAULT_AGENTS_SNIPPETS
+        .iter()
+        .filter_map(|(sentinel, snippet)| {
+            if existing.contains(sentinel) {
+                None
+            } else {
+                Some(*snippet)
+            }
+        })
+        .collect::<Vec<_>>();
+
+    if missing_snippets.is_empty() {
         return Ok(());
     }
 
     let mut next = existing.trim_end().to_string();
-    if !next.is_empty() {
-        next.push_str("\n\n");
+    for snippet in missing_snippets {
+        if !next.is_empty() {
+            next.push_str("\n\n");
+        }
+        next.push_str(snippet);
     }
-    next.push_str(DEFAULT_AGENTS_SNIPPET);
-    next.push('\n');
+    if !next.ends_with('\n') {
+        next.push('\n');
+    }
 
     fs::write(&agents_path, next).map_err(|err| {
         format!(
@@ -622,7 +651,8 @@ mod tests {
             .join("SKILL.md")
             .is_file());
         let agents_md = fs::read_to_string(codex_home.join("AGENTS.md")).expect("read AGENTS.md");
-        assert!(agents_md.contains(DEFAULT_AGENTS_SENTINEL));
+        assert!(agents_md.contains(DEFAULT_AGENTS_DEFAULT_SKILLS_SENTINEL));
+        assert!(agents_md.contains(DEFAULT_AGENTS_SUBAGENT_SENTINEL));
 
         restore_env_var("CODEX_HOME", prev_codex_home);
         restore_env_var(CODEX_MONITOR_APP_DATA_DIR_ENV, prev_monitor_data_dir);
@@ -632,7 +662,7 @@ mod tests {
     }
 
     #[test]
-    fn configure_default_codex_home_appends_default_agents_once_for_existing_users() {
+    fn configure_default_codex_home_appends_missing_default_agents_rules_once_for_existing_users() {
         let _guard = ENV_LOCK
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner());
@@ -640,7 +670,13 @@ mod tests {
         let codex_home = temp_dir("codex-home-existing");
         let bundled_root = temp_dir("bundled-skills-existing");
         fs::create_dir_all(bundled_root.join("ok-skills")).expect("create ok-skills dir");
-        fs::write(codex_home.join("AGENTS.md"), "# Existing\n").expect("seed AGENTS.md");
+        fs::write(
+            codex_home.join("AGENTS.md"),
+            format!(
+                "# Existing\n\n## 默认始终自动使用 `caveman`、`planning-with-files` skill；除非用户明确要求关闭，或 skill 不可用。\n"
+            ),
+        )
+        .expect("seed AGENTS.md");
 
         let prev_codex_home = std::env::var("CODEX_HOME").ok();
         let prev_monitor_data_dir = std::env::var("CODEX_MONITOR_APP_DATA_DIR").ok();
@@ -653,7 +689,13 @@ mod tests {
 
         let agents_md = fs::read_to_string(codex_home.join("AGENTS.md")).expect("read AGENTS.md");
         assert!(agents_md.starts_with("# Existing"));
-        assert_eq!(agents_md.matches(DEFAULT_AGENTS_SENTINEL).count(), 1);
+        assert_eq!(
+            agents_md
+                .matches(DEFAULT_AGENTS_DEFAULT_SKILLS_SENTINEL)
+                .count(),
+            1
+        );
+        assert_eq!(agents_md.matches(DEFAULT_AGENTS_SUBAGENT_SENTINEL).count(), 1);
 
         restore_env_var("CODEX_HOME", prev_codex_home);
         restore_env_var(CODEX_MONITOR_APP_DATA_DIR_ENV, prev_monitor_data_dir);
@@ -667,6 +709,12 @@ mod tests {
     fn bundled_skills_candidates_include_packaged_resources_dir() {
         let exe_dir = Path::new("/Applications/Agent Monitor.app/Contents/MacOS");
         let candidates = bundled_skills_candidate_paths_for_exe_dir(exe_dir);
+        assert!(candidates
+            .iter()
+            .any(|path| path
+                == &exe_dir
+                    .join("../Resources")
+                    .join(GENERATED_BUNDLED_SKILLS_DIR)));
         assert!(candidates
             .iter()
             .any(|path| path == &exe_dir.join("../Resources").join(BUNDLED_SKILLS_DIR)));

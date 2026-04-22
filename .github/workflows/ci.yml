@@ -187,6 +187,7 @@ jobs:
       - name: Prepare bundled runtime
         run: |
           pnpm sync:material-icons
+          pnpm prepare:bundled-skills --strict
           pnpm prepare:codex-runtime
       - name: Doctor (non-Windows)
         if: runner.os != 'Windows'

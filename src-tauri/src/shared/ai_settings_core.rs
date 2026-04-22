@@ -82,9 +82,7 @@ pub(crate) fn get_global_ai_settings_core() -> Result<GlobalAiSettingsDto, Strin
     build_global_ai_settings_dto(config_path, &document)
 }
 
-pub(crate) fn load_app_server_runtime_overrides(
-    codex_home: &Path,
-) -> Result<Vec<String>, String> {
+pub(crate) fn load_app_server_runtime_overrides(codex_home: &Path) -> Result<Vec<String>, String> {
     let (_, document) = config_toml_core::load_global_config_document(codex_home)?;
     build_app_server_runtime_overrides_from_document(&document)
 }
@@ -123,7 +121,8 @@ pub(crate) fn update_ai_provider_settings_core(
         .iter_mut()
         .find(|entry| entry.id == provider_id)
         .ok_or_else(|| format!("provider `{provider_id}` not found"))?;
-    provider.base_url = normalized_base_url.unwrap_or_else(|| provider.default_base_url.to_string());
+    provider.base_url =
+        normalized_base_url.unwrap_or_else(|| provider.default_base_url.to_string());
     provider.api_key = normalized_api_key;
 
     write_provider_states(&mut document, &providers)?;
@@ -179,7 +178,8 @@ fn build_app_server_runtime_overrides_from_document(
     let providers = resolve_provider_states(&normalized)?;
 
     let mut overrides = Vec::new();
-    if let Some(model_provider) = config_toml_core::read_top_level_string(&normalized, "model_provider")
+    if let Some(model_provider) =
+        config_toml_core::read_top_level_string(&normalized, "model_provider")
     {
         overrides.push(format!(
             "model_provider={}",
@@ -205,14 +205,15 @@ fn build_app_server_runtime_overrides_from_document(
 }
 
 fn normalize_document(document: &mut Document) -> Result<(), String> {
-    let selected_provider = normalize_selected_provider(
-        document.get("model_provider").and_then(Item::as_str),
-    )
-    .unwrap_or(AIROUTER_PROVIDER_ID);
+    let selected_provider =
+        normalize_selected_provider(document.get("model_provider").and_then(Item::as_str))
+            .unwrap_or(AIROUTER_PROVIDER_ID);
     let normalized_model = normalize_optional_string(document.get("model").and_then(Item::as_str))
         .or_else(|| Some(DEFAULT_SESSION_MODEL.to_string()));
     let normalized_effort = normalize_reasoning_effort(
-        document.get("model_reasoning_effort").and_then(Item::as_str),
+        document
+            .get("model_reasoning_effort")
+            .and_then(Item::as_str),
     )
     .or_else(|| Some(DEFAULT_SESSION_REASONING_EFFORT.to_string()));
     let providers = resolve_provider_states(document)?;
@@ -264,13 +265,21 @@ fn resolve_provider_states(document: &Document) -> Result<Vec<ProviderState>, St
             default_base_url: DEFAULT_LOCAL_BASE_URL,
             base_url: resolve_provider_base_url(
                 document,
-                &[LOCAL_PROVIDER_ID, LEGACY_OLLAMA_PROVIDER_ID, LEGACY_LMSTUDIO_PROVIDER_ID],
+                &[
+                    LOCAL_PROVIDER_ID,
+                    LEGACY_OLLAMA_PROVIDER_ID,
+                    LEGACY_LMSTUDIO_PROVIDER_ID,
+                ],
                 None,
                 DEFAULT_LOCAL_BASE_URL,
             )?,
             api_key: resolve_provider_api_key(
                 document,
-                &[LOCAL_PROVIDER_ID, LEGACY_OLLAMA_PROVIDER_ID, LEGACY_LMSTUDIO_PROVIDER_ID],
+                &[
+                    LOCAL_PROVIDER_ID,
+                    LEGACY_OLLAMA_PROVIDER_ID,
+                    LEGACY_LMSTUDIO_PROVIDER_ID,
+                ],
             ),
         },
     ])
@@ -282,9 +291,8 @@ fn resolve_provider_base_url(
     extra_value: Option<String>,
     default_base_url: &str,
 ) -> Result<String, String> {
-    let canonical_provider_id = normalize_selected_provider(provider_keys.first().copied()).unwrap_or(
-        AIROUTER_PROVIDER_ID,
-    );
+    let canonical_provider_id =
+        normalize_selected_provider(provider_keys.first().copied()).unwrap_or(AIROUTER_PROVIDER_ID);
 
     for provider_key in provider_keys {
         if let Some(base_url) = read_provider_field(document, provider_key, "base_url") {
@@ -321,7 +329,10 @@ fn resolve_provider_api_key(document: &Document, provider_keys: &[&str]) -> Opti
     None
 }
 
-fn write_provider_states(document: &mut Document, providers: &[ProviderState]) -> Result<(), String> {
+fn write_provider_states(
+    document: &mut Document,
+    providers: &[ProviderState],
+) -> Result<(), String> {
     let mut table = Table::new();
     for provider in providers {
         table[provider.id] = Item::Table(build_provider_table(
@@ -379,7 +390,13 @@ fn build_provider_table(name: &str, base_url: &str, api_key: Option<&str>) -> Ta
 fn render_provider_states_inline_table(providers: &[ProviderState]) -> String {
     let entries = providers
         .iter()
-        .map(|provider| format!("{}={}", provider.id, render_provider_state_inline_table(provider)))
+        .map(|provider| {
+            format!(
+                "{}={}",
+                provider.id,
+                render_provider_state_inline_table(provider)
+            )
+        })
         .collect::<Vec<_>>();
     format!("{{{}}}", entries.join(","))
 }
@@ -387,7 +404,10 @@ fn render_provider_states_inline_table(providers: &[ProviderState]) -> String {
 fn render_provider_state_inline_table(provider: &ProviderState) -> String {
     let mut fields = vec![
         format!("name={}", render_toml_string(provider.name)),
-        format!("base_url={}", render_toml_string(provider.base_url.as_str())),
+        format!(
+            "base_url={}",
+            render_toml_string(provider.base_url.as_str())
+        ),
     ];
     if let Some(api_key) = provider.api_key.as_deref() {
         fields.push(format!(
@@ -446,8 +466,7 @@ fn normalize_provider_base_url(
     let Some(value) = normalize_optional_string(value) else {
         return Ok(None);
     };
-    let parsed = Url::parse(value.as_str())
-        .map_err(|err| format!("Invalid base URL: {err}"))?;
+    let parsed = Url::parse(value.as_str()).map_err(|err| format!("Invalid base URL: {err}"))?;
     if parsed.query().is_some() || parsed.fragment().is_some() {
         return Err("Invalid base URL: query and fragment are not allowed".to_string());
     }
@@ -480,9 +499,7 @@ fn is_allowed_provider_base_url(provider_id: &str, parsed: &Url) -> bool {
         OPENAI_PROVIDER_ID => {
             host == "api.openai.com" && scheme == "https" && parsed.port().is_none()
         }
-        LOCAL_PROVIDER_ID => {
-            matches!(host.as_str(), "127.0.0.1" | "localhost") && scheme == "http"
-        }
+        LOCAL_PROVIDER_ID => matches!(host.as_str(), "127.0.0.1" | "localhost") && scheme == "http",
         _ => false,
     }
 }
@@ -540,7 +557,10 @@ mod tests {
         input.parse::<Document>().expect("valid toml")
     }
 
-    fn provider<'a>(dto: &'a GlobalAiSettingsDto, provider_id: &str) -> &'a GlobalAiProviderEntryDto {
+    fn provider<'a>(
+        dto: &'a GlobalAiSettingsDto,
+        provider_id: &str,
+    ) -> &'a GlobalAiProviderEntryDto {
         dto.providers
             .iter()
             .find(|provider| provider.id == provider_id)
@@ -581,7 +601,10 @@ experimental_bearer_token = "sk-elsewhere"
         let dto =
             build_global_ai_settings_dto("/tmp/config.toml".to_string(), &document).expect("dto");
 
-        assert_eq!(dto.session_defaults.model_provider.as_deref(), Some("OpenAI"));
+        assert_eq!(
+            dto.session_defaults.model_provider.as_deref(),
+            Some("OpenAI")
+        );
         assert_eq!(dto.session_defaults.model.as_deref(), Some("gpt-5.1"));
         assert_eq!(
             dto.session_defaults.model_reasoning_effort.as_deref(),
@@ -681,7 +704,10 @@ model_provider = "unknown"
         let dto =
             build_global_ai_settings_dto("/tmp/config.toml".to_string(), &parse("")).expect("dto");
 
-        assert_eq!(dto.session_defaults.model_provider.as_deref(), Some("airouter"));
+        assert_eq!(
+            dto.session_defaults.model_provider.as_deref(),
+            Some("airouter")
+        );
         assert_eq!(dto.session_defaults.model.as_deref(), Some("gpt-5.4"));
         assert_eq!(
             dto.session_defaults.model_reasoning_effort.as_deref(),
@@ -712,12 +738,10 @@ experimental_bearer_token = "sk-888"
             .iter()
             .find(|override_entry| override_entry.starts_with("model_providers="))
             .expect("provider override");
-        assert!(provider_override.contains(
-            r#"airouter={name="airouter",base_url="https://airouter.mxyhi.com/v1"}"#
-        ));
-        assert!(provider_override.contains(
-            r#"OpenAI={name="OpenAI",base_url="https://api.openai.com/v1"}"#
-        ));
+        assert!(provider_override
+            .contains(r#"airouter={name="airouter",base_url="https://airouter.mxyhi.com/v1"}"#));
+        assert!(provider_override
+            .contains(r#"OpenAI={name="OpenAI",base_url="https://api.openai.com/v1"}"#));
         assert!(provider_override.contains(
             r#"local={name="local",base_url="http://127.0.0.1:9208/v1",experimental_bearer_token="sk-888"}"#
         ));

@@ -221,6 +221,7 @@ jobs:
           export TAURI_SIGNING_PRIVATE_KEY
           TAURI_SIGNING_PRIVATE_KEY="$(cat "$HOME/.tauri/codexmonitor.key")"
           pnpm sync:material-icons
+          pnpm prepare:bundled-skills --strict
           pnpm prepare:codex-runtime
           pnpm doctor:strict
           pnpm exec tauri build --target "$CARGO_BUILD_TARGET" --bundles app
@@ -418,6 +419,7 @@ jobs:
           export TAURI_SIGNING_PRIVATE_KEY
           TAURI_SIGNING_PRIVATE_KEY="$(cat "$HOME/.tauri/codexmonitor.key")"
           pnpm sync:material-icons
+          pnpm prepare:bundled-skills --strict
           pnpm prepare:codex-runtime
           pnpm doctor:win
           pnpm exec tauri build \

@@ -612,14 +612,18 @@ impl DaemonState {
         &self,
         input: ai_settings_core::UpdateGlobalAiSessionDefaultsInput,
     ) -> Result<ai_settings_core::GlobalAiSettingsDto, String> {
-        ai_settings_core::update_global_ai_session_defaults_core(input)
+        let next = ai_settings_core::update_global_ai_session_defaults_core(input)?;
+        workspaces_core::invalidate_all_workspace_sessions_core(&self.sessions).await;
+        Ok(next)
     }
 
     async fn update_ai_provider_settings(
         &self,
         input: ai_settings_core::UpdateAiProviderSettingsInput,
     ) -> Result<ai_settings_core::GlobalAiSettingsDto, String> {
-        ai_settings_core::update_ai_provider_settings_core(input)
+        let next = ai_settings_core::update_ai_provider_settings_core(input)?;
+        workspaces_core::invalidate_all_workspace_sessions_core(&self.sessions).await;
+        Ok(next)
     }
 
     async fn set_agents_core_settings(

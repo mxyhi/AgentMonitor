@@ -274,6 +274,10 @@ async function ensureBundledRuntime() {
   );
 }
 
+export function resolveBundledRuntimePath() {
+  return sidecarDestinationPath(sidecarName);
+}
+
 function ensureInternalDaemonSidecars() {
   const sidecars = [
     { baseName: "codex_monitor_daemon", args: ["--help"] },

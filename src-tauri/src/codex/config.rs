@@ -123,7 +123,9 @@ pub(crate) fn read_selected_provider_api_key(
     else {
         return Ok(None);
     };
-    let providers = document.get("model_providers").and_then(Item::as_table_like);
+    let providers = document
+        .get("model_providers")
+        .and_then(Item::as_table_like);
     let read_api_key = |provider_key: &str| {
         providers
             .and_then(|table| table.get(provider_key))
@@ -136,7 +138,9 @@ pub(crate) fn read_selected_provider_api_key(
     };
 
     if provider_id.eq_ignore_ascii_case(LEGACY_OPENAI_PROVIDER_ID) {
-        return Ok(read_api_key(OPENAI_PROVIDER_ID).or_else(|| read_api_key(LEGACY_OPENAI_PROVIDER_ID)));
+        return Ok(
+            read_api_key(OPENAI_PROVIDER_ID).or_else(|| read_api_key(LEGACY_OPENAI_PROVIDER_ID))
+        );
     }
 
     Ok(read_api_key(provider_id.as_str()))

@@ -1243,6 +1243,122 @@ describe("useThreadMessaging telemetry", () => {
     );
   });
 
+  it("latches pending interrupt and clears local turn state before awaiting stop", async () => {
+    const pendingInterruptsRef = { current: new Set<string>() };
+    const markProcessing = vi.fn();
+    const setActiveTurnId = vi.fn();
+    const dispatch = vi.fn();
+
+    const { result } = renderHook(() =>
+      useThreadMessaging({
+        activeWorkspace: workspace,
+        activeThreadId: "thread-1",
+        accessMode: "current",
+        model: null,
+        effort: null,
+        collaborationMode: null,
+        reviewDeliveryMode: "inline",
+        steerEnabled: true,
+        customPrompts: [],
+        threadStatusById: {
+          "thread-1": {
+            isProcessing: true,
+            isReviewing: false,
+            hasUnread: false,
+            processingStartedAt: 0,
+            lastDurationMs: null,
+          },
+        },
+        activeTurnIdByThread: {
+          "thread-1": "turn-1",
+        },
+        rateLimitsByWorkspace: {},
+        pendingInterruptsRef,
+        dispatch,
+        getCustomName: vi.fn(() => undefined),
+        markProcessing,
+        markReviewing: vi.fn(),
+        setActiveTurnId,
+        recordThreadActivity: vi.fn(),
+        safeMessageActivity: vi.fn(),
+        onDebug: vi.fn(),
+        pushThreadErrorMessage: vi.fn(),
+        ensureThreadForActiveWorkspace: vi.fn(async () => "thread-1"),
+        ensureThreadForWorkspace: vi.fn(async () => "thread-1"),
+        refreshThread: vi.fn(async () => null),
+        forkThreadForWorkspace: vi.fn(async () => null),
+        updateThreadParent: vi.fn(),
+      }),
+    );
+
+    await act(async () => {
+      await result.current.interruptTurn();
+    });
+
+    expect(pendingInterruptsRef.current.has("thread-1")).toBe(true);
+    expect(markProcessing).toHaveBeenCalledWith("thread-1", false);
+    expect(setActiveTurnId).toHaveBeenCalledWith("thread-1", null);
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "addAssistantMessage",
+      threadId: "thread-1",
+      text: "Session stopped.",
+    });
+    expect(interruptTurnService).toHaveBeenCalledWith("ws-1", "thread-1", "turn-1");
+  });
+
+  it("clears pending interrupt when stop submission itself fails", async () => {
+    const pendingInterruptsRef = { current: new Set<string>() };
+    vi.mocked(interruptTurnService).mockRejectedValueOnce(new Error("stop failed"));
+
+    const { result } = renderHook(() =>
+      useThreadMessaging({
+        activeWorkspace: workspace,
+        activeThreadId: "thread-1",
+        accessMode: "current",
+        model: null,
+        effort: null,
+        collaborationMode: null,
+        reviewDeliveryMode: "inline",
+        steerEnabled: true,
+        customPrompts: [],
+        threadStatusById: {
+          "thread-1": {
+            isProcessing: true,
+            isReviewing: false,
+            hasUnread: false,
+            processingStartedAt: 0,
+            lastDurationMs: null,
+          },
+        },
+        activeTurnIdByThread: {
+          "thread-1": "turn-1",
+        },
+        rateLimitsByWorkspace: {},
+        pendingInterruptsRef,
+        dispatch: vi.fn(),
+        getCustomName: vi.fn(() => undefined),
+        markProcessing: vi.fn(),
+        markReviewing: vi.fn(),
+        setActiveTurnId: vi.fn(),
+        recordThreadActivity: vi.fn(),
+        safeMessageActivity: vi.fn(),
+        onDebug: vi.fn(),
+        pushThreadErrorMessage: vi.fn(),
+        ensureThreadForActiveWorkspace: vi.fn(async () => "thread-1"),
+        ensureThreadForWorkspace: vi.fn(async () => "thread-1"),
+        refreshThread: vi.fn(async () => null),
+        forkThreadForWorkspace: vi.fn(async () => null),
+        updateThreadParent: vi.fn(),
+      }),
+    );
+
+    await act(async () => {
+      await result.current.interruptTurn();
+    });
+
+    expect(pendingInterruptsRef.current.has("thread-1")).toBe(false);
+  });
+
   it("routes uncommitted review to an explicit workspace override", async () => {
     const ensureThreadForActiveWorkspace = vi.fn(async () => "thread-active");
     const ensureThreadForWorkspace = vi.fn(async () => "thread-override");

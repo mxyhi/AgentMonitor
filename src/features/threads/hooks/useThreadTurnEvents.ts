@@ -236,7 +236,6 @@ export function useThreadTurnEvents({
         threadId,
       });
       if (pendingInterruptsRef.current.has(threadId)) {
-        pendingInterruptsRef.current.delete(threadId);
         if (turnId) {
           void interruptTurnService(workspaceId, threadId, turnId).catch(() => {});
         }
@@ -297,6 +296,9 @@ export function useThreadTurnEvents({
         return;
       }
       if (statusType === "active") {
+        if (pendingInterruptsRef.current.has(threadId)) {
+          return;
+        }
         markProcessing(threadId, true);
         return;
       }

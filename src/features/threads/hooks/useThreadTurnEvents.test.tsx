@@ -432,7 +432,7 @@ describe("useThreadTurnEvents", () => {
       result.current.onTurnStarted("ws-1", "thread-1", "turn-2");
     });
 
-    expect(pendingInterruptsRef.current.has("thread-1")).toBe(false);
+    expect(pendingInterruptsRef.current.has("thread-1")).toBe(true);
     expect(interruptTurn).toHaveBeenCalledWith("ws-1", "thread-1", "turn-2");
     expect(markProcessing).not.toHaveBeenCalled();
     expect(setActiveTurnId).not.toHaveBeenCalled();
@@ -516,6 +516,19 @@ describe("useThreadTurnEvents", () => {
 
     expect(markProcessing).toHaveBeenCalledWith("thread-1", true);
     expect(setActiveTurnId).not.toHaveBeenCalled();
+  });
+
+  it("ignores active thread status while an interrupt is pending", () => {
+    const { result, markProcessing, setActiveTurnId, pendingInterruptsRef } =
+      makeOptions({ pendingInterrupts: ["thread-1"] });
+
+    act(() => {
+      result.current.onThreadStatusChanged("ws-1", "thread-1", { type: "active" });
+    });
+
+    expect(markProcessing).not.toHaveBeenCalled();
+    expect(setActiveTurnId).not.toHaveBeenCalled();
+    expect(pendingInterruptsRef.current.has("thread-1")).toBe(true);
   });
 
   it("clears processing, active turn, and pending interrupt for non-active thread status", () => {

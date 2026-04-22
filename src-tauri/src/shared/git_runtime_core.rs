@@ -65,7 +65,11 @@ fn preferred_toolchain_rank(root: &Path) -> (usize, String) {
 fn is_bundled_git_toolchain_root(root: &Path) -> bool {
     root.join("bin").join("git.exe").is_file()
         && root.join("libexec").join("git-core").is_dir()
-        && root.join("share").join("git-core").join("templates").is_dir()
+        && root
+            .join("share")
+            .join("git-core")
+            .join("templates")
+            .is_dir()
 }
 
 fn bundled_git_toolchain_roots(root: &Path) -> Vec<PathBuf> {
@@ -87,7 +91,10 @@ fn bundled_git_toolchain_roots(root: &Path) -> Vec<PathBuf> {
     candidates
 }
 
-fn bundled_git_layout_for(container_root: &Path, toolchain_root: &Path) -> Option<BundledGitLayout> {
+fn bundled_git_layout_for(
+    container_root: &Path,
+    toolchain_root: &Path,
+) -> Option<BundledGitLayout> {
     let wrapped_program = container_root.join("cmd").join("git.exe");
     let direct_program = toolchain_root.join("bin").join("git.exe");
     let program = if wrapped_program.is_file() {
@@ -99,7 +106,10 @@ fn bundled_git_layout_for(container_root: &Path, toolchain_root: &Path) -> Optio
     };
 
     let exec_path = toolchain_root.join("libexec").join("git-core");
-    let template_dir = toolchain_root.join("share").join("git-core").join("templates");
+    let template_dir = toolchain_root
+        .join("share")
+        .join("git-core")
+        .join("templates");
     if !exec_path.is_dir() || !template_dir.is_dir() {
         return None;
     }
@@ -440,10 +450,7 @@ mod tests {
         dir
     }
 
-    fn with_env_vars<T>(
-        vars: &[(&str, Option<&std::ffi::OsStr>)],
-        run: impl FnOnce() -> T,
-    ) -> T {
+    fn with_env_vars<T>(vars: &[(&str, Option<&std::ffi::OsStr>)], run: impl FnOnce() -> T) -> T {
         let _guard = ENV_LOCK.lock().expect("lock env");
         let previous = vars
             .iter()
@@ -518,18 +525,12 @@ mod tests {
         for expected_entry in expected_path_entries {
             assert!(path_entries.contains(expected_entry));
         }
-        assert!(
-            envs.iter().any(|(key, value)| {
-                key == "GIT_EXEC_PATH"
-                    && path_components_match(value, expected_exec_path)
-            })
-        );
-        assert!(
-            envs.iter().any(|(key, value)| {
-                key == "GIT_TEMPLATE_DIR"
-                    && path_components_match(value, expected_template_dir)
-            })
-        );
+        assert!(envs.iter().any(|(key, value)| {
+            key == "GIT_EXEC_PATH" && path_components_match(value, expected_exec_path)
+        }));
+        assert!(envs.iter().any(|(key, value)| {
+            key == "GIT_TEMPLATE_DIR" && path_components_match(value, expected_template_dir)
+        }));
     }
 
     #[test]
@@ -654,10 +655,8 @@ mod tests {
     fn packaged_candidate_roots_cover_standard_resource_locations() {
         let exe_dir = Path::new("/tmp/codex-monitor");
         let candidates = bundled_candidate_roots_for_exe_dir(exe_dir, "x86_64-pc-windows-msvc");
-        assert!(
-            candidates.iter().any(|path| {
-                path.ends_with(Path::new(BUNDLED_GIT_RESOURCE_DIR).join("x86_64-pc-windows-msvc"))
-            })
-        );
+        assert!(candidates.iter().any(|path| {
+            path.ends_with(Path::new(BUNDLED_GIT_RESOURCE_DIR).join("x86_64-pc-windows-msvc"))
+        }));
     }
 }

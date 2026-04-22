@@ -627,6 +627,10 @@ export function useThreadMessaging({
     }
     const activeTurnId = activeTurnIdByThread[activeThreadId] ?? null;
     const turnId = activeTurnId ?? "pending";
+    // Keep stop intent latched until a terminal thread event arrives so late
+    // `turn/started` / `thread/status active` notifications cannot resurrect
+    // a turn the user already asked to stop.
+    pendingInterruptsRef.current.add(activeThreadId);
     markProcessing(activeThreadId, false);
     setActiveTurnId(activeThreadId, null);
     dispatch({
@@ -634,9 +638,6 @@ export function useThreadMessaging({
       threadId: activeThreadId,
       text: "Session stopped.",
     });
-    if (!activeTurnId) {
-      pendingInterruptsRef.current.add(activeThreadId);
-    }
     onDebug?.({
       id: `${Date.now()}-client-turn-interrupt`,
       timestamp: Date.now(),
@@ -670,6 +671,7 @@ export function useThreadMessaging({
         label: "turn/interrupt error",
         payload: error instanceof Error ? error.message : String(error),
       });
+      pendingInterruptsRef.current.delete(activeThreadId);
     }
   }, [
     activeThreadId,

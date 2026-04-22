@@ -156,10 +156,7 @@ mod tests {
         path
     }
 
-    fn with_env_vars<T>(
-        vars: &[(&str, Option<&std::ffi::OsStr>)],
-        run: impl FnOnce() -> T,
-    ) -> T {
+    fn with_env_vars<T>(vars: &[(&str, Option<&std::ffi::OsStr>)], run: impl FnOnce() -> T) -> T {
         let _guard = ENV_LOCK.lock().expect("lock env");
         let previous = vars
             .iter()
@@ -189,10 +186,9 @@ mod tests {
 
     #[test]
     fn explicit_runtime_bin_beats_path_lookup() {
-        let resolved = with_env_vars(
-            &[("PATH", Some(std::ffi::OsStr::new("")))],
-            || resolve_gh_runtime(Some("/tmp/custom-gh")).expect("resolve runtime"),
-        );
+        let resolved = with_env_vars(&[("PATH", Some(std::ffi::OsStr::new("")))], || {
+            resolve_gh_runtime(Some("/tmp/custom-gh")).expect("resolve runtime")
+        });
         assert_eq!(resolved.program, "/tmp/custom-gh");
         assert_eq!(resolved.source, GhRuntimeSource::Custom);
     }
@@ -258,10 +254,14 @@ mod tests {
     #[test]
     fn gh_env_disables_prompts_and_update_notifiers() {
         let env = gh_command_env();
-        assert!(env.iter().any(|(key, value)| key == "GH_NO_UPDATE_NOTIFIER" && value == "1"));
-        assert!(
-            env.iter().any(|(key, value)| key == "GH_NO_EXTENSION_UPDATE_NOTIFIER" && value == "1")
-        );
-        assert!(env.iter().any(|(key, value)| key == "GH_PROMPT_DISABLED" && value == "1"));
+        assert!(env
+            .iter()
+            .any(|(key, value)| key == "GH_NO_UPDATE_NOTIFIER" && value == "1"));
+        assert!(env
+            .iter()
+            .any(|(key, value)| key == "GH_NO_EXTENSION_UPDATE_NOTIFIER" && value == "1"));
+        assert!(env
+            .iter()
+            .any(|(key, value)| key == "GH_PROMPT_DISABLED" && value == "1"));
     }
 }
