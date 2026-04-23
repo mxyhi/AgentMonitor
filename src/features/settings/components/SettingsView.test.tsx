@@ -97,7 +97,7 @@ function makeAiSettings(
     configPath: "/Users/me/Library/Application Support/CodexMonitor/codex-home/config.toml",
     sessionDefaults: {
       modelProvider: overrides.modelProvider ?? "airouter",
-      model: overrides.model ?? "gpt-5.1",
+      model: overrides.model ?? "gpt-5.5",
       modelReasoningEffort: overrides.modelReasoningEffort ?? "high",
     },
     providers:
@@ -1715,7 +1715,7 @@ describe("SettingsView Codex defaults", () => {
     result: { data: models },
   });
 
-  it("uses the latest model and medium effort by default (no Default option)", async () => {
+  it("uses the latest model and high effort by default (no Default option)", async () => {
     cleanup();
     const onUpdateAppSettings = vi.fn().mockResolvedValue(undefined);
     updateGlobalAiSessionDefaultsMock.mockClear();
@@ -1735,9 +1735,9 @@ describe("SettingsView Codex defaults", () => {
           isDefault: false,
         },
         {
-          id: "gpt-5.1",
-          model: "gpt-5.1",
-          displayName: "GPT-5.1",
+          id: "gpt-5.5",
+          model: "gpt-5.5",
+          displayName: "GPT-5.5",
           description: "",
           supportedReasoningEfforts: [
             { reasoningEffort: "low", description: "" },
@@ -1796,7 +1796,7 @@ describe("SettingsView Codex defaults", () => {
 
     await waitFor(() => {
       expect(getModelListMock).toHaveBeenCalledWith("w1");
-      expect(modelSelect.value).toBe("gpt-5.1");
+      expect(modelSelect.value).toBe("gpt-5.5");
     });
 
     expect(within(modelSelect).queryByRole("option", { name: /default/i })).toBeNull();
@@ -1825,9 +1825,9 @@ describe("SettingsView Codex defaults", () => {
           isDefault: false,
         },
         {
-          id: "gpt-5.1",
-          model: "gpt-5.1",
-          displayName: "GPT-5.1",
+          id: "gpt-5.5",
+          model: "gpt-5.5",
+          displayName: "GPT-5.5",
           description: "",
           supportedReasoningEfforts: [
             { reasoningEffort: "low", description: "" },
@@ -1886,7 +1886,7 @@ describe("SettingsView Codex defaults", () => {
 
     await waitFor(() => {
       expect(modelSelect.disabled).toBe(false);
-      expect(modelSelect.value).toBe("gpt-5.1");
+      expect(modelSelect.value).toBe("gpt-5.5");
     });
 
     updateGlobalAiSessionDefaultsMock.mockClear();

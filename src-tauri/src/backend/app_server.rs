@@ -1494,7 +1494,7 @@ mod tests {
             codex_home.join("config.toml"),
             r#"
 model_provider = "local"
-model = "gpt-5.4"
+model = "gpt-5.5"
 model_reasoning_effort = "high"
 
 [model_providers.local]
@@ -1514,7 +1514,7 @@ experimental_bearer_token = "sk-888"
             .any(|pair| pair[0] == "--config" && pair[1] == "model_provider=\"local\""));
         assert!(args
             .windows(2)
-            .any(|pair| pair[0] == "--config" && pair[1] == "model=\"gpt-5.4\""));
+            .any(|pair| pair[0] == "--config" && pair[1] == "model=\"gpt-5.5\""));
         assert!(args
             .windows(2)
             .any(|pair| pair[0] == "--config" && pair[1] == "model_reasoning_effort=\"high\""));

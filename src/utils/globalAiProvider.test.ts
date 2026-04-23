@@ -16,7 +16,7 @@ describe("globalAiProvider", () => {
       configPath: "/tmp/config.toml",
       sessionDefaults: {
         modelProvider: "openai",
-        model: "gpt-5.4",
+        model: "gpt-5.5",
         modelReasoningEffort: "high",
       },
       providers: [
@@ -41,7 +41,7 @@ describe("globalAiProvider", () => {
         configPath: "/tmp/config.toml",
         sessionDefaults: {
           modelProvider: "OpenAI",
-          model: "gpt-5.4",
+          model: "gpt-5.5",
           modelReasoningEffort: "high",
         },
         providers: [

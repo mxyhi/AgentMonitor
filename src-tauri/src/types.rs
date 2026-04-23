@@ -692,7 +692,7 @@ fn default_review_delivery_mode() -> String {
 }
 
 fn default_last_composer_model_id() -> Option<String> {
-    Some("gpt-5.4".to_string())
+    Some("gpt-5.5".to_string())
 }
 
 fn default_last_composer_reasoning_effort() -> Option<String> {
@@ -1340,7 +1340,7 @@ mod tests {
             })
         );
         assert_eq!(settings.default_access_mode, "full-access");
-        assert_eq!(settings.last_composer_model_id.as_deref(), Some("gpt-5.4"));
+        assert_eq!(settings.last_composer_model_id.as_deref(), Some("gpt-5.5"));
         assert_eq!(
             settings.last_composer_reasoning_effort.as_deref(),
             Some("high")

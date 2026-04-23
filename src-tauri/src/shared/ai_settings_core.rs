@@ -20,7 +20,7 @@ const LOCAL_PROVIDER_NAME: &str = "local";
 const DEFAULT_AIROUTER_BASE_URL: &str = "https://airouter.mxyhi.com/v1";
 const DEFAULT_OPENAI_BASE_URL: &str = "https://api.openai.com/v1";
 const DEFAULT_LOCAL_BASE_URL: &str = "http://127.0.0.1:9208/v1";
-const DEFAULT_SESSION_MODEL: &str = "gpt-5.4";
+const DEFAULT_SESSION_MODEL: &str = "gpt-5.5";
 const DEFAULT_SESSION_REASONING_EFFORT: &str = "high";
 const ALLOWED_REASONING_EFFORTS: &[&str] = &["minimal", "low", "medium", "high", "xhigh"];
 
@@ -700,7 +700,7 @@ model_provider = "unknown"
     }
 
     #[test]
-    fn empty_config_defaults_session_defaults_to_gpt_5_4_high() {
+    fn empty_config_defaults_session_defaults_to_gpt_5_5_high() {
         let dto =
             build_global_ai_settings_dto("/tmp/config.toml".to_string(), &parse("")).expect("dto");
 
@@ -708,7 +708,7 @@ model_provider = "unknown"
             dto.session_defaults.model_provider.as_deref(),
             Some("airouter")
         );
-        assert_eq!(dto.session_defaults.model.as_deref(), Some("gpt-5.4"));
+        assert_eq!(dto.session_defaults.model.as_deref(), Some("gpt-5.5"));
         assert_eq!(
             dto.session_defaults.model_reasoning_effort.as_deref(),
             Some("high")
@@ -720,7 +720,7 @@ model_provider = "unknown"
         let overrides = build_app_server_runtime_overrides_from_document(&parse(
             r#"
 model_provider = "local"
-model = "gpt-5.4"
+model = "gpt-5.5"
 model_reasoning_effort = "high"
 
 [model_providers.local]
@@ -732,7 +732,7 @@ experimental_bearer_token = "sk-888"
         .expect("overrides");
 
         assert!(overrides.contains(&"model_provider=\"local\"".to_string()));
-        assert!(overrides.contains(&"model=\"gpt-5.4\"".to_string()));
+        assert!(overrides.contains(&"model=\"gpt-5.5\"".to_string()));
         assert!(overrides.contains(&"model_reasoning_effort=\"high\"".to_string()));
         let provider_override = overrides
             .iter()

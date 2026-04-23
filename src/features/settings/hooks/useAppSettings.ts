@@ -165,7 +165,7 @@ function buildDefaultSettings(): AppSettings {
     cycleAgentPrevShortcut: isMac ? "cmd+ctrl+up" : "ctrl+alt+up",
     cycleWorkspaceNextShortcut: isMac ? "cmd+shift+down" : "ctrl+alt+shift+down",
     cycleWorkspacePrevShortcut: isMac ? "cmd+shift+up" : "ctrl+alt+shift+up",
-    lastComposerModelId: "gpt-5.4",
+    lastComposerModelId: "gpt-5.5",
     lastComposerReasoningEffort: "high",
     uiScale: UI_SCALE_DEFAULT,
     theme: "system",

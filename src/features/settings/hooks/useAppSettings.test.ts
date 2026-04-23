@@ -74,7 +74,7 @@ describe("useAppSettings", () => {
     expect(result.current.settings.interruptShortcut).toBeTruthy();
     expect(result.current.settings.appLanguage).toBe("en");
     expect(result.current.settings.defaultAccessMode).toBe("full-access");
-    expect(result.current.settings.lastComposerModelId).toBe("gpt-5.4");
+    expect(result.current.settings.lastComposerModelId).toBe("gpt-5.5");
     expect(result.current.settings.lastComposerReasoningEffort).toBe("high");
   });
 

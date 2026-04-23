@@ -46,9 +46,9 @@ const baseProps = (): SettingsAgentsSectionProps => ({
   onGenerateEditDescription: vi.fn(async () => null),
   modelOptions: [
     {
-      id: "gpt-5-codex",
-      model: "gpt-5-codex",
-      displayName: "gpt-5-codex",
+      id: "gpt-5.5",
+      model: "gpt-5.5",
+      displayName: "gpt-5.5",
       description: "",
       supportedReasoningEfforts: [],
       defaultReasoningEffort: null,

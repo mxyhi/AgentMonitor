@@ -15,8 +15,8 @@ const MIN_AGENT_MAX_DEPTH: u32 = 1;
 const MAX_AGENT_MAX_DEPTH: u32 = 4;
 const MANAGED_AGENTS_DIR: &str = "agents";
 const TEMPLATE_BLANK: &str = "blank";
-const DEFAULT_AGENT_MODEL: &str = "gpt-5-codex";
-const DEFAULT_REASONING_EFFORT: &str = "medium";
+const DEFAULT_AGENT_MODEL: &str = "gpt-5.5";
+const DEFAULT_REASONING_EFFORT: &str = "high";
 
 const fn default_agent_max_depth() -> u32 {
     DEFAULT_AGENT_MAX_DEPTH
@@ -1010,6 +1010,13 @@ config_file = "agents/researcher.toml"
     fn build_template_content_uses_provided_model_and_reasoning() {
         let content = build_template_content(Some("blank"), Some("gpt-5.1"), Some("high"), None);
         assert!(content.contains("model = \"gpt-5.1\""));
+        assert!(content.contains("model_reasoning_effort = \"high\""));
+    }
+
+    #[test]
+    fn build_template_content_defaults_to_gpt_5_5_high() {
+        let content = build_template_content(Some("blank"), None, None, None);
+        assert!(content.contains("model = \"gpt-5.5\""));
         assert!(content.contains("model_reasoning_effort = \"high\""));
     }
 

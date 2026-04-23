@@ -18,16 +18,16 @@ import {
 
 const FALLBACK_AGENT_MODELS: ModelOption[] = [
   {
-    id: "gpt-5-codex",
-    model: "gpt-5-codex",
-    displayName: "gpt-5-codex",
+    id: "gpt-5.5",
+    model: "gpt-5.5",
+    displayName: "gpt-5.5",
     description: "Fallback model while workspace model list is unavailable.",
     supportedReasoningEfforts: [
       { reasoningEffort: "low", description: "" },
       { reasoningEffort: "medium", description: "" },
       { reasoningEffort: "high", description: "" },
     ],
-    defaultReasoningEffort: "medium",
+    defaultReasoningEffort: "high",
     isDefault: true,
   },
 ];
