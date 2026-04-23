@@ -59,6 +59,7 @@ describe("useAppServerEvents", () => {
       onAgentMessageDelta: vi.fn(),
       onReasoningSummaryBoundary: vi.fn(),
       onPlanDelta: vi.fn(),
+      onFileChangePatchUpdated: vi.fn(),
       onApprovalRequest: vi.fn(),
       onRequestUserInput: vi.fn(),
       onItemCompleted: vi.fn(),
@@ -121,6 +122,38 @@ describe("useAppServerEvents", () => {
       "thread-1",
       "plan-1",
       "- Step 1",
+    );
+
+    act(() => {
+      listener?.({
+        workspace_id: "ws-1",
+        message: {
+          method: "item/fileChange/patchUpdated",
+          params: {
+            threadId: "thread-1",
+            itemId: "file-change-1",
+            changes: [
+              {
+                path: "src/foo.ts",
+                kind: { type: "modify" },
+                diff: "@@ -1 +1 @@",
+              },
+            ],
+          },
+        },
+      });
+    });
+    expect(handlers.onFileChangePatchUpdated).toHaveBeenCalledWith(
+      "ws-1",
+      "thread-1",
+      "file-change-1",
+      [
+        {
+          path: "src/foo.ts",
+          kind: { type: "modify" },
+          diff: "@@ -1 +1 @@",
+        },
+      ],
     );
 
     act(() => {

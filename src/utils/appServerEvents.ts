@@ -16,6 +16,7 @@ export const SUPPORTED_APP_SERVER_METHODS = [
   "item/commandExecution/terminalInteraction",
   "item/completed",
   "item/fileChange/outputDelta",
+  "item/fileChange/patchUpdated",
   "item/plan/delta",
   "item/reasoning/summaryPartAdded",
   "item/reasoning/summaryTextDelta",

@@ -24,7 +24,7 @@ pub(crate) struct ResolvedCodexRuntime {
     pub(crate) source: CodexRuntimeSource,
 }
 
-pub(crate) const BUNDLED_CODEX_VERSION: &str = "0.122.0";
+pub(crate) const BUNDLED_CODEX_VERSION: &str = "0.123.0";
 pub(crate) const BUNDLED_CODEX_SIDECAR_NAME: &str = "codex-bundled";
 
 pub(crate) fn bundled_codex_version() -> &'static str {

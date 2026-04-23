@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { ConversationItem } from "@/types";
 import { buildConversationItem } from "@utils/threadItems";
 import { useThreadItemEvents } from "./useThreadItemEvents";
 
@@ -354,5 +355,56 @@ describe("useThreadItemEvents", () => {
       itemId: "plan-1",
       delta: "- Step 1",
     });
+  });
+
+  it("upserts file change patch updates as fileChange tool items", () => {
+    const patchItem: ConversationItem = {
+      id: "file-change-1",
+      kind: "tool",
+      toolType: "fileChange",
+      title: "File changes",
+      detail: "M src/foo.ts",
+      status: "",
+      output: "@@ -1 +1 @@",
+      changes: [{ path: "src/foo.ts", kind: "modify", diff: "@@ -1 +1 @@" }],
+    };
+    vi.mocked(buildConversationItem).mockReturnValue(patchItem);
+    const { result, dispatch, markProcessing, safeMessageActivity } = makeOptions();
+
+    act(() => {
+      result.current.onFileChangePatchUpdated("ws-1", "thread-1", "file-change-1", [
+        {
+          path: "src/foo.ts",
+          kind: { type: "modify" },
+          diff: "@@ -1 +1 @@",
+        },
+      ]);
+    });
+
+    expect(markProcessing).toHaveBeenCalledWith("thread-1", true);
+    expect(buildConversationItem).toHaveBeenCalledWith({
+      type: "fileChange",
+      id: "file-change-1",
+      changes: [
+        {
+          path: "src/foo.ts",
+          kind: { type: "modify" },
+          diff: "@@ -1 +1 @@",
+        },
+      ],
+    });
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "ensureThread",
+      workspaceId: "ws-1",
+      threadId: "thread-1",
+    });
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "upsertItem",
+      workspaceId: "ws-1",
+      threadId: "thread-1",
+      item: patchItem,
+      hasCustomName: false,
+    });
+    expect(safeMessageActivity).toHaveBeenCalled();
   });
 });

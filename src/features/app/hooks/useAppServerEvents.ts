@@ -90,6 +90,12 @@ type AppServerEventHandlers = {
     stdin: string,
   ) => void;
   onFileChangeOutputDelta?: (workspaceId: string, threadId: string, itemId: string, delta: string) => void;
+  onFileChangePatchUpdated?: (
+    workspaceId: string,
+    threadId: string,
+    itemId: string,
+    changes: Record<string, unknown>[],
+  ) => void;
   onTurnDiffUpdated?: (workspaceId: string, threadId: string, diff: string) => void;
   onThreadTokenUsageUpdated?: (
     workspaceId: string,
@@ -121,6 +127,7 @@ export const METHODS_ROUTED_IN_USE_APP_SERVER_EVENTS = [
   "item/commandExecution/terminalInteraction",
   "item/completed",
   "item/fileChange/outputDelta",
+  "item/fileChange/patchUpdated",
   "item/plan/delta",
   "item/reasoning/summaryPartAdded",
   "item/reasoning/summaryTextDelta",
@@ -559,6 +566,26 @@ export function useAppServerEvents(handlers: AppServerEventHandlers) {
         const delta = String(params.delta ?? "");
         if (threadId && itemId && delta) {
           currentHandlers.onFileChangeOutputDelta?.(workspace_id, threadId, itemId, delta);
+        }
+        return;
+      }
+
+      if (method === "item/fileChange/patchUpdated") {
+        const threadId = String(params.threadId ?? params.thread_id ?? "");
+        const itemId = String(params.itemId ?? params.item_id ?? "");
+        const changes = Array.isArray(params.changes)
+          ? params.changes.filter(
+              (change): change is Record<string, unknown> =>
+                Boolean(change) && typeof change === "object" && !Array.isArray(change),
+            )
+          : [];
+        if (threadId && itemId && changes.length > 0) {
+          currentHandlers.onFileChangePatchUpdated?.(
+            workspace_id,
+            threadId,
+            itemId,
+            changes,
+          );
         }
         return;
       }

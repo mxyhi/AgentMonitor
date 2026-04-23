@@ -1,4 +1,4 @@
-# App-Server Events Reference (Codex `230dcadee609fa99d6162fe1107457030e5270a7`)
+# App-Server Events Reference (Codex `0785b66228dff87f891e291cb5686631865b6922`)
 
 This document helps agents quickly answer:
 - Which app-server events CodexMonitor supports right now.
@@ -70,6 +70,7 @@ subscriptions.
 - `item/commandExecution/terminalInteraction`
 - `item/completed`
 - `item/fileChange/outputDelta`
+- `item/fileChange/patchUpdated`
 - `item/plan/delta`
 - `item/reasoning/summaryPartAdded`
 - `item/reasoning/summaryTextDelta`
@@ -217,6 +218,9 @@ Compared against Codex v2 request methods, CodexMonitor currently does not send:
 - `initialize`
 - `marketplace/add`
 - `marketplace/remove`
+- `device/key/create`
+- `device/key/public`
+- `device/key/sign`
 - `mcpServer/resource/read`
 - `mcpServer/tool/call`
 - `mcpServer/oauth/login`

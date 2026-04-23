@@ -142,6 +142,7 @@ export function useThreadEventHandlers({
     onCommandOutputDelta,
     onTerminalInteraction,
     onFileChangeOutputDelta,
+    onFileChangePatchUpdated,
   } = useThreadItemEvents({
     activeThreadId,
     dispatch,
@@ -233,6 +234,7 @@ export function useThreadEventHandlers({
       onCommandOutputDelta,
       onTerminalInteraction,
       onFileChangeOutputDelta,
+      onFileChangePatchUpdated,
       onThreadStarted,
       onThreadNameUpdated,
       onThreadArchived,
@@ -266,6 +268,7 @@ export function useThreadEventHandlers({
       onCommandOutputDelta,
       onTerminalInteraction,
       onFileChangeOutputDelta,
+      onFileChangePatchUpdated,
       onThreadStarted,
       onThreadNameUpdated,
       onThreadArchived,

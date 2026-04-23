@@ -275,6 +275,43 @@ export function useThreadItemEvents({
     [handleToolOutputDelta],
   );
 
+  const onFileChangePatchUpdated = useCallback(
+    (
+      workspaceId: string,
+      threadId: string,
+      itemId: string,
+      changes: Record<string, unknown>[],
+    ) => {
+      if ((shouldMarkProcessingFromItemEvent?.(threadId) ?? true)) {
+        markProcessing(threadId, true);
+      }
+      const converted = buildConversationItem({
+        type: "fileChange",
+        id: itemId,
+        changes,
+      });
+      if (!converted) {
+        return;
+      }
+      dispatch({ type: "ensureThread", workspaceId, threadId });
+      dispatch({
+        type: "upsertItem",
+        workspaceId,
+        threadId,
+        item: converted,
+        hasCustomName: Boolean(getCustomName(workspaceId, threadId)),
+      });
+      safeMessageActivity();
+    },
+    [
+      dispatch,
+      getCustomName,
+      markProcessing,
+      safeMessageActivity,
+      shouldMarkProcessingFromItemEvent,
+    ],
+  );
+
   return {
     onAgentMessageDelta,
     onAgentMessageCompleted,
@@ -287,5 +324,6 @@ export function useThreadItemEvents({
     onCommandOutputDelta,
     onTerminalInteraction,
     onFileChangeOutputDelta,
+    onFileChangePatchUpdated,
   };
 }
