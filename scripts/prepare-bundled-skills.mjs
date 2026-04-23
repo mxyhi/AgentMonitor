@@ -6,9 +6,9 @@ import { pathToFileURL } from "node:url";
 
 const repoRoot = process.cwd();
 const srcTauriDir = path.join(repoRoot, "src-tauri");
-const trackedSystemSkillsRoot = path.join(srcTauriDir, "bundled-skills", ".system");
 const generatedBundledSkillsRoot = path.join(srcTauriDir, "generated-bundled-skills");
-const trackedOkSkillsFallbackRoot = path.join(srcTauriDir, "bundled-skills", "ok-skills");
+const generatedSystemSkillsRoot = path.join(generatedBundledSkillsRoot, ".system");
+const generatedOkSkillsRoot = path.join(generatedBundledSkillsRoot, "ok-skills");
 const defaultSystemSkillsRepo = "https://github.com/openai/skills.git";
 const defaultSystemSkillsRef = "main";
 const defaultOkSkillsRepo = "https://github.com/mxyhi/ok-skills.git";
@@ -69,6 +69,18 @@ export function copyDirectory(sourceRoot, destinationRoot) {
   }
 }
 
+export function stageDirectorySnapshot(sourceRoot, tempPrefix) {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), tempPrefix));
+  const destinationRoot = path.join(tempRoot, path.basename(sourceRoot));
+  copyDirectory(sourceRoot, destinationRoot);
+  return {
+    root: destinationRoot,
+    cleanup() {
+      fs.rmSync(tempRoot, { recursive: true, force: true });
+    },
+  };
+}
+
 export function resolveBundledSkillsConfig(env = process.env) {
   return {
     repo: env.CODEX_MONITOR_OK_SKILLS_REPO?.trim() || defaultOkSkillsRepo,
@@ -88,22 +100,6 @@ export function resolveStrictMode(argv = process.argv.slice(2), env = process.en
     return true;
   }
   return env.CI === "true";
-}
-
-function ensureTrackedOkSkillsFallback() {
-  if (!fs.existsSync(trackedOkSkillsFallbackRoot)) {
-    throw new Error(
-      `Tracked ok-skills fallback snapshot missing: ${trackedOkSkillsFallbackRoot}`,
-    );
-  }
-}
-
-function ensureTrackedSystemSkillsFallback() {
-  if (!fs.existsSync(trackedSystemSkillsRoot)) {
-    throw new Error(
-      `Tracked system skills fallback snapshot missing: ${trackedSystemSkillsRoot}`,
-    );
-  }
 }
 
 function cloneOkSkillsSnapshot(tempRoot, config) {
@@ -129,8 +125,37 @@ function cloneOkSkillsSnapshot(tempRoot, config) {
   };
 }
 
+function resolveGeneratedOkSkillsFallback() {
+  if (!fs.existsSync(generatedOkSkillsRoot)) {
+    return null;
+  }
+  const snapshot = stageDirectorySnapshot(
+    generatedOkSkillsRoot,
+    "codex-monitor-generated-ok-skills-",
+  );
+  return {
+    ...snapshot,
+    commit: "generated-fallback",
+    mode: "fallback",
+    description: "existing gitignored src-tauri/generated-bundled-skills/ok-skills snapshot",
+  };
+}
+
+function resolveGeneratedSystemSkillsFallback() {
+  if (!fs.existsSync(generatedSystemSkillsRoot)) {
+    return null;
+  }
+  const snapshot = stageDirectorySnapshot(
+    generatedSystemSkillsRoot,
+    "codex-monitor-generated-system-skills-",
+  );
+  return {
+    ...snapshot,
+    description: "existing gitignored src-tauri/generated-bundled-skills/.system snapshot",
+  };
+}
+
 function resolveOkSkillsSource(strict) {
-  ensureTrackedOkSkillsFallback();
   const config = resolveBundledSkillsConfig();
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-monitor-ok-skills-"));
 
@@ -149,21 +174,21 @@ function resolveOkSkillsSource(strict) {
       throw error;
     }
 
-    console.warn(
-      `[prepare:bundled-skills] remote sync failed, falling back to tracked snapshot: ${error.message}`,
+    const generatedFallback = resolveGeneratedOkSkillsFallback();
+    if (generatedFallback) {
+      console.warn(
+        `[prepare:bundled-skills] remote sync failed, reusing existing generated ok-skills snapshot: ${error.message}`,
+      );
+      return generatedFallback;
+    }
+
+    throw new Error(
+      `Remote ok-skills sync failed and no generated fallback snapshot exists at ${generatedOkSkillsRoot}: ${error.message}`,
     );
-    return {
-      root: trackedOkSkillsFallbackRoot,
-      commit: "tracked-fallback",
-      mode: "fallback",
-      cleanup() {},
-      description: "tracked src-tauri/bundled-skills/ok-skills fallback",
-    };
   }
 }
 
 async function resolveSystemSkillsSource(strict) {
-  ensureTrackedSystemSkillsFallback();
   const config = resolveSystemSkillsConfig();
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-monitor-system-skills-"));
 
@@ -200,14 +225,17 @@ async function resolveSystemSkillsSource(strict) {
       throw error;
     }
 
-    console.warn(
-      `[prepare:bundled-skills] system skills generation failed, falling back to tracked snapshot: ${error.message}`,
+    const generatedFallback = resolveGeneratedSystemSkillsFallback();
+    if (generatedFallback) {
+      console.warn(
+        `[prepare:bundled-skills] system skills sync failed, reusing existing generated .system snapshot: ${error.message}`,
+      );
+      return generatedFallback;
+    }
+
+    throw new Error(
+      `Remote system skills sync failed and no generated fallback snapshot exists at ${generatedSystemSkillsRoot}: ${error.message}`,
     );
-    return {
-      root: trackedSystemSkillsRoot,
-      description: "tracked src-tauri/bundled-skills/.system fallback",
-      cleanup() {},
-    };
   }
 }
 

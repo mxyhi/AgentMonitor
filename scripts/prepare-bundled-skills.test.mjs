@@ -8,6 +8,7 @@ import {
   resolveBundledSkillsConfig,
   resolveSystemSkillsConfig,
   resolveStrictMode,
+  stageDirectorySnapshot,
 } from "./prepare-bundled-skills.mjs";
 
 function createTempDir(prefix) {
@@ -70,4 +71,24 @@ test("copyDirectory copies nested files but skips .git metadata", (t) => {
     fs.readFileSync(path.join(destinationRoot, "README.md"), "utf8"),
     "snapshot\n",
   );
+});
+
+test("stageDirectorySnapshot copies source into temp snapshot and cleans up", (t) => {
+  const sourceRoot = createTempDir("codex-monitor-stage-source-");
+  t.after(() => fs.rmSync(sourceRoot, { recursive: true, force: true }));
+  fs.mkdirSync(path.join(sourceRoot, "nested"), { recursive: true });
+  fs.writeFileSync(path.join(sourceRoot, "nested", "SKILL.md"), "skill\n");
+
+  const snapshot = stageDirectorySnapshot(sourceRoot, "codex-monitor-stage-copy-");
+  t.after(() => snapshot.cleanup());
+
+  assert.equal(
+    fs.readFileSync(path.join(snapshot.root, "nested", "SKILL.md"), "utf8"),
+    "skill\n",
+  );
+
+  const snapshotParent = path.dirname(snapshot.root);
+  snapshot.cleanup();
+
+  assert.equal(fs.existsSync(snapshotParent), false);
 });

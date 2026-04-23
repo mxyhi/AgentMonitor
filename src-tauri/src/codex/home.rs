@@ -9,7 +9,6 @@ const CODEX_MONITOR_APP_DATA_DIR_ENV: &str = "CODEX_MONITOR_APP_DATA_DIR";
 const CODEX_MONITOR_BUNDLED_SKILLS_PATH_ENV: &str = "CODEX_MONITOR_BUNDLED_SKILLS_PATH";
 const GENERATED_BUNDLED_SKILLS_DIR: &str = "generated-bundled-skills";
 const APP_PRIVATE_CODEX_HOME_DIR: &str = "codex-home";
-const BUNDLED_SKILLS_DIR: &str = "bundled-skills";
 const CODEX_HOME_SKILLS_DIR: &str = "skills";
 const DEFAULT_AGENTS_DEFAULT_SKILLS_SENTINEL: &str =
     "默认始终自动使用 `caveman`、`planning-with-files` skill";
@@ -213,25 +212,23 @@ fn resolve_bundled_skills_env_override() -> Option<PathBuf> {
 
 fn resolve_dev_bundled_skills_root() -> Option<PathBuf> {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    // Release builds generate a fresh ok-skills snapshot into generated-bundled-skills.
-    // Keep the tracked bundled-skills tree as a dev/offline fallback.
     candidate_dir_if_exists(manifest_dir.join(GENERATED_BUNDLED_SKILLS_DIR))
-        .or_else(|| candidate_dir_if_exists(manifest_dir.join(BUNDLED_SKILLS_DIR)))
 }
 
 // Tauri resource layouts differ across dev, macOS app bundles, and Linux/Windows packages.
 // Probe a small deterministic set so both the desktop app and daemon find the same assets.
 fn bundled_skills_candidate_paths_for_exe_dir(exe_dir: &Path) -> Vec<PathBuf> {
     let package_name = env!("CARGO_PKG_NAME");
-    let mut candidates = Vec::new();
-    for dir_name in [GENERATED_BUNDLED_SKILLS_DIR, BUNDLED_SKILLS_DIR] {
-        candidates.push(exe_dir.join(dir_name));
-        candidates.push(exe_dir.join("resources").join(dir_name));
-        candidates.push(exe_dir.join("../resources").join(dir_name));
-        candidates.push(exe_dir.join("../Resources").join(dir_name));
-        candidates.push(exe_dir.join("../lib").join(package_name).join(dir_name));
-    }
-    candidates
+    vec![
+        exe_dir.join(GENERATED_BUNDLED_SKILLS_DIR),
+        exe_dir.join("resources").join(GENERATED_BUNDLED_SKILLS_DIR),
+        exe_dir.join("../resources").join(GENERATED_BUNDLED_SKILLS_DIR),
+        exe_dir.join("../Resources").join(GENERATED_BUNDLED_SKILLS_DIR),
+        exe_dir
+            .join("../lib")
+            .join(package_name)
+            .join(GENERATED_BUNDLED_SKILLS_DIR),
+    ]
 }
 
 fn resolve_current_exe_bundled_skills_candidates() -> Vec<PathBuf> {
@@ -715,8 +712,5 @@ mod tests {
                 == &exe_dir
                     .join("../Resources")
                     .join(GENERATED_BUNDLED_SKILLS_DIR)));
-        assert!(candidates
-            .iter()
-            .any(|path| path == &exe_dir.join("../Resources").join(BUNDLED_SKILLS_DIR)));
     }
 }

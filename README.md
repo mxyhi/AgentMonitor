@@ -237,7 +237,7 @@ pnpm tauri:build
 
 If `TAURI_SIGNING_PRIVATE_KEY` is not set locally, `pnpm tauri:build` still builds the desktop app and installer bundles, but skips updater artifact generation. CI/release builds keep generating updater artifacts when the signing key is present.
 
-`pnpm tauri:build` now pulls the current `.system` skills from `openai/skills` plus the latest `mxyhi/ok-skills` into the gitignored `src-tauri/generated-bundled-skills/` directory before packaging. Local builds fall back to the tracked snapshots if generation/fetch fails; CI/release builds pass `--strict` and fail instead of shipping stale skills.
+`pnpm tauri:build` and `pnpm tauri:dev` now pull the current `.system` skills from `openai/skills` plus the latest `mxyhi/ok-skills` into the gitignored `src-tauri/generated-bundled-skills/` directory. Dev and build both use this single ignored directory; local runs reuse the last generated gitignored snapshot if the remote fetch fails, while CI/release builds pass `--strict` and fail instead of shipping stale skills.
 
 Artifacts will be in `src-tauri/target/release/bundle/` (platform-specific subfolders).
 
