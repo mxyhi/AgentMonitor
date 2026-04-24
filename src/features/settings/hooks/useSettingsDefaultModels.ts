@@ -2,6 +2,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { ModelOption, WorkspaceInfo } from "@/types";
 import { connectWorkspace, getConfigModel, getModelList } from "@services/tauri";
 import { parseModelListResponse } from "@/features/models/utils/modelListResponse";
+import {
+  withBuiltInDefaultModelFallback,
+  withConfigModelFallback,
+} from "@/features/models/utils/modelListFallbacks";
 
 type SettingsDefaultModelsState = {
   models: ModelOption[];
@@ -16,8 +20,6 @@ const EMPTY_STATE: SettingsDefaultModelsState = {
   error: null,
   connectedWorkspaceCount: 0,
 };
-
-const CONFIG_MODEL_DESCRIPTION = "Configured in CODEX_HOME/config.toml";
 
 const parseGptVersionScore = (slug: string): number | null => {
   const match = /^gpt-(\d+)(?:\.(\d+))?(?:\.(\d+))?/i.exec(slug.trim());
@@ -125,28 +127,28 @@ export function useSettingsDefaultModels(projects: WorkspaceInfo[]) {
       );
       const configModel =
         configModelResult.status === "fulfilled" ? configModelResult.value : null;
-      const hasConfigModel = Boolean(
-        configModel &&
-          modelsFromList.some(
-            (model) => model.model === configModel || model.id === configModel,
-          ),
+      const modelsWithFallbacks = withConfigModelFallback(
+        withBuiltInDefaultModelFallback(modelsFromList),
+        configModel,
       );
-      const models = (
-        hasConfigModel || !configModel
-          ? modelsFromList
-          : [
-              {
-                id: configModel,
-                model: configModel,
-                displayName: `${configModel} (config)`,
-                description: CONFIG_MODEL_DESCRIPTION,
-                supportedReasoningEfforts: [],
-                defaultReasoningEffort: null,
-                isDefault: false,
-              },
-              ...modelsFromList,
+      const configModelIsSynthetic =
+        Boolean(configModel) &&
+        !modelsFromList.some(
+          (model) => model.model === configModel || model.id === configModel,
+        );
+      const models =
+        configModel && configModelIsSynthetic
+          ? [
+              ...modelsWithFallbacks.filter(
+                (model) => model.model === configModel || model.id === configModel,
+              ),
+              ...modelsWithFallbacks
+                .filter(
+                  (model) => model.model !== configModel && model.id !== configModel,
+                )
+                .sort(compareModelsByLatest),
             ]
-      ).sort(compareModelsByLatest);
+          : modelsWithFallbacks.sort(compareModelsByLatest);
       setState({
         models,
         isLoading: false,

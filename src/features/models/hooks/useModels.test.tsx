@@ -23,6 +23,41 @@ describe("useModels", () => {
     vi.clearAllMocks();
   });
 
+  it("adds gpt-5.5 when upstream model/list omits the app default", async () => {
+    vi.mocked(getModelList).mockResolvedValueOnce({
+      result: {
+        data: [
+          {
+            id: "gpt-5.4",
+            model: "gpt-5.4",
+            displayName: "gpt-5.4",
+            supportedReasoningEfforts: [
+              { reasoningEffort: "medium", description: "Medium" },
+              { reasoningEffort: "high", description: "High" },
+            ],
+            defaultReasoningEffort: "high",
+            isDefault: true,
+          },
+        ],
+      },
+    });
+    vi.mocked(getConfigModel).mockResolvedValueOnce(null);
+
+    const { result } = renderHook(() =>
+      useModels({ activeWorkspace: workspace, preferredModelId: "gpt-5.5" }),
+    );
+
+    await waitFor(() => expect(result.current.selectedModelId).toBe("gpt-5.5"));
+
+    expect(result.current.models[0]).toMatchObject({
+      id: "gpt-5.5",
+      model: "gpt-5.5",
+      defaultReasoningEffort: "high",
+      isDefault: true,
+    });
+    expect(result.current.reasoningOptions).toContain("high");
+  });
+
   it("adds the config model when it is missing from model/list", async () => {
     vi.mocked(getModelList).mockResolvedValueOnce({
       result: {
@@ -81,7 +116,7 @@ describe("useModels", () => {
 
     await waitFor(() => expect(result.current.selectedModelId).toBe("provider-id"));
 
-    expect(result.current.models).toHaveLength(1);
+    expect(result.current.models).toHaveLength(2);
     expect(result.current.selectedModel?.id).toBe("provider-id");
     expect(result.current.reasoningSupported).toBe(true);
   });

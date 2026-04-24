@@ -58,6 +58,29 @@ describe("useSettingsDefaultModels", () => {
     vi.clearAllMocks();
   });
 
+  it("adds gpt-5.5 when upstream model/list omits the app default", async () => {
+    getConfigModelMock.mockResolvedValueOnce(null);
+    getModelListMock.mockResolvedValueOnce(modelListResponse("gpt-5.4"));
+
+    const { result } = renderHook(
+      ({ projects }: { projects: WorkspaceInfo[] }) => useSettingsDefaultModels(projects),
+      {
+        initialProps: {
+          projects: [workspace("w1", true)],
+        },
+      },
+    );
+
+    await waitFor(() => {
+      expect(result.current.models[0]).toMatchObject({
+        id: "gpt-5.5",
+        model: "gpt-5.5",
+        defaultReasoningEffort: "high",
+        isDefault: true,
+      });
+    });
+  });
+
   it("invalidates in-flight results when workspace list becomes empty", async () => {
     const pending = deferred<any>();
     getModelListMock.mockReturnValueOnce(pending.promise);
@@ -127,7 +150,8 @@ describe("useSettingsDefaultModels", () => {
     });
 
     await waitFor(() => {
-      expect(result.current.models[0]?.model).toBe("gpt-5.1");
+      expect(result.current.models[0]?.model).toBe("gpt-5.5");
+      expect(result.current.models[1]?.model).toBe("gpt-5.1");
     });
 
     await act(async () => {
@@ -135,7 +159,8 @@ describe("useSettingsDefaultModels", () => {
       await Promise.resolve();
     });
 
-    expect(result.current.models[0]?.model).toBe("gpt-5.1");
+    expect(result.current.models[0]?.model).toBe("gpt-5.5");
+    expect(result.current.models[1]?.model).toBe("gpt-5.1");
   });
 
   it("uses the first workspace as the model source even when disconnected", async () => {
@@ -156,7 +181,8 @@ describe("useSettingsDefaultModels", () => {
       expect(connectWorkspaceMock).toHaveBeenCalledWith("w1");
       expect(getModelListMock).toHaveBeenCalledWith("w1");
       expect(getModelListMock).not.toHaveBeenCalledWith("w2");
-      expect(result.current.models[0]?.model).toBe("gpt-5.1");
+      expect(result.current.models[0]?.model).toBe("gpt-5.5");
+      expect(result.current.models[1]?.model).toBe("gpt-5.1");
     });
   });
 
