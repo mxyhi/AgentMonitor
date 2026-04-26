@@ -1,9 +1,9 @@
 export const STORAGE_KEY_PENDING_POST_UPDATE_VERSION =
   "codexmonitor.pendingPostUpdateVersion";
 const GITHUB_RELEASES_API_BASE =
-  "https://api.github.com/repos/Dimillian/AgentMonitor/releases";
+  "https://api.github.com/repos/mxyhi/AgentMonitor/releases";
 const GITHUB_RELEASES_WEB_BASE =
-  "https://github.com/Dimillian/AgentMonitor/releases";
+  "https://github.com/mxyhi/AgentMonitor/releases";
 
 type GitHubReleaseResponse = {
   tag_name?: string;

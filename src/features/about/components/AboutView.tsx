@@ -4,8 +4,8 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { useAppLocale } from "@/i18n/I18nProvider";
 import * as m from "@/i18n/messages";
 
-const GITHUB_URL = "https://github.com/Dimillian/AgentMonitor";
-const TWITTER_URL = "https://x.com/dimillian";
+const GITHUB_URL = "https://github.com/mxyhi/AgentMonitor";
+const WEBSITE_URL = "https://mxyhi.github.io/AgentMonitor/";
 
 export function AboutView() {
   const locale = useAppLocale();
@@ -15,8 +15,8 @@ export function AboutView() {
     void openUrl(GITHUB_URL);
   };
 
-  const handleOpenTwitter = () => {
-    void openUrl(TWITTER_URL);
+  const handleOpenWebsite = () => {
+    void openUrl(WEBSITE_URL);
   };
 
   useEffect(() => {
@@ -72,9 +72,9 @@ export function AboutView() {
           <button
             type="button"
             className="about-link"
-            onClick={handleOpenTwitter}
+            onClick={handleOpenWebsite}
           >
-            Twitter
+            Website
           </button>
         </div>
         <div className="about-footer">{m.about_footer({}, { locale })}</div>
