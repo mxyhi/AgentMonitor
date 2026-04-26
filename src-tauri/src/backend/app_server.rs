@@ -41,6 +41,38 @@ fn extract_thread_id(value: &Value) -> Option<String> {
                     .and_then(|t| t.as_str())
                     .map(|s| s.to_string())
             })
+            .or_else(|| {
+                container
+                    .get("turn")
+                    .and_then(|turn| {
+                        turn.get("threadId")
+                            .or_else(|| turn.get("thread_id"))
+                            .or_else(|| turn.get("thread").and_then(|thread| thread.get("id")))
+                    })
+                    .and_then(|t| t.as_str())
+                    .map(|s| s.to_string())
+            })
+    }
+
+    extract_from_container(value.get("params"))
+        .or_else(|| extract_from_container(value.get("result")))
+}
+
+fn extract_turn_id(value: &Value) -> Option<String> {
+    fn extract_from_container(container: Option<&Value>) -> Option<String> {
+        let container = container?;
+        container
+            .get("turnId")
+            .or_else(|| container.get("turn_id"))
+            .and_then(|t| t.as_str())
+            .map(|s| s.to_string())
+            .or_else(|| {
+                container
+                    .get("turn")
+                    .and_then(|turn| turn.get("id"))
+                    .and_then(|t| t.as_str())
+                    .map(|s| s.to_string())
+            })
     }
 
     extract_from_container(value.get("params"))
@@ -207,6 +239,142 @@ fn normalize_root_path(value: &str) -> String {
     } else {
         normalized.to_string()
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ActiveTurn {
+    workspace_id: String,
+    turn_id: Option<String>,
+}
+
+fn normalize_thread_status_type(status: &Value) -> Option<String> {
+    let raw = status
+        .as_str()
+        .or_else(|| {
+            status
+                .get("type")
+                .or_else(|| status.get("statusType"))
+                .or_else(|| status.get("status_type"))
+                .and_then(Value::as_str)
+        })?
+        .trim();
+    if raw.is_empty() {
+        return None;
+    }
+    Some(
+        raw.chars()
+            .filter(|ch| !matches!(ch, ' ' | '_' | '-'))
+            .collect::<String>()
+            .to_ascii_lowercase(),
+    )
+}
+
+fn is_terminal_thread_status_event(value: &Value) -> bool {
+    let Some(status) = value.get("params").and_then(|params| params.get("status")) else {
+        return false;
+    };
+    matches!(
+        normalize_thread_status_type(status).as_deref(),
+        Some("idle" | "notloaded" | "systemerror")
+    )
+}
+
+fn event_will_retry(value: &Value) -> bool {
+    value
+        .get("params")
+        .and_then(|params| {
+            params
+                .get("willRetry")
+                .or_else(|| params.get("will_retry"))
+                .and_then(Value::as_bool)
+        })
+        .unwrap_or(false)
+}
+
+fn track_turn_start_request(
+    active_turns: &mut HashMap<String, ActiveTurn>,
+    workspace_id: &str,
+    method: &str,
+    params: &Value,
+) {
+    if method != "turn/start" {
+        return;
+    }
+    let value = json!({ "params": params });
+    if let Some(thread_id) = extract_thread_id(&value) {
+        active_turns.insert(
+            thread_id,
+            ActiveTurn {
+                workspace_id: workspace_id.to_string(),
+                turn_id: None,
+            },
+        );
+    }
+}
+
+fn update_active_turns_from_event(
+    active_turns: &mut HashMap<String, ActiveTurn>,
+    workspace_id: &str,
+    method_name: Option<&str>,
+    thread_id: Option<&str>,
+    value: &Value,
+) {
+    let Some(method_name) = method_name else {
+        return;
+    };
+    let thread_id = thread_id
+        .map(|value| value.to_string())
+        .or_else(|| extract_thread_id(value));
+    let Some(thread_id) = thread_id else {
+        return;
+    };
+    match method_name {
+        "turn/started" => {
+            let turn_id = extract_turn_id(value);
+            active_turns.insert(
+                thread_id,
+                ActiveTurn {
+                    workspace_id: workspace_id.to_string(),
+                    turn_id,
+                },
+            );
+        }
+        "turn/completed" | "thread/archived" | "thread/closed" => {
+            active_turns.remove(&thread_id);
+        }
+        "error" => {
+            if !event_will_retry(value) {
+                active_turns.remove(&thread_id);
+            }
+        }
+        "thread/status/changed" => {
+            if is_terminal_thread_status_event(value) {
+                active_turns.remove(&thread_id);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn build_app_server_disconnected_turn_events(
+    active_turns: &mut HashMap<String, ActiveTurn>,
+    message: &str,
+) -> Vec<AppServerEvent> {
+    active_turns
+        .drain()
+        .map(|(thread_id, active_turn)| AppServerEvent {
+            workspace_id: active_turn.workspace_id,
+            message: json!({
+                "method": "error",
+                "params": {
+                    "threadId": thread_id,
+                    "turnId": active_turn.turn_id.unwrap_or_default(),
+                    "error": { "message": message },
+                    "willRetry": false
+                }
+            }),
+        })
+        .collect()
 }
 
 #[derive(Debug, Clone)]
@@ -420,6 +588,7 @@ fn should_broadcast_global_workspace_notification(
 pub(crate) struct RequestContext {
     workspace_id: String,
     method: String,
+    thread_id: Option<String>,
 }
 
 fn build_initialize_params(client_version: &str) -> Value {
@@ -444,6 +613,7 @@ pub(crate) struct WorkspaceSession {
     pub(crate) pending: Mutex<HashMap<u64, oneshot::Sender<Value>>>,
     pub(crate) request_context: Mutex<HashMap<u64, RequestContext>>,
     pub(crate) thread_workspace: Mutex<HashMap<String, String>>,
+    pub(crate) active_turns: Mutex<HashMap<String, ActiveTurn>>,
     pub(crate) hidden_thread_ids: Mutex<HashSet<String>>,
     pub(crate) next_id: AtomicU64,
     /// Callbacks for background threads - events for these threadIds are sent through the channel
@@ -511,19 +681,25 @@ impl WorkspaceSession {
         let id = self.next_id.fetch_add(1, Ordering::SeqCst);
         let (tx, rx) = oneshot::channel();
         self.register_workspace(workspace_id).await;
+        let request_thread_id = extract_thread_id(&json!({ "params": params.clone() }));
         self.pending.lock().await.insert(id, tx);
         self.request_context.lock().await.insert(
             id,
             RequestContext {
                 workspace_id: workspace_id.to_string(),
                 method: method.to_string(),
+                thread_id: request_thread_id.clone(),
             },
         );
-        if let Some(thread_id) = extract_thread_id(&json!({ "params": params.clone() })) {
+        if let Some(thread_id) = request_thread_id.as_deref() {
             self.thread_workspace
                 .lock()
                 .await
-                .insert(thread_id, workspace_id.to_string());
+                .insert(thread_id.to_string(), workspace_id.to_string());
+        }
+        {
+            let mut active_turns = self.active_turns.lock().await;
+            track_turn_start_request(&mut active_turns, workspace_id, method, &params);
         }
         if let Err(error) = self
             .write_message(json!({ "id": id, "method": method, "params": params }))
@@ -531,6 +707,11 @@ impl WorkspaceSession {
         {
             self.pending.lock().await.remove(&id);
             self.request_context.lock().await.remove(&id);
+            if method == "turn/start" {
+                if let Some(thread_id) = request_thread_id.as_deref() {
+                    self.active_turns.lock().await.remove(thread_id);
+                }
+            }
             return Err(error);
         }
         match timeout(REQUEST_TIMEOUT, rx).await {
@@ -539,6 +720,11 @@ impl WorkspaceSession {
             Err(_) => {
                 self.pending.lock().await.remove(&id);
                 self.request_context.lock().await.remove(&id);
+                if method == "turn/start" {
+                    if let Some(thread_id) = request_thread_id.as_deref() {
+                        self.active_turns.lock().await.remove(thread_id);
+                    }
+                }
                 Err(format!(
                     "request timed out after {} seconds",
                     REQUEST_TIMEOUT.as_secs()
@@ -830,6 +1016,7 @@ pub(crate) async fn spawn_workspace_session<E: EventSink>(
         pending: Mutex::new(HashMap::new()),
         request_context: Mutex::new(HashMap::new()),
         thread_workspace: Mutex::new(HashMap::new()),
+        active_turns: Mutex::new(HashMap::new()),
         hidden_thread_ids: Mutex::new(HashSet::new()),
         next_id: AtomicU64::new(1),
         background_thread_callbacks: Mutex::new(HashMap::new()),
@@ -846,7 +1033,18 @@ pub(crate) async fn spawn_workspace_session<E: EventSink>(
     let event_sink_clone = event_sink.clone();
     tokio::spawn(async move {
         let mut lines = BufReader::new(stdout).lines();
-        while let Ok(Some(line)) = lines.next_line().await {
+        let mut disconnect_message =
+            "Codex app-server output ended before turn completed.".to_string();
+        loop {
+            let line = match lines.next_line().await {
+                Ok(Some(line)) => line,
+                Ok(None) => break,
+                Err(error) => {
+                    disconnect_message =
+                        format!("Codex app-server output failed before turn completed: {error}");
+                    break;
+                }
+            };
             if line.trim().is_empty() {
                 continue;
             }
@@ -874,12 +1072,21 @@ pub(crate) async fn spawn_workspace_session<E: EventSink>(
             let thread_id = extract_thread_id(&value);
             let mut request_workspace: Option<String> = None;
             let mut request_method: Option<String> = None;
+            let mut request_thread_id: Option<String> = None;
             if let Some(id) = maybe_id {
                 if has_result_or_error {
                     if let Some(context) = session_clone.request_context.lock().await.remove(&id) {
+                        request_thread_id = context.thread_id.clone();
                         request_workspace = Some(context.workspace_id);
                         request_method = Some(context.method);
                     }
+                }
+            }
+            if matches!(request_method.as_deref(), Some("turn/start"))
+                && value.get("error").is_some()
+            {
+                if let Some(ref thread_id) = request_thread_id {
+                    session_clone.active_turns.lock().await.remove(thread_id);
                 }
             }
 
@@ -988,6 +1195,17 @@ pub(crate) async fn spawn_workspace_session<E: EventSink>(
                 {
                     continue;
                 }
+            }
+
+            {
+                let mut active_turns = session_clone.active_turns.lock().await;
+                update_active_turns_from_event(
+                    &mut active_turns,
+                    &routed_workspace_id,
+                    method_name,
+                    thread_id.as_deref(),
+                    &value,
+                );
             }
 
             if matches!(method_name, Some("item/started") | Some("item/completed")) {
@@ -1102,6 +1320,14 @@ pub(crate) async fn spawn_workspace_session<E: EventSink>(
             }
         }
 
+        let disconnected_events = {
+            let mut active_turns = session_clone.active_turns.lock().await;
+            build_app_server_disconnected_turn_events(&mut active_turns, &disconnect_message)
+        };
+        for payload in disconnected_events {
+            event_sink_clone.emit_app_server_event(payload);
+        }
+
         // Ensure pending foreground requests cannot accumulate after process output ends.
         session_clone.pending.lock().await.clear();
         session_clone.request_context.lock().await.clear();
@@ -1161,11 +1387,13 @@ pub(crate) async fn spawn_workspace_session<E: EventSink>(
 #[cfg(test)]
 mod tests {
     use super::{
-        build_app_server_launch_args, build_codex_path_env, build_initialize_params,
-        extract_related_thread_ids, extract_thread_entries_from_thread_list_result,
-        extract_thread_id, normalize_root_path, resolve_codex_runtime_for_bin,
-        resolve_workspace_for_cwd, should_suppress_hidden_thread_event, source_subagent_kind,
-        thread_started_is_memory_consolidation,
+        build_app_server_disconnected_turn_events, build_app_server_launch_args,
+        build_codex_path_env, build_initialize_params, extract_related_thread_ids,
+        extract_thread_entries_from_thread_list_result, extract_thread_id, extract_turn_id,
+        normalize_root_path, resolve_codex_runtime_for_bin, resolve_workspace_for_cwd,
+        should_suppress_hidden_thread_event, source_subagent_kind,
+        thread_started_is_memory_consolidation, track_turn_start_request,
+        update_active_turns_from_event,
     };
     use crate::shared::codex_runtime_core::CodexRuntimeSource;
     use serde_json::json;
@@ -1199,6 +1427,135 @@ mod tests {
             }
         });
         assert_eq!(extract_thread_id(&value), Some("thread-hook-1".to_string()));
+    }
+
+    #[test]
+    fn extract_thread_id_reads_turn_thread_id() {
+        let value = json!({
+            "method": "turn/started",
+            "params": {
+                "turn": { "id": "turn-1", "threadId": "thread-turn-1" }
+            }
+        });
+        assert_eq!(extract_thread_id(&value), Some("thread-turn-1".to_string()));
+    }
+
+    #[test]
+    fn extract_turn_id_reads_turn_payload_id() {
+        let value = json!({
+            "method": "turn/started",
+            "params": {
+                "turn": { "id": "turn-1", "threadId": "thread-turn-1" }
+            }
+        });
+        assert_eq!(extract_turn_id(&value), Some("turn-1".to_string()));
+    }
+
+    #[test]
+    fn disconnected_app_server_emits_error_for_active_turn() {
+        let mut active_turns = HashMap::new();
+        track_turn_start_request(
+            &mut active_turns,
+            "workspace-1",
+            "turn/start",
+            &json!({ "threadId": "thread-1" }),
+        );
+        update_active_turns_from_event(
+            &mut active_turns,
+            "workspace-1",
+            Some("turn/started"),
+            Some("thread-1"),
+            &json!({
+                "method": "turn/started",
+                "params": {
+                    "turn": { "id": "turn-1", "threadId": "thread-1" }
+                }
+            }),
+        );
+
+        let events = build_app_server_disconnected_turn_events(
+            &mut active_turns,
+            "Codex app-server output ended before turn completed.",
+        );
+
+        assert!(active_turns.is_empty());
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].workspace_id, "workspace-1");
+        assert_eq!(
+            events[0].message.get("method").and_then(|v| v.as_str()),
+            Some("error")
+        );
+        let params = events[0].message.get("params").expect("params");
+        assert_eq!(
+            params.get("threadId").and_then(|v| v.as_str()),
+            Some("thread-1")
+        );
+        assert_eq!(
+            params.get("turnId").and_then(|v| v.as_str()),
+            Some("turn-1")
+        );
+        assert_eq!(
+            params.get("willRetry").and_then(|v| v.as_bool()),
+            Some(false)
+        );
+        assert_eq!(
+            params
+                .get("error")
+                .and_then(|v| v.get("message"))
+                .and_then(|v| v.as_str()),
+            Some("Codex app-server output ended before turn completed.")
+        );
+    }
+
+    #[test]
+    fn active_turn_survives_retriable_error_and_clears_terminal_error() {
+        let mut active_turns = HashMap::new();
+        update_active_turns_from_event(
+            &mut active_turns,
+            "workspace-1",
+            Some("turn/started"),
+            Some("thread-1"),
+            &json!({
+                "method": "turn/started",
+                "params": {
+                    "turn": { "id": "turn-1", "threadId": "thread-1" }
+                }
+            }),
+        );
+
+        update_active_turns_from_event(
+            &mut active_turns,
+            "workspace-1",
+            Some("error"),
+            Some("thread-1"),
+            &json!({
+                "method": "error",
+                "params": {
+                    "threadId": "thread-1",
+                    "turnId": "turn-1",
+                    "willRetry": true,
+                    "error": { "message": "temporary" }
+                }
+            }),
+        );
+        assert!(active_turns.contains_key("thread-1"));
+
+        update_active_turns_from_event(
+            &mut active_turns,
+            "workspace-1",
+            Some("error"),
+            Some("thread-1"),
+            &json!({
+                "method": "error",
+                "params": {
+                    "threadId": "thread-1",
+                    "turnId": "turn-1",
+                    "willRetry": false,
+                    "error": { "message": "terminal" }
+                }
+            }),
+        );
+        assert!(!active_turns.contains_key("thread-1"));
     }
 
     #[test]
