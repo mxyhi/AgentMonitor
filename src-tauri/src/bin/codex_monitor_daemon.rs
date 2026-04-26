@@ -1694,6 +1694,7 @@ mod tests {
             child: Mutex::new(child),
             stdin: Mutex::new(stdin),
             pending: Mutex::new(HashMap::new()),
+            active_turns: Mutex::new(HashMap::new()),
             request_context: Mutex::new(HashMap::new()),
             thread_workspace: Mutex::new(HashMap::new()),
             hidden_thread_ids: Mutex::new(HashSet::new()),
