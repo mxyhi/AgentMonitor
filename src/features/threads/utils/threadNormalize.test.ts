@@ -3,6 +3,7 @@ import {
   normalizePlanUpdate,
   normalizeRateLimits,
   normalizeRootPath,
+  normalizeThreadGoal,
 } from "./threadNormalize";
 
 describe("normalizePlanUpdate", () => {
@@ -57,6 +58,41 @@ describe("normalizeRootPath", () => {
     expect(normalizeRootPath("\\\\?\\UNC\\SERVER\\Share\\Repo\\")).toBe(
       "//server/share/repo",
     );
+  });
+});
+
+describe("normalizeThreadGoal", () => {
+  it("normalizes camel and snake case thread goal payloads", () => {
+    expect(
+      normalizeThreadGoal(
+        {
+          thread_id: "thread-1",
+          objective: "Ship app-server parity",
+          status: "budgetLimited",
+          token_budget: "1000",
+          tokens_used: "120",
+          time_used_seconds: 30,
+          created_at: 1_700_000_000,
+          updated_at: "1700000030",
+        },
+        "turn-1",
+      ),
+    ).toEqual({
+      threadId: "thread-1",
+      objective: "Ship app-server parity",
+      status: "budgetLimited",
+      tokenBudget: 1000,
+      tokensUsed: 120,
+      timeUsedSeconds: 30,
+      createdAt: 1_700_000_000,
+      updatedAt: 1_700_000_030,
+      turnId: "turn-1",
+    });
+  });
+
+  it("rejects malformed thread goal payloads", () => {
+    expect(normalizeThreadGoal({ threadId: "thread-1", status: "unknown" }, null)).toBeNull();
+    expect(normalizeThreadGoal({ status: "active" }, null)).toBeNull();
   });
 });
 

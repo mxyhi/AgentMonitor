@@ -1,4 +1,4 @@
-# App-Server Events Reference (Codex `a9f75e5cda2d6ff469a859baf8d2f50b9b04944a`)
+# App-Server Events Reference (Codex `5591912f0bf176257f71b3efbd37ee4479dfdfaf`)
 
 This document helps agents quickly answer:
 - Which app-server events AgentMonitor supports right now.
@@ -78,6 +78,8 @@ subscriptions.
 - `item/started`
 - `thread/archived`
 - `thread/closed`
+- `thread/goal/cleared`
+- `thread/goal/updated`
 - `thread/name/updated`
 - `thread/started`
 - `thread/status/changed`
@@ -137,6 +139,7 @@ events are currently not routed:
 - `mcpServer/startupStatus/updated`
 - `model/rerouted`
 - `model/verification`
+- `rawResponseItem/completed`
 - `serverRequest/resolved`
 - `skills/changed`
 - `thread/compacted` (deprecated; intentionally not routed)
@@ -213,30 +216,27 @@ Compared against Codex v2 request methods, AgentMonitor currently does not send:
 - `fs/unwatch`
 - `fs/watch`
 - `fs/writeFile`
-- `fuzzyFileSearch`
-- `fuzzyFileSearch/sessionStart`
-- `fuzzyFileSearch/sessionStop`
-- `fuzzyFileSearch/sessionUpdate`
-- `getAuthStatus`
-- `getConversationSummary`
-- `gitDiffToRemote`
-- `initialize`
 - `marketplace/add`
 - `marketplace/remove`
-- `memory/reset`
+- `marketplace/upgrade`
+- `mcpServer/oauth/login`
 - `mcpServer/resource/read`
 - `mcpServer/tool/call`
-- `mcpServer/oauth/login`
+- `memory/reset`
 - `mock/experimentalMethod`
 - `plugin/install`
 - `plugin/list`
 - `plugin/read`
 - `plugin/uninstall`
 - `skills/config/write`
+- `thread/approveGuardianDeniedAction`
 - `thread/backgroundTerminals/clean`
 - `thread/decrement_elicitation`
-- `thread/inject_items`
+- `thread/goal/clear`
+- `thread/goal/get`
+- `thread/goal/set`
 - `thread/increment_elicitation`
+- `thread/inject_items`
 - `thread/loaded/list`
 - `thread/memoryMode/set`
 - `thread/metadata/update`
@@ -263,11 +263,9 @@ Supported server requests:
 
 Missing server requests:
 
-- `item/tool/call`
 - `account/chatgptAuthTokens/refresh`
+- `item/tool/call`
 - `mcpServer/elicitation/request`
-- `applyPatchApproval` (deprecated legacy API for `SendUserTurn` / `SendUserMessage`)
-- `execCommandApproval` (deprecated legacy API for `SendUserTurn` / `SendUserMessage`)
 
 ## Strict Baseline
 

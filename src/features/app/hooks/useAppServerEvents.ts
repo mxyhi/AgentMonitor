@@ -47,6 +47,15 @@ type AppServerEventHandlers = {
     threadId: string,
     status: Record<string, unknown>,
   ) => void;
+  onThreadGoalUpdated?: (
+    workspaceId: string,
+    payload: {
+      threadId: string;
+      turnId: string | null;
+      goal: Record<string, unknown>;
+    },
+  ) => void;
+  onThreadGoalCleared?: (workspaceId: string, threadId: string) => void;
   onThreadClosed?: (workspaceId: string, threadId: string) => void;
   onThreadArchived?: (workspaceId: string, threadId: string) => void;
   onThreadUnarchived?: (workspaceId: string, threadId: string) => void;
@@ -136,6 +145,8 @@ export const METHODS_ROUTED_IN_USE_APP_SERVER_EVENTS = [
   "item/tool/requestUserInput",
   "thread/archived",
   "thread/closed",
+  "thread/goal/cleared",
+  "thread/goal/updated",
   "thread/name/updated",
   "thread/status/changed",
   "thread/started",
@@ -337,6 +348,35 @@ export function useAppServerEvents(handlers: AppServerEventHandlers) {
           currentHandlers.onThreadStatusChanged?.(workspace_id, threadId, {
             type: statusRaw.trim(),
           });
+        }
+        return;
+      }
+
+      if (method === "thread/goal/updated") {
+        const threadId = String(params.threadId ?? params.thread_id ?? "").trim();
+        const turnIdRaw = params.turnId ?? params.turn_id;
+        const turnId =
+          typeof turnIdRaw === "string" && turnIdRaw.trim().length > 0
+            ? turnIdRaw.trim()
+            : null;
+        const goal =
+          params.goal && typeof params.goal === "object" && !Array.isArray(params.goal)
+            ? (params.goal as Record<string, unknown>)
+            : null;
+        if (threadId && goal) {
+          currentHandlers.onThreadGoalUpdated?.(workspace_id, {
+            threadId,
+            turnId,
+            goal,
+          });
+        }
+        return;
+      }
+
+      if (method === "thread/goal/cleared") {
+        const threadId = String(params.threadId ?? params.thread_id ?? "").trim();
+        if (threadId) {
+          currentHandlers.onThreadGoalCleared?.(workspace_id, threadId);
         }
         return;
       }

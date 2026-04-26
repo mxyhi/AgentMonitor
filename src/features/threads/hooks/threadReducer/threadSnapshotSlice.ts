@@ -26,6 +26,22 @@ export function reduceThreadSnapshots(
           [action.threadId]: action.tokenUsage,
         },
       };
+    case "setThreadGoal":
+      return {
+        ...state,
+        threadGoalByThread: {
+          ...state.threadGoalByThread,
+          [action.threadId]: action.goal,
+        },
+      };
+    case "clearThreadGoal":
+      return {
+        ...state,
+        threadGoalByThread: {
+          ...state.threadGoalByThread,
+          [action.threadId]: null,
+        },
+      };
     case "setRateLimits":
       return {
         ...state,

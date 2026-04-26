@@ -7,6 +7,7 @@ import {
   asString,
   normalizePlanUpdate,
   normalizeRateLimits,
+  normalizeThreadGoal,
   normalizeTokenUsage,
 } from "@threads/utils/threadNormalize";
 import {
@@ -398,6 +399,39 @@ export function useThreadTurnEvents({
     [dispatch],
   );
 
+  const onThreadGoalUpdated = useCallback(
+    (
+      workspaceId: string,
+      payload: {
+        threadId: string;
+        turnId: string | null;
+        goal: Record<string, unknown>;
+      },
+    ) => {
+      const goal = normalizeThreadGoal(
+        {
+          ...payload.goal,
+          threadId:
+            payload.goal.threadId ?? payload.goal.thread_id ?? payload.threadId,
+        },
+        payload.turnId,
+      );
+      if (!goal) {
+        return;
+      }
+      dispatch({ type: "ensureThread", workspaceId, threadId: goal.threadId });
+      dispatch({ type: "setThreadGoal", threadId: goal.threadId, goal });
+    },
+    [dispatch],
+  );
+
+  const onThreadGoalCleared = useCallback(
+    (_workspaceId: string, threadId: string) => {
+      dispatch({ type: "clearThreadGoal", threadId });
+    },
+    [dispatch],
+  );
+
   const onAccountRateLimitsUpdated = useCallback(
     (workspaceId: string, rateLimits: Record<string, unknown>) => {
       const previousRateLimits = getCurrentRateLimits?.(workspaceId) ?? null;
@@ -447,6 +481,7 @@ export function useThreadTurnEvents({
       getLatestKnownActiveTurnId,
       markProcessing,
       markReviewing,
+      pendingInterruptsRef,
       pushThreadErrorMessage,
       safeMessageActivity,
       setActiveTurnId,
@@ -465,6 +500,8 @@ export function useThreadTurnEvents({
     onTurnPlanUpdated,
     onTurnDiffUpdated,
     onThreadTokenUsageUpdated,
+    onThreadGoalUpdated,
+    onThreadGoalCleared,
     onAccountRateLimitsUpdated,
     onTurnError,
   };

@@ -38,6 +38,25 @@ type UseThreadItemEventsOptions = {
   onReviewExited?: (workspaceId: string, threadId: string) => void;
 };
 
+type ToolOutputFallback = {
+  toolType: string;
+  title: string;
+  detail?: string;
+  status?: string;
+};
+
+const COMMAND_OUTPUT_FALLBACK: ToolOutputFallback = {
+  toolType: "commandExecution",
+  title: "Command output",
+  status: "inProgress",
+};
+
+const FILE_CHANGE_OUTPUT_FALLBACK: ToolOutputFallback = {
+  toolType: "fileChange",
+  title: "File change output",
+  status: "inProgress",
+};
+
 export function useThreadItemEvents({
   activeThreadId,
   dispatch,
@@ -107,15 +126,27 @@ export function useThreadItemEvents({
       onUserMessageCreated,
       hydrateSubagentThreads,
       safeMessageActivity,
+      shouldMarkProcessingFromItemEvent,
     ],
   );
 
   const handleToolOutputDelta = useCallback(
-    (threadId: string, itemId: string, delta: string) => {
+    (
+      threadId: string,
+      itemId: string,
+      delta: string,
+      fallback?: ToolOutputFallback,
+    ) => {
       if (shouldMarkProcessingFromItemEvent?.(threadId) ?? true) {
         markProcessing(threadId, true);
       }
-      dispatch({ type: "appendToolOutput", threadId, itemId, delta });
+      dispatch({
+        type: "appendToolOutput",
+        threadId,
+        itemId,
+        delta,
+        ...(fallback ?? {}),
+      });
       safeMessageActivity();
     },
     [dispatch, markProcessing, safeMessageActivity, shouldMarkProcessingFromItemEvent],
@@ -128,7 +159,12 @@ export function useThreadItemEvents({
       }
       const normalized = stdin.replace(/\r\n/g, "\n");
       const suffix = normalized.endsWith("\n") ? "" : "\n";
-      handleToolOutputDelta(threadId, itemId, `\n[stdin]\n${normalized}${suffix}`);
+      handleToolOutputDelta(
+        threadId,
+        itemId,
+        `\n[stdin]\n${normalized}${suffix}`,
+        COMMAND_OUTPUT_FALLBACK,
+      );
     },
     [handleToolOutputDelta],
   );
@@ -256,7 +292,7 @@ export function useThreadItemEvents({
 
   const onCommandOutputDelta = useCallback(
     (_workspaceId: string, threadId: string, itemId: string, delta: string) => {
-      handleToolOutputDelta(threadId, itemId, delta);
+      handleToolOutputDelta(threadId, itemId, delta, COMMAND_OUTPUT_FALLBACK);
     },
     [handleToolOutputDelta],
   );
@@ -270,7 +306,7 @@ export function useThreadItemEvents({
 
   const onFileChangeOutputDelta = useCallback(
     (_workspaceId: string, threadId: string, itemId: string, delta: string) => {
-      handleToolOutputDelta(threadId, itemId, delta);
+      handleToolOutputDelta(threadId, itemId, delta, FILE_CHANGE_OUTPUT_FALLBACK);
     },
     [handleToolOutputDelta],
   );

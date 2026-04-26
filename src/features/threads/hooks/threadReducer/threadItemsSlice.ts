@@ -14,6 +14,24 @@ import {
   prefersUpdatedSort,
 } from "./common";
 
+type AppendToolOutputAction = Extract<ThreadAction, { type: "appendToolOutput" }>;
+
+function buildToolOutputPlaceholder(action: AppendToolOutputAction): ConversationItem {
+  const toolType = action.toolType?.trim() || "stream";
+  const title = action.title?.trim() || "Tool output";
+  const detail = action.detail?.trim() ?? "";
+  const status = action.status?.trim();
+  return {
+    id: action.itemId,
+    kind: "tool",
+    toolType,
+    title,
+    detail,
+    ...(status ? { status } : {}),
+    output: action.delta,
+  };
+}
+
 export function reduceThreadItems(state: ThreadState, action: ThreadAction): ThreadState {
   switch (action.type) {
     case "addAssistantMessage": {
@@ -309,7 +327,19 @@ export function reduceThreadItems(state: ThreadState, action: ThreadAction): Thr
     case "appendToolOutput": {
       const list = state.itemsByThread[action.threadId] ?? [];
       const index = list.findIndex((entry) => entry.id === action.itemId);
-      if (index < 0 || list[index].kind !== "tool") {
+      if (index < 0) {
+        const next = [...list, buildToolOutputPlaceholder(action)];
+        return {
+          ...state,
+          itemsByThread: {
+            ...state.itemsByThread,
+            [action.threadId]: prepareThreadItems(next, {
+              maxItemsPerThread: state.maxItemsPerThread,
+            }),
+          },
+        };
+      }
+      if (list[index].kind !== "tool") {
         return state;
       }
       const existing = list[index];

@@ -547,6 +547,23 @@ export type ThreadTokenUsage = {
   modelContextWindow: number | null;
 };
 
+export type ThreadGoalStatus = "active" | "paused" | "budgetLimited" | "complete";
+
+export type ThreadGoal = {
+  threadId: string;
+  objective: string;
+  status: ThreadGoalStatus;
+  tokenBudget: number | null;
+  tokensUsed: number;
+  timeUsedSeconds: number;
+  createdAt: number;
+  updatedAt: number;
+};
+
+export type ThreadGoalSnapshot = ThreadGoal & {
+  turnId: string | null;
+};
+
 export type LocalUsageDay = {
   day: string;
   inputTokens: number;

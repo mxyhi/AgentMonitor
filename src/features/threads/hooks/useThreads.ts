@@ -920,6 +920,7 @@ export function useThreads({
     activeTurnIdByThread: state.activeTurnIdByThread,
     turnDiffByThread: state.turnDiffByThread,
     tokenUsageByThread: state.tokenUsageByThread,
+    threadGoalByThread: state.threadGoalByThread,
     rateLimitsByWorkspace: state.rateLimitsByWorkspace,
     accountByWorkspace: state.accountByWorkspace,
     planByThread: state.planByThread,

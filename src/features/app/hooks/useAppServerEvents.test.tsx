@@ -44,6 +44,8 @@ async function mount(handlers: Handlers) {
 
 describe("useAppServerEvents", () => {
   it("routes app-server events to handlers", async () => {
+    const onThreadGoalUpdated = vi.fn();
+    const onThreadGoalCleared = vi.fn();
     const handlers: Handlers = {
       onAppServerEvent: vi.fn(),
       onWorkspaceConnected: vi.fn(),
@@ -52,6 +54,8 @@ describe("useAppServerEvents", () => {
       onThreadStarted: vi.fn(),
       onThreadNameUpdated: vi.fn(),
       onThreadStatusChanged: vi.fn(),
+      onThreadGoalUpdated,
+      onThreadGoalCleared,
       onThreadClosed: vi.fn(),
       onThreadArchived: vi.fn(),
       onThreadUnarchived: vi.fn(),
@@ -237,6 +241,54 @@ describe("useAppServerEvents", () => {
       "thread-2",
       { type: "active" },
     );
+
+    act(() => {
+      listener?.({
+        workspace_id: "ws-1",
+        message: {
+          method: "thread/goal/updated",
+          params: {
+            threadId: "thread-2",
+            turnId: "turn-1",
+            goal: {
+              threadId: "thread-2",
+              objective: "Ship app-server parity",
+              status: "active",
+              tokenBudget: 1000,
+              tokensUsed: 120,
+              timeUsedSeconds: 30,
+              createdAt: 1_700_000_000,
+              updatedAt: 1_700_000_030,
+            },
+          },
+        },
+      });
+    });
+    expect(onThreadGoalUpdated).toHaveBeenCalledWith("ws-1", {
+      threadId: "thread-2",
+      turnId: "turn-1",
+      goal: {
+        threadId: "thread-2",
+        objective: "Ship app-server parity",
+        status: "active",
+        tokenBudget: 1000,
+        tokensUsed: 120,
+        timeUsedSeconds: 30,
+        createdAt: 1_700_000_000,
+        updatedAt: 1_700_000_030,
+      },
+    });
+
+    act(() => {
+      listener?.({
+        workspace_id: "ws-1",
+        message: {
+          method: "thread/goal/cleared",
+          params: { threadId: "thread-2" },
+        },
+      });
+    });
+    expect(onThreadGoalCleared).toHaveBeenCalledWith("ws-1", "thread-2");
 
     act(() => {
       listener?.({

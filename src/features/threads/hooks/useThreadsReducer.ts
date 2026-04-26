@@ -4,6 +4,7 @@ import type {
   ConversationItem,
   RateLimitSnapshot,
   RequestUserInputRequest,
+  ThreadGoalSnapshot,
   ThreadListSortKey,
   ThreadSummary,
   ThreadTokenUsage,
@@ -42,6 +43,7 @@ export type ThreadState = {
   approvals: ApprovalRequest[];
   userInputRequests: RequestUserInputRequest[];
   tokenUsageByThread: Record<string, ThreadTokenUsage>;
+  threadGoalByThread: Record<string, ThreadGoalSnapshot | null>;
   rateLimitsByWorkspace: Record<string, RateLimitSnapshot | null>;
   accountByWorkspace: Record<string, AccountSnapshot | null>;
   planByThread: Record<string, TurnPlan | null>;
@@ -119,7 +121,16 @@ export type ThreadAction =
     }
   | { type: "appendReasoningContent"; threadId: string; itemId: string; delta: string }
   | { type: "appendPlanDelta"; threadId: string; itemId: string; delta: string }
-  | { type: "appendToolOutput"; threadId: string; itemId: string; delta: string }
+  | {
+      type: "appendToolOutput";
+      threadId: string;
+      itemId: string;
+      delta: string;
+      toolType?: string;
+      title?: string;
+      detail?: string;
+      status?: string;
+    }
   | {
       type: "setThreads";
       workspaceId: string;
@@ -156,6 +167,8 @@ export type ThreadAction =
       workspaceId: string;
     }
   | { type: "setThreadTokenUsage"; threadId: string; tokenUsage: ThreadTokenUsage }
+  | { type: "setThreadGoal"; threadId: string; goal: ThreadGoalSnapshot }
+  | { type: "clearThreadGoal"; threadId: string }
   | {
       type: "setRateLimits";
       workspaceId: string;
@@ -197,6 +210,7 @@ export const initialState: ThreadState = {
   approvals: [],
   userInputRequests: [],
   tokenUsageByThread: {},
+  threadGoalByThread: {},
   rateLimitsByWorkspace: {},
   accountByWorkspace: {},
   planByThread: {},

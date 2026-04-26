@@ -3,6 +3,8 @@ import type {
   RateLimitWindow,
   RateLimitSnapshot,
   ReviewTarget,
+  ThreadGoalSnapshot,
+  ThreadGoalStatus,
   ThreadTokenUsage,
   TurnPlan,
   TurnPlanStep,
@@ -53,6 +55,22 @@ function readOptionalNumber(
 ): number | null {
   const parsed = asFiniteNumber(candidate);
   return parsed !== null ? parsed : fallback;
+}
+
+const THREAD_GOAL_STATUSES = new Set<ThreadGoalStatus>([
+  "active",
+  "paused",
+  "budgetLimited",
+  "complete",
+]);
+
+function asThreadGoalStatus(value: unknown): ThreadGoalStatus | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+  return THREAD_GOAL_STATUSES.has(value as ThreadGoalStatus)
+    ? (value as ThreadGoalStatus)
+    : null;
 }
 
 function normalizeRateLimitWindow(
@@ -247,6 +265,31 @@ export function normalizeTokenUsage(
       }
       return null;
     })(),
+  };
+}
+
+export function normalizeThreadGoal(
+  raw: Record<string, unknown> | null | undefined,
+  turnId: string | null,
+): ThreadGoalSnapshot | null {
+  if (!raw) {
+    return null;
+  }
+  const threadId = asString(raw.threadId ?? raw.thread_id).trim();
+  const status = asThreadGoalStatus(raw.status);
+  if (!threadId || !status) {
+    return null;
+  }
+  return {
+    threadId,
+    objective: asString(raw.objective),
+    status,
+    tokenBudget: readOptionalNumber(raw.tokenBudget ?? raw.token_budget, null),
+    tokensUsed: asNumber(raw.tokensUsed ?? raw.tokens_used),
+    timeUsedSeconds: asNumber(raw.timeUsedSeconds ?? raw.time_used_seconds),
+    createdAt: asNumber(raw.createdAt ?? raw.created_at),
+    updatedAt: asNumber(raw.updatedAt ?? raw.updated_at),
+    turnId,
   };
 }
 

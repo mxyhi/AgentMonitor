@@ -47,6 +47,128 @@ const rustReleaseDir =
     ? path.join(srcTauriDir, "target", cargoTargetTriple, "release")
     : path.join(srcTauriDir, "target", "release");
 
+function uniqueExistingPaths(paths) {
+  return [...new Set(paths.map((candidate) => path.resolve(candidate)))].filter((candidate) =>
+    fs.existsSync(candidate),
+  );
+}
+
+function hasDifferentSrcTauriPath(output, currentSrcTauriDir) {
+  const normalizedCurrent = path.resolve(currentSrcTauriDir).replaceAll("\\", "/");
+  return output
+    .split(/\r?\n/)
+    .some((line) => {
+      const normalizedLine = line.replaceAll("\\", "/");
+      const referencesSrcTauri = normalizedLine.includes("/src-tauri/");
+      return referencesSrcTauri && !normalizedLine.includes(normalizedCurrent);
+    });
+}
+
+function fileHasDifferentSrcTauriPath(filePath, currentSrcTauriDir) {
+  if (!fs.existsSync(filePath)) {
+    return false;
+  }
+  return hasDifferentSrcTauriPath(fs.readFileSync(filePath, "utf8"), currentSrcTauriDir);
+}
+
+function profileHasStaleCheckoutPaths(profileDir, currentSrcTauriDir) {
+  const directFiles = [
+    "codex_monitor_daemon.d",
+    "codex_monitor_daemonctl.d",
+    "agent-monitor.d",
+  ];
+  if (
+    directFiles.some((fileName) =>
+      fileHasDifferentSrcTauriPath(path.join(profileDir, fileName), currentSrcTauriDir),
+    )
+  ) {
+    return true;
+  }
+
+  const buildRoot = path.join(profileDir, "build");
+  if (!fs.existsSync(buildRoot)) {
+    return false;
+  }
+  for (const entry of fs.readdirSync(buildRoot, { withFileTypes: true })) {
+    if (!entry.isDirectory()) {
+      continue;
+    }
+    const buildDir = path.join(buildRoot, entry.name);
+    const candidateFiles = fs
+      .readdirSync(buildDir, { withFileTypes: true })
+      .filter((candidate) =>
+        candidate.isFile() &&
+        (candidate.name === "output" ||
+          candidate.name === "root-output" ||
+          candidate.name.endsWith(".d")),
+      )
+      .map((candidate) => path.join(buildDir, candidate.name));
+    if (
+      candidateFiles.some((filePath) =>
+        fileHasDifferentSrcTauriPath(filePath, currentSrcTauriDir),
+      )
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+export function removeStaleCargoTargetProfiles({
+  profileDirs = [rustReleaseDir],
+  currentSrcTauriDir = srcTauriDir,
+} = {}) {
+  const removed = [];
+  for (const profileDir of uniqueExistingPaths(profileDirs)) {
+    if (!profileHasStaleCheckoutPaths(profileDir, currentSrcTauriDir)) {
+      continue;
+    }
+    fs.rmSync(profileDir, { recursive: true, force: true });
+    removed.push(profileDir);
+  }
+  if (removed.length > 0) {
+    console.log(
+      `[prepare:codex-runtime] removed ${removed.length} stale Cargo target profile dirs from a previous checkout path`,
+    );
+  }
+  return removed;
+}
+
+export function removeStaleCargoBuildScriptCaches({
+  buildRoots = [
+    path.join(srcTauriDir, "target", "debug", "build"),
+    path.join(srcTauriDir, "target", "release", "build"),
+    path.join(rustReleaseDir, "build"),
+  ],
+  currentSrcTauriDir = srcTauriDir,
+} = {}) {
+  const removed = [];
+  for (const buildRoot of uniqueExistingPaths(buildRoots)) {
+    for (const entry of fs.readdirSync(buildRoot, { withFileTypes: true })) {
+      if (!entry.isDirectory()) {
+        continue;
+      }
+      const buildDir = path.join(buildRoot, entry.name);
+      const outputPath = path.join(buildDir, "output");
+      if (!fs.existsSync(outputPath)) {
+        continue;
+      }
+      const output = fs.readFileSync(outputPath, "utf8");
+      if (!hasDifferentSrcTauriPath(output, currentSrcTauriDir)) {
+        continue;
+      }
+      fs.rmSync(buildDir, { recursive: true, force: true });
+      removed.push(buildDir);
+    }
+  }
+  if (removed.length > 0) {
+    console.log(
+      `[prepare:codex-runtime] removed ${removed.length} stale Cargo build cache dirs from a previous checkout path`,
+    );
+  }
+  return removed;
+}
+
 function expectedAssetName() {
   if (process.platform === "win32") {
     return `codex-${cargoTargetTriple}.exe`;
@@ -125,6 +247,71 @@ function isExecutableUsable(filePath, args = ["--help"]) {
   if (!fs.existsSync(filePath)) return false;
   const result = spawnSync(filePath, args, { encoding: "utf8" });
   return result.status === 0;
+}
+
+function collectFiles(candidatePath, files = []) {
+  if (!fs.existsSync(candidatePath)) {
+    return files;
+  }
+  const stat = fs.statSync(candidatePath);
+  if (stat.isDirectory()) {
+    for (const entry of fs.readdirSync(candidatePath)) {
+      collectFiles(path.join(candidatePath, entry), files);
+    }
+    return files;
+  }
+  if (stat.isFile()) {
+    files.push({ path: candidatePath, mtimeMs: stat.mtimeMs });
+  }
+  return files;
+}
+
+function newestInputMtimeMs(inputPaths) {
+  const files = inputPaths.flatMap((inputPath) => collectFiles(inputPath));
+  if (files.length === 0) {
+    return Number.POSITIVE_INFINITY;
+  }
+  return Math.max(...files.map((file) => file.mtimeMs));
+}
+
+export function areOutputsNewerThanInputs(outputPaths, inputPaths) {
+  const outputStats = outputPaths.map((outputPath) =>
+    fs.existsSync(outputPath) ? fs.statSync(outputPath) : null,
+  );
+  if (outputStats.some((stat) => !stat?.isFile())) {
+    return false;
+  }
+  const oldestOutputMtime = Math.min(
+    ...outputStats.map((stat) => stat?.mtimeMs ?? 0),
+  );
+  return oldestOutputMtime >= newestInputMtimeMs(inputPaths);
+}
+
+function daemonSidecarInputPaths() {
+  return [
+    path.join(srcTauriDir, "Cargo.toml"),
+    path.join(srcTauriDir, "Cargo.lock"),
+    path.join(srcTauriDir, "build.rs"),
+    path.join(srcTauriDir, "src"),
+  ];
+}
+
+function isDevFastEnabled() {
+  if (process.argv.includes("--dev-fast")) {
+    return true;
+  }
+  const rawValue = process.env.AGENT_MONITOR_DEV_SIDECAR_FAST_PATH?.trim().toLowerCase();
+  return rawValue === "1" || rawValue === "true" || rawValue === "yes";
+}
+
+function areInternalDaemonSidecarsFresh(sidecars) {
+  const outputPaths = sidecars.map((sidecar) => sidecarDestinationPath(sidecar.baseName));
+  if (!areOutputsNewerThanInputs(outputPaths, daemonSidecarInputPaths())) {
+    return false;
+  }
+  return sidecars.every((sidecar) =>
+    isExecutableUsable(sidecarDestinationPath(sidecar.baseName), sidecar.args),
+  );
 }
 
 export function buildCurlDownloadArgs(url, destination) {
@@ -283,6 +470,15 @@ function ensureInternalDaemonSidecars() {
     { baseName: "codex_monitor_daemon", args: ["--help"] },
     { baseName: "codex_monitor_daemonctl", args: ["--help"] },
   ];
+
+  removeStaleCargoTargetProfiles();
+  removeStaleCargoBuildScriptCaches();
+  if (isDevFastEnabled() && areInternalDaemonSidecarsFresh(sidecars)) {
+    console.log(
+      `[prepare:codex-runtime] dev fast path: daemon sidecars are current for ${cargoTargetTriple}; skipping cargo build.`,
+    );
+    return;
+  }
 
   console.log(
     `Building managed daemon sidecars for ${cargoTargetTriple}...`,

@@ -6,6 +6,7 @@ import { interruptTurn } from "@services/tauri";
 import {
   normalizePlanUpdate,
   normalizeRateLimits,
+  normalizeThreadGoal,
   normalizeTokenUsage,
 } from "@threads/utils/threadNormalize";
 import { useThreadTurnEvents } from "./useThreadTurnEvents";
@@ -19,6 +20,7 @@ vi.mock("@threads/utils/threadNormalize", () => ({
     typeof value === "string" ? value : value ? String(value) : "",
   normalizePlanUpdate: vi.fn(),
   normalizeRateLimits: vi.fn(),
+  normalizeThreadGoal: vi.fn(),
   normalizeTokenUsage: vi.fn(),
 }));
 
@@ -764,6 +766,49 @@ describe("useThreadTurnEvents", () => {
       type: "setThreadTokenUsage",
       threadId: "thread-1",
       tokenUsage: normalized,
+    });
+  });
+
+  it("dispatches thread goal updates and clears", () => {
+    const { result, dispatch } = makeOptions();
+    const goal = {
+      threadId: "thread-1",
+      objective: "Ship app-server parity",
+      status: "active",
+      tokenBudget: 1000,
+      tokensUsed: 120,
+      timeUsedSeconds: 30,
+      createdAt: 1_700_000_000,
+      updatedAt: 1_700_000_030,
+    };
+    vi.mocked(normalizeThreadGoal).mockReturnValue({ ...goal, turnId: "turn-1" } as never);
+
+    act(() => {
+      result.current.onThreadGoalUpdated("ws-1", {
+        threadId: "thread-1",
+        turnId: "turn-1",
+        goal,
+      });
+    });
+
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "ensureThread",
+      workspaceId: "ws-1",
+      threadId: "thread-1",
+    });
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "setThreadGoal",
+      threadId: "thread-1",
+      goal: { ...goal, turnId: "turn-1" },
+    });
+
+    act(() => {
+      result.current.onThreadGoalCleared("ws-1", "thread-1");
+    });
+
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "clearThreadGoal",
+      threadId: "thread-1",
     });
   });
 

@@ -274,6 +274,9 @@ describe("useThreadItemEvents", () => {
       threadId: "thread-1",
       itemId: "tool-1",
       delta: "Late output",
+      toolType: "commandExecution",
+      title: "Command output",
+      status: "inProgress",
     });
   });
 

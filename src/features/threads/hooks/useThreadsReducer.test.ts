@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { ConversationItem, ThreadSummary } from "@/types";
+import type { ConversationItem, ThreadGoalSnapshot, ThreadSummary } from "@/types";
 import { initialState, threadReducer } from "./useThreadsReducer";
 import type { ThreadState } from "./useThreadsReducer";
 
@@ -153,6 +153,34 @@ describe("threadReducer", () => {
         name: "Agent 1",
       }),
     ).toBe(base);
+  });
+
+  it("stores and clears thread goals", () => {
+    const goal: ThreadGoalSnapshot = {
+      threadId: "thread-1",
+      objective: "Ship app-server parity",
+      status: "active",
+      tokenBudget: 1000,
+      tokensUsed: 120,
+      timeUsedSeconds: 30,
+      createdAt: 1_700_000_000,
+      updatedAt: 1_700_000_030,
+      turnId: "turn-1",
+    };
+    const withGoal = threadReducer(initialState, {
+      type: "setThreadGoal",
+      threadId: "thread-1",
+      goal,
+    });
+
+    expect(withGoal.threadGoalByThread["thread-1"]).toEqual(goal);
+
+    const cleared = threadReducer(withGoal, {
+      type: "clearThreadGoal",
+      threadId: "thread-1",
+    });
+
+    expect(cleared.threadGoalByThread["thread-1"]).toBeNull();
   });
 
   it("tracks processing durations", () => {
@@ -480,6 +508,52 @@ describe("threadReducer", () => {
       delta: "delta",
     });
     expect(next).toBe(base);
+  });
+
+  it("keeps orphan tool output deltas visible until the item lifecycle catches up", () => {
+    const withOutput = threadReducer(initialState, {
+      type: "appendToolOutput",
+      threadId: "thread-1",
+      itemId: "tool-1",
+      delta: "first chunk",
+      toolType: "commandExecution",
+      title: "Command output",
+      status: "inProgress",
+    });
+
+    const placeholder = withOutput.itemsByThread["thread-1"]?.[0];
+    expect(placeholder?.kind).toBe("tool");
+    if (placeholder?.kind === "tool") {
+      expect(placeholder.toolType).toBe("commandExecution");
+      expect(placeholder.title).toBe("Command output");
+      expect(placeholder.output).toBe("first chunk");
+      expect(placeholder.status).toBe("inProgress");
+    }
+
+    const withLifecycleItem = threadReducer(withOutput, {
+      type: "upsertItem",
+      workspaceId: "ws-1",
+      threadId: "thread-1",
+      item: {
+        id: "tool-1",
+        kind: "tool",
+        toolType: "commandExecution",
+        title: "Command: pnpm test",
+        detail: "/repo",
+        status: "completed",
+        output: "",
+      },
+      hasCustomName: false,
+    });
+
+    const merged = withLifecycleItem.itemsByThread["thread-1"]?.[0];
+    expect(merged?.kind).toBe("tool");
+    if (merged?.kind === "tool") {
+      expect(merged.title).toBe("Command: pnpm test");
+      expect(merged.detail).toBe("/repo");
+      expect(merged.status).toBe("completed");
+      expect(merged.output).toBe("first chunk");
+    }
   });
 
   it("adds and removes user input requests by workspace and id", () => {

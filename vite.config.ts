@@ -7,6 +7,21 @@ import { paraglideVitePlugin } from "@inlang/paraglide-js";
 
 // @ts-expect-error process is a nodejs global
 const host = process.env.TAURI_DEV_HOST;
+const DEFAULT_TAURI_DEV_PORT = 1432;
+
+function parseDevPort(value: string | undefined, fallback: number) {
+  if (typeof value !== "string" || value.trim().length === 0) {
+    return fallback;
+  }
+  const port = Number.parseInt(value, 10);
+  if (!Number.isInteger(port) || port <= 0 || port > 65535) {
+    return fallback;
+  }
+  return port;
+}
+
+const devPort = parseDevPort(process.env.AGENT_MONITOR_DEV_PORT, DEFAULT_TAURI_DEV_PORT);
+const hmrPort = parseDevPort(process.env.AGENT_MONITOR_HMR_PORT, devPort + 1);
 
 const packageJson = JSON.parse(
   readFileSync(new URL("./package.json", import.meta.url), "utf-8"),
@@ -100,16 +115,16 @@ export default defineConfig(async () => ({
   //
   // 1. prevent Vite from obscuring rust errors
   clearScreen: false,
-  // 2. tauri expects a fixed port, fail if that port is not available
+  // 2. Tauri expects the Vite port to match build.devUrl.
   server: {
-    port: 1420,
+    port: devPort,
     strictPort: true,
     host: host || false,
     hmr: host
       ? {
           protocol: "ws",
           host,
-          port: 1421,
+          port: hmrPort,
         }
       : undefined,
     watch: {
