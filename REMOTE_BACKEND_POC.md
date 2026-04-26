@@ -16,7 +16,7 @@ TOKEN="change-me"
 
 cargo run --bin codex_monitor_daemon -- \
   --listen 127.0.0.1:4732 \
-  --data-dir "$HOME/.local/share/codex-monitor-daemon" \
+  --data-dir "$HOME/.local/share/agent-monitor-daemon" \
   --token "$TOKEN"
 ```
 

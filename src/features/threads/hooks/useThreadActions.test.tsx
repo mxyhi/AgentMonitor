@@ -46,7 +46,7 @@ vi.mock("@threads/utils/threadStorage", () => ({
 describe("useThreadActions", () => {
   const workspace: WorkspaceInfo = {
     id: "ws-1",
-    name: "CodexMonitor",
+    name: "AgentMonitor",
     path: "/tmp/codex",
     connected: true,
     settings: { sidebarCollapsed: false },

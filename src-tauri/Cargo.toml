@@ -1,10 +1,10 @@
 [package]
-name = "codex-monitor"
+name = "agent-monitor"
 version = "0.7.89"
 description = "A Tauri App"
 authors = ["you"]
 edition = "2021"
-default-run = "codex-monitor"
+default-run = "agent-monitor"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

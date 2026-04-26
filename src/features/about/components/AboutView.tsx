@@ -4,7 +4,7 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { useAppLocale } from "@/i18n/I18nProvider";
 import * as m from "@/i18n/messages";
 
-const GITHUB_URL = "https://github.com/Dimillian/CodexMonitor";
+const GITHUB_URL = "https://github.com/Dimillian/AgentMonitor";
 const TWITTER_URL = "https://x.com/dimillian";
 
 export function AboutView() {

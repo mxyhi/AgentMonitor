@@ -579,7 +579,7 @@ describe("tauri invoke wrappers", () => {
   it("reads agents settings", async () => {
     const invokeMock = vi.mocked(invoke);
     invokeMock.mockResolvedValueOnce({
-      configPath: "/Users/me/Library/Application Support/CodexMonitor/codex-home/config.toml",
+      configPath: "/Users/me/Library/Application Support/AgentMonitor/codex-home/config.toml",
       multiAgentEnabled: true,
       maxThreads: 6,
       maxDepth: 1,
@@ -594,7 +594,7 @@ describe("tauri invoke wrappers", () => {
   it("updates core agents settings", async () => {
     const invokeMock = vi.mocked(invoke);
     invokeMock.mockResolvedValueOnce({
-      configPath: "/Users/me/Library/Application Support/CodexMonitor/codex-home/config.toml",
+      configPath: "/Users/me/Library/Application Support/AgentMonitor/codex-home/config.toml",
       multiAgentEnabled: false,
       maxThreads: 4,
       maxDepth: 3,
@@ -615,7 +615,7 @@ describe("tauri invoke wrappers", () => {
   it("gets global AI settings", async () => {
     const invokeMock = vi.mocked(invoke);
     invokeMock.mockResolvedValueOnce({
-      configPath: "/Users/me/Library/Application Support/CodexMonitor/codex-home/config.toml",
+      configPath: "/Users/me/Library/Application Support/AgentMonitor/codex-home/config.toml",
       sessionDefaults: {
         modelProvider: "airouter",
         model: "gpt-5.1",

@@ -6,7 +6,7 @@ import { useQueuedSend } from "./useQueuedSend";
 
 const workspace: WorkspaceInfo = {
   id: "workspace-1",
-  name: "CodexMonitor",
+  name: "AgentMonitor",
   path: "/tmp/codex",
   connected: true,
   settings: { sidebarCollapsed: false },

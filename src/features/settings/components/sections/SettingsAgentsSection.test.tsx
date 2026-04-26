@@ -6,7 +6,7 @@ import { SettingsAgentsSection } from "./SettingsAgentsSection";
 
 const baseProps = (): SettingsAgentsSectionProps => ({
   settings: {
-    configPath: "/Users/me/Library/Application Support/CodexMonitor/codex-home/config.toml",
+    configPath: "/Users/me/Library/Application Support/AgentMonitor/codex-home/config.toml",
     multiAgentEnabled: false,
     maxThreads: 6,
     maxDepth: 1,
@@ -17,7 +17,7 @@ const baseProps = (): SettingsAgentsSectionProps => ({
         developerInstructions: "Investigate and propose safe changes.",
         configFile: "researcher.toml",
         resolvedPath:
-          "/Users/me/Library/Application Support/CodexMonitor/codex-home/agents/researcher.toml",
+          "/Users/me/Library/Application Support/AgentMonitor/codex-home/agents/researcher.toml",
         managedByApp: true,
         fileExists: true,
       },

@@ -1488,7 +1488,7 @@ mod tests {
 
     #[test]
     fn build_app_server_launch_args_force_app_private_ai_overrides() {
-        let codex_home = env::temp_dir().join(format!("codex-monitor-{}", Uuid::new_v4()));
+        let codex_home = env::temp_dir().join(format!("agent-monitor-{}", Uuid::new_v4()));
         fs::create_dir_all(&codex_home).expect("create codex home");
         fs::write(
             codex_home.join("config.toml"),

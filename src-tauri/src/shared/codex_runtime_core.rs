@@ -212,7 +212,7 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .expect("clock")
             .as_nanos();
-        let dir = std::env::temp_dir().join(format!("codex-monitor-runtime-test-{unique}"));
+        let dir = std::env::temp_dir().join(format!("agent-monitor-runtime-test-{unique}"));
         fs::create_dir_all(&dir).expect("create temp dir");
         let path = dir.join(name);
         fs::write(&path, b"stub").expect("write temp file");

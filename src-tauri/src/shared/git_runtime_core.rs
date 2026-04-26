@@ -445,7 +445,7 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .expect("clock")
             .as_nanos();
-        let dir = env::temp_dir().join(format!("codex-monitor-git-runtime-test-{name}-{unique}"));
+        let dir = env::temp_dir().join(format!("agent-monitor-git-runtime-test-{name}-{unique}"));
         fs::create_dir_all(&dir).expect("create temp dir");
         dir
     }
@@ -653,7 +653,7 @@ mod tests {
 
     #[test]
     fn packaged_candidate_roots_cover_standard_resource_locations() {
-        let exe_dir = Path::new("/tmp/codex-monitor");
+        let exe_dir = Path::new("/tmp/agent-monitor");
         let candidates = bundled_candidate_roots_for_exe_dir(exe_dir, "x86_64-pc-windows-msvc");
         assert!(candidates.iter().any(|path| {
             path.ends_with(Path::new(BUNDLED_GIT_RESOURCE_DIR).join("x86_64-pc-windows-msvc"))

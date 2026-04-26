@@ -26,7 +26,7 @@ src-tauri/tauri.ios.local.conf.json
 *.sln
 *.sw?
 /release-artifacts
-CodexMonitor.zip
+AgentMonitor.zip
 .codex-worktrees/
 .codexmonitor/
 .agent/

@@ -16,8 +16,8 @@
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "09F7A9973F81CD1301FD1481"
                BuildableName = "Agent Monitor.app"
-               BlueprintName = "codex-monitor_iOS"
-               ReferencedContainer = "container:codex-monitor.xcodeproj">
+               BlueprintName = "agent-monitor_iOS"
+               ReferencedContainer = "container:agent-monitor.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -32,8 +32,8 @@
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "09F7A9973F81CD1301FD1481"
             BuildableName = "Agent Monitor.app"
-            BlueprintName = "codex-monitor_iOS"
-            ReferencedContainer = "container:codex-monitor.xcodeproj">
+            BlueprintName = "agent-monitor_iOS"
+            ReferencedContainer = "container:agent-monitor.xcodeproj">
          </BuildableReference>
       </MacroExpansion>
       <EnvironmentVariables>
@@ -67,8 +67,8 @@
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "09F7A9973F81CD1301FD1481"
             BuildableName = "Agent Monitor.app"
-            BlueprintName = "codex-monitor_iOS"
-            ReferencedContainer = "container:codex-monitor.xcodeproj">
+            BlueprintName = "agent-monitor_iOS"
+            ReferencedContainer = "container:agent-monitor.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
       <EnvironmentVariables>
@@ -96,8 +96,8 @@
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "09F7A9973F81CD1301FD1481"
             BuildableName = "Agent Monitor.app"
-            BlueprintName = "codex-monitor_iOS"
-            ReferencedContainer = "container:codex-monitor.xcodeproj">
+            BlueprintName = "agent-monitor_iOS"
+            ReferencedContainer = "container:agent-monitor.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
       <EnvironmentVariables>

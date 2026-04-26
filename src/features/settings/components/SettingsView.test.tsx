@@ -94,7 +94,7 @@ function makeAiSettings(
   } = {},
 ) {
   return {
-    configPath: "/Users/me/Library/Application Support/CodexMonitor/codex-home/config.toml",
+    configPath: "/Users/me/Library/Application Support/AgentMonitor/codex-home/config.toml",
     sessionDefaults: {
       modelProvider: overrides.modelProvider ?? "airouter",
       model: overrides.model ?? "gpt-5.5",
@@ -130,7 +130,7 @@ function makeAiSettings(
 connectWorkspaceMock.mockResolvedValue(undefined);
 getAppBuildTypeMock.mockResolvedValue("release");
 getCodexConfigPathMock.mockResolvedValue(
-  "/Users/me/Library/Application Support/CodexMonitor/codex-home/config.toml",
+  "/Users/me/Library/Application Support/AgentMonitor/codex-home/config.toml",
 );
 getConfigModelMock.mockResolvedValue(null);
 getGlobalAiSettingsMock.mockResolvedValue(makeAiSettings());
@@ -165,7 +165,7 @@ updateGlobalAiSessionDefaultsMock.mockImplementation(async (input) =>
   }),
 );
 getAgentsSettingsMock.mockResolvedValue({
-  configPath: "/Users/me/Library/Application Support/CodexMonitor/codex-home/config.toml",
+  configPath: "/Users/me/Library/Application Support/AgentMonitor/codex-home/config.toml",
   multiAgentEnabled: false,
   maxThreads: 6,
   maxDepth: 1,
@@ -1366,10 +1366,10 @@ describe("SettingsView Codex section", () => {
     expect(screen.queryByRole("button", { name: "Update Codex" })).toBeNull();
     expect(
       screen.queryByText(
-        "/Users/me/Library/Application Support/CodexMonitor/codex-home/AGENTS.md",
+        "/Users/me/Library/Application Support/AgentMonitor/codex-home/AGENTS.md",
       ),
     ).toBeNull();
-    expect(screen.queryByText("/Users/me/Library/Application Support/CodexMonitor/codex-home/config.toml")).toBeNull();
+    expect(screen.queryByText("/Users/me/Library/Application Support/AgentMonitor/codex-home/config.toml")).toBeNull();
     expect(screen.queryByText("Global config.toml")).toBeNull();
     expect(screen.queryByText("~/.codex/AGENTS.md")).toBeNull();
     expect(screen.queryByText("~/.codex/config.toml")).toBeNull();

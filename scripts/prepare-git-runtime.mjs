@@ -338,7 +338,7 @@ export async function ensureBundledGitRuntime() {
 
   const assetName = resolveMinGitAssetName();
   const assetUrl = `https://github.com/git-for-windows/git/releases/download/${releaseTag}/${assetName}`;
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-monitor-git-bundled-"));
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "agent-monitor-git-bundled-"));
   const downloadPath = path.join(tempRoot, assetName);
   console.log(`Downloading bundled Git runtime ${bundledVersion} for ${cargoTargetTriple}...`);
   downloadFile(assetUrl, downloadPath);

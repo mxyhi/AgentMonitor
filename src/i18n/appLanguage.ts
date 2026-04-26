@@ -1,6 +1,6 @@
 import type { AppLanguage } from "@/types";
 
-export const APP_LANGUAGE_STORAGE_KEY = "codex-monitor.app-language";
+export const APP_LANGUAGE_STORAGE_KEY = "agent-monitor.app-language";
 
 const APP_LANGUAGES = new Set<AppLanguage>(["en", "zh-CN"]);
 

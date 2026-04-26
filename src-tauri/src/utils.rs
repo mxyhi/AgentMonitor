@@ -109,8 +109,8 @@ mod tests {
             r"\\?\Volume{01234567-89ab-cdef-0123-456789abcdef}\repo"
         );
         assert_eq!(
-            normalize_windows_namespace_path(r"\\.\pipe\codex-monitor"),
-            r"\\.\pipe\codex-monitor"
+            normalize_windows_namespace_path(r"\\.\pipe\agent-monitor"),
+            r"\\.\pipe\agent-monitor"
         );
     }
 }

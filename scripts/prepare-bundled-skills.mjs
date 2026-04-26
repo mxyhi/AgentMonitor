@@ -131,7 +131,7 @@ function resolveGeneratedOkSkillsFallback() {
   }
   const snapshot = stageDirectorySnapshot(
     generatedOkSkillsRoot,
-    "codex-monitor-generated-ok-skills-",
+    "agent-monitor-generated-ok-skills-",
   );
   return {
     ...snapshot,
@@ -147,7 +147,7 @@ function resolveGeneratedSystemSkillsFallback() {
   }
   const snapshot = stageDirectorySnapshot(
     generatedSystemSkillsRoot,
-    "codex-monitor-generated-system-skills-",
+    "agent-monitor-generated-system-skills-",
   );
   return {
     ...snapshot,
@@ -157,7 +157,7 @@ function resolveGeneratedSystemSkillsFallback() {
 
 function resolveOkSkillsSource(strict) {
   const config = resolveBundledSkillsConfig();
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-monitor-ok-skills-"));
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "agent-monitor-ok-skills-"));
 
   try {
     const snapshot = cloneOkSkillsSnapshot(tempRoot, config);
@@ -190,7 +190,7 @@ function resolveOkSkillsSource(strict) {
 
 async function resolveSystemSkillsSource(strict) {
   const config = resolveSystemSkillsConfig();
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-monitor-system-skills-"));
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "agent-monitor-system-skills-"));
 
   try {
     const checkoutRoot = path.join(tempRoot, "openai-skills");

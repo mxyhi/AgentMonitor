@@ -95,7 +95,7 @@ use workspace_settings::apply_workspace_settings_update;
 
 const DEFAULT_LISTEN_ADDR: &str = "127.0.0.1:4732";
 const MAX_IN_FLIGHT_RPC_PER_CONNECTION: usize = 32;
-const DAEMON_NAME: &str = "codex-monitor-daemon";
+const DAEMON_NAME: &str = "agent-monitor-daemon";
 
 fn spawn_with_client(
     event_sink: DaemonEventSink,
@@ -1507,20 +1507,20 @@ fn default_data_dir() -> PathBuf {
     if let Ok(xdg) = env::var("XDG_DATA_HOME") {
         let trimmed = xdg.trim();
         if !trimmed.is_empty() {
-            return PathBuf::from(trimmed).join("codex-monitor-daemon");
+            return PathBuf::from(trimmed).join("agent-monitor-daemon");
         }
     }
     let home = env::var("HOME").unwrap_or_else(|_| ".".to_string());
     PathBuf::from(home)
         .join(".local")
         .join("share")
-        .join("codex-monitor-daemon")
+        .join("agent-monitor-daemon")
 }
 
 fn usage() -> String {
     format!(
         "\
-USAGE:\n  codex-monitor-daemon [--listen <addr>] [--data-dir <path>] [--token <token> | --insecure-no-auth]\n\n\
+USAGE:\n  agent-monitor-daemon [--listen <addr>] [--data-dir <path>] [--token <token> | --insecure-no-auth]\n\n\
 OPTIONS:\n  --listen <addr>          Bind address (default: {DEFAULT_LISTEN_ADDR})\n  --data-dir <path>        Data dir holding workspaces.json/settings.json\n  --token <token>          Shared token required by TCP clients\n  --insecure-no-auth       Disable TCP auth (dev only)\n  -h, --help               Show this help\n"
     )
 }
@@ -1617,7 +1617,7 @@ mod tests {
             .expect("time")
             .as_nanos();
         let dir = std::env::temp_dir().join(format!(
-            "codex-monitor-{prefix}-{}-{unique}",
+            "agent-monitor-{prefix}-{}-{unique}",
             std::process::id()
         ));
         std::fs::create_dir_all(&dir).expect("create temp dir");
@@ -1635,7 +1635,7 @@ mod tests {
             app_settings: Mutex::new(AppSettings::default()),
             event_sink: DaemonEventSink { tx },
             codex_login_cancels: Mutex::new(HashMap::new()),
-            daemon_binary_path: Some("/tmp/codex-monitor-daemon".to_string()),
+            daemon_binary_path: Some("/tmp/agent-monitor-daemon".to_string()),
         }
     }
 
@@ -1961,7 +1961,7 @@ fn main() {
             }
         };
         eprintln!(
-            "codex-monitor-daemon listening on {} (data dir: {})",
+            "agent-monitor-daemon listening on {} (data dir: {})",
             config.listen,
             state
                 .storage_path

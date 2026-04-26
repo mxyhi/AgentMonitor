@@ -1,5 +1,5 @@
 {
-  "name": "codex-monitor",
+  "name": "agent-monitor",
   "private": true,
   "version": "0.7.89",
   "packageManager": "pnpm@10.33.0",

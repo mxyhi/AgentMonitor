@@ -245,7 +245,7 @@ async function ensureBundledRuntime() {
 
   const assetName = expectedAssetName();
   const assetUrl = `https://github.com/openai/codex/releases/download/${releaseTag}/${assetName}`;
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-monitor-bundled-"));
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "agent-monitor-bundled-"));
   const downloadPath = path.join(tempRoot, assetName);
   console.log(
     `Downloading bundled Codex runtime ${bundledVersion} for ${cargoTargetTriple}...`,

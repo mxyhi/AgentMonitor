@@ -15,7 +15,7 @@ use tauri::{Emitter, Manager, Runtime};
 
 const RECENT_THREADS_SECTION_LIMIT: usize = 3;
 #[cfg(target_os = "macos")]
-const TRAY_ID: &str = "codex-monitor-tray";
+const TRAY_ID: &str = "agent-monitor-tray";
 #[cfg(target_os = "macos")]
 const TRAY_QUIT_ID: &str = "tray_quit";
 #[cfg(target_os = "macos")]

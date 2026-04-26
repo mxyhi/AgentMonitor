@@ -82,7 +82,7 @@ function createFakeArm64GitRuntime(root) {
 }
 
 test("resolveBundledGitLayout keeps classic x64 cmd wrapper layout", (t) => {
-  const root = createTempDir("codex-monitor-git-layout-classic-");
+  const root = createTempDir("agent-monitor-git-layout-classic-");
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   createFakeClassicGitRuntime(root);
 
@@ -102,7 +102,7 @@ test("resolveBundledGitLayout keeps classic x64 cmd wrapper layout", (t) => {
 });
 
 test("resolveBundledGitLayout supports nested arm64 clang runtime layout", (t) => {
-  const root = createTempDir("codex-monitor-git-layout-arm64-");
+  const root = createTempDir("agent-monitor-git-layout-arm64-");
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   createFakeArm64GitRuntime(root);
 
@@ -123,7 +123,7 @@ test("resolveBundledGitLayout supports nested arm64 clang runtime layout", (t) =
 });
 
 test("findExtractedBundledGitRoot returns outer extracted root for arm64 bundles", (t) => {
-  const tempRoot = createTempDir("codex-monitor-git-layout-extracted-");
+  const tempRoot = createTempDir("agent-monitor-git-layout-extracted-");
   t.after(() => fs.rmSync(tempRoot, { recursive: true, force: true }));
   const wrappedRoot = path.join(tempRoot, "wrapped");
   fs.mkdirSync(wrappedRoot, { recursive: true });

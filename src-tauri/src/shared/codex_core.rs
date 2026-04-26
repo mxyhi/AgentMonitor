@@ -77,7 +77,7 @@ fn temp_converted_image_path(path: &str, extension: &str) -> PathBuf {
         .duration_since(UNIX_EPOCH)
         .map(|value| value.as_millis())
         .unwrap_or_default();
-    std::env::temp_dir().join(format!("codex-monitor-image-{safe_stem}-{ts}.{extension}"))
+    std::env::temp_dir().join(format!("agent-monitor-image-{safe_stem}-{ts}.{extension}"))
 }
 
 #[cfg(target_os = "macos")]

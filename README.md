@@ -1,6 +1,6 @@
 # Agent Monitor
 
-[![gitcgr](https://gitcgr.com/badge/mxyhi/CodexMonitor.svg)](https://gitcgr.com/mxyhi/CodexMonitor)
+[![gitcgr](https://gitcgr.com/badge/mxyhi/AgentMonitor.svg)](https://gitcgr.com/mxyhi/AgentMonitor)
 
 ![Agent Monitor](screenshot.png)
 
@@ -151,7 +151,7 @@ Useful overrides:
 - `--data-dir <path>`: app data dir containing `settings.json` / `workspaces.json`
 - `--listen <addr>`: bind address override
 - `--token <token>`: token override
-- `--daemon-path <path>`: explicit `codex-monitor-daemon` binary path
+- `--daemon-path <path>`: explicit `agent-monitor-daemon` binary path
 - `--json`: machine-readable output
 
 ### iOS Prerequisites

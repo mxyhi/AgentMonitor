@@ -462,7 +462,7 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .expect("clock")
             .as_nanos();
-        let path = std::env::temp_dir().join(format!("codex-monitor-{label}-{unique}"));
+        let path = std::env::temp_dir().join(format!("agent-monitor-{label}-{unique}"));
         fs::create_dir_all(&path).expect("create temp dir");
         path
     }
@@ -509,13 +509,13 @@ mod tests {
         let prev_home = std::env::var("HOME").ok();
 
         std::env::remove_var("CODEX_HOME");
-        std::env::set_var("CODEX_MONITOR_APP_DATA_DIR", "/tmp/codex-monitor-data");
+        std::env::set_var("CODEX_MONITOR_APP_DATA_DIR", "/tmp/agent-monitor-data");
         std::env::set_var("HOME", "/tmp/should-not-be-used");
 
         let resolved = resolve_default_codex_home();
         assert_eq!(
             resolved,
-            Some(PathBuf::from("/tmp/codex-monitor-data").join("codex-home"))
+            Some(PathBuf::from("/tmp/agent-monitor-data").join("codex-home"))
         );
 
         match prev_codex_home {

@@ -851,7 +851,7 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .expect("clock")
             .as_nanos();
-        let dir = std::env::temp_dir().join(format!("codex-monitor-{prefix}-{nonce}"));
+        let dir = std::env::temp_dir().join(format!("agent-monitor-{prefix}-{nonce}"));
         if dir.exists() {
             let _ = std::fs::remove_dir_all(&dir);
         }

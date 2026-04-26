@@ -1,24 +1,24 @@
 # App-Server Events Reference (Codex `a9f75e5cda2d6ff469a859baf8d2f50b9b04944a`)
 
 This document helps agents quickly answer:
-- Which app-server events CodexMonitor supports right now.
-- Which app-server requests CodexMonitor sends right now.
-- Where to look in CodexMonitor to add support.
+- Which app-server events AgentMonitor supports right now.
+- Which app-server requests AgentMonitor sends right now.
+- Where to look in AgentMonitor to add support.
 - Where to look in `.ref/codex` to compare event lists and find emitters.
 
 When updating this document:
 1. Update the Codex hash in the title using the exact upstream build or tag under test.
-2. CodexMonitor initializes app-server with `experimentalApi: true`, so prefer `codex app-server generate-ts --experimental` / `codex app-server generate-json-schema --experimental` as the first schema baseline, then fall back to the vendored `.ref/codex/codex-rs/app-server-protocol/schema/*` fixtures or source.
-3. Compare Codex events vs CodexMonitor routing.
-4. Compare Codex client request methods vs CodexMonitor outgoing request methods.
-5. Compare Codex server request methods vs CodexMonitor inbound request handling.
+2. AgentMonitor initializes app-server with `experimentalApi: true`, so prefer `codex app-server generate-ts --experimental` / `codex app-server generate-json-schema --experimental` as the first schema baseline, then fall back to the vendored `.ref/codex/codex-rs/app-server-protocol/schema/*` fixtures or source.
+3. Compare Codex events vs AgentMonitor routing.
+4. Compare Codex client request methods vs AgentMonitor outgoing request methods.
+5. Compare Codex server request methods vs AgentMonitor inbound request handling.
 6. Use a live `codex app-server` trace to verify lifecycle ordering when behavior depends on event timing rather than field shape.
 7. Update supported and missing lists below.
 
 Related project skill:
 - `.codex/skills/app-server-events-sync/SKILL.md`
 
-## Where To Look In CodexMonitor
+## Where To Look In AgentMonitor
 
 Primary app-server event source of truth (methods + typed parsing helpers):
 - `src/utils/appServerEvents.ts`
@@ -53,7 +53,7 @@ Primary outgoing request layer:
 
 ## Supported Notifications (Codex v2)
 
-These are the current Codex v2 `ServerNotification` methods that CodexMonitor
+These are the current Codex v2 `ServerNotification` methods that AgentMonitor
 supports in `src/utils/appServerEvents.ts` (`SUPPORTED_APP_SERVER_METHODS`) and
 then either routes in `useAppServerEvents.ts` or handles in feature-specific
 subscriptions.
@@ -88,7 +88,7 @@ subscriptions.
 - `turn/plan/updated`
 - `turn/started`
 
-## Additional Stream Methods Handled In CodexMonitor
+## Additional Stream Methods Handled In AgentMonitor
 
 These arrive on the same frontend event stream but are not Codex v2
 `ServerNotification` methods:
@@ -99,8 +99,8 @@ These arrive on the same frontend event stream but are not Codex v2
   `item/permissions/requestApproval`, via suffix match in
   `isApprovalRequestMethod(method)`
 - `item/tool/requestUserInput` (a Codex v2 server request, not a notification)
-- `codex/backgroundThread` (CodexMonitor synthetic bridge event)
-- `codex/connected` (CodexMonitor synthetic bridge event)
+- `codex/backgroundThread` (AgentMonitor synthetic bridge event)
+- `codex/connected` (AgentMonitor synthetic bridge event)
 - `codex/event/skills_update_available` (handled via
   `isSkillsUpdateAvailableEvent(...)` in `useSkills.ts`)
 
@@ -111,7 +111,7 @@ Codex currently exposes two compaction signals:
 - Preferred: `item/started` + `item/completed` with `item.type = "contextCompaction"` (`ThreadItem::ContextCompaction`).
 - Deprecated: `thread/compacted` (`ContextCompactedNotification`).
 
-CodexMonitor status:
+AgentMonitor status:
 
 - It routes `item/started` and `item/completed`, so the preferred signal reaches the frontend event layer.
 - It renders/stores `contextCompaction` items via the normal item lifecycle.
@@ -152,9 +152,9 @@ events are currently not routed:
 - `windows/worldWritableWarning`
 - `windowsSandbox/setupCompleted`
 
-## Supported Requests (CodexMonitor -> App-Server, v2)
+## Supported Requests (AgentMonitor -> App-Server, v2)
 
-These are v2 request methods CodexMonitor currently sends to Codex app-server:
+These are v2 request methods AgentMonitor currently sends to Codex app-server:
 
 - `thread/start`
 - `thread/resume`
@@ -184,7 +184,7 @@ Notes:
 
 ## Missing Client Requests (Codex v2 ClientRequest Methods)
 
-Compared against Codex v2 request methods, CodexMonitor currently does not send:
+Compared against Codex v2 request methods, AgentMonitor currently does not send:
 
 - `account/logout`
 - `account/sendAddCreditsNudgeEmail`
@@ -252,7 +252,7 @@ Compared against Codex v2 request methods, CodexMonitor currently does not send:
 - `thread/unsubscribe`
 - `windowsSandbox/setupStart`
 
-## Server Requests (App-Server -> CodexMonitor, v2)
+## Server Requests (App-Server -> AgentMonitor, v2)
 
 Supported server requests:
 
@@ -302,7 +302,7 @@ In a live probe against current Codex, a normal `turn/start` emitted:
 
 That probe did not emit `turn/completed`.
 
-Implication for CodexMonitor:
+Implication for AgentMonitor:
 - `thread/status/changed(type=idle)` is a critical completion signal.
 - Do not assume `turn/completed` is always present.
 - When debugging stuck "处理中…" states, inspect event ordering, not just schema shape.
@@ -329,7 +329,7 @@ Use this workflow to update the lists above:
    - Or use the exact bundled/upstream tag under test when `.ref/codex` is stale.
 2. List Codex v2 notification methods:
    - `awk '/server_notification_definitions! \\{/,/client_notification_definitions! \\{/' .ref/codex/codex-rs/app-server-protocol/src/protocol/common.rs | rg -N -o '=>\\s*\"[^\"]+\"|rename = \"[^\"]+\"' | sed -E 's/.*\"([^\"]+)\".*/\\1/' | sort -u`
-3. List CodexMonitor routed methods:
+3. List AgentMonitor routed methods:
    - `rg -n \"SUPPORTED_APP_SERVER_METHODS\" src/utils/appServerEvents.ts`
 4. Update the Supported and Missing sections.
 
@@ -344,7 +344,7 @@ Use this workflow to update request support lists:
    - `awk '/client_request_definitions! \\{/,/\\/\\/\\/ DEPRECATED APIs below/' .ref/codex/codex-rs/app-server-protocol/src/protocol/common.rs | rg -N -o '=>\\s*\"[^\"]+\"\\s*\\{' | sed -E 's/.*\"([^\"]+)\".*/\\1/' | sort -u`
 3. List Codex server request methods:
    - `awk '/server_request_definitions! \\{/,/\\/\\/\\/ DEPRECATED APIs below/' .ref/codex/codex-rs/app-server-protocol/src/protocol/common.rs | rg -N -o '=>\\s*\"[^\"]+\"\\s*\\{' | sed -E 's/.*\"([^\"]+)\".*/\\1/' | sort -u`
-4. List CodexMonitor outgoing requests:
+4. List AgentMonitor outgoing requests:
    - `perl -0777 -ne 'while(/send_request_for_workspace\\(\\s*&[^,]+\\s*,\\s*\"([^\"]+)\"/g){print \"$1\\n\"}' src-tauri/src/shared/codex_core.rs | sort -u`
 5. Update the Supported Requests, Missing Client Requests, and Server Requests sections.
 
@@ -368,7 +368,7 @@ Use this when the method list is unchanged but behavior looks off.
    - `rg -n \"enum ThreadItem|CommandExecution|FileChange|McpToolCall|EnteredReviewMode|ExitedReviewMode|ContextCompaction\" .ref/codex/codex-rs/app-server-protocol/src/protocol/v2.rs`
 6. Check for camelCase vs snake_case mismatches:
    - The protocol uses `#[serde(rename_all = \"camelCase\")]`, but fields are often declared in snake_case.
-   - CodexMonitor generally defends against this by checking both forms (for example in `threadNormalize.ts` and `useAppServerEvents.ts`), while centralizing method/type parsing in `appServerEvents.ts`.
+   - AgentMonitor generally defends against this by checking both forms (for example in `threadNormalize.ts` and `useAppServerEvents.ts`), while centralizing method/type parsing in `appServerEvents.ts`.
 7. If a schema change is found, fix it at the edges first:
    - Prefer updating `src/utils/appServerEvents.ts`, `useAppServerEvents.ts`, and `threadNormalize.ts` rather than spreading conditionals into components.
 
@@ -388,8 +388,8 @@ Use this when the method list is unchanged but behavior looks off.
   - Stored in `useThreadsReducer.ts` (`turnDiffByThread`)
   - Exposed by `useThreads.ts` for UI consumers
 - Steering behavior while a turn is processing:
-  - CodexMonitor attempts `turn/steer` only when steer capability is enabled, the thread is processing, and an active turn id exists.
-  - If `turn/steer` fails, CodexMonitor does not fall back to `turn/start`; it clears stale processing/turn state when applicable, surfaces an error, and returns `steer_failed`.
+  - AgentMonitor attempts `turn/steer` only when steer capability is enabled, the thread is processing, and an active turn id exists.
+  - If `turn/steer` fails, AgentMonitor does not fall back to `turn/start`; it clears stale processing/turn state when applicable, surfaces an error, and returns `steer_failed`.
   - Local queue fallback on `steer_failed` is handled in the composer queued-send flow (`useQueuedSend`), not by all direct `sendUserMessageToThread` callers.
 - Feature toggles in Settings:
   - `experimentalFeature/list` is an app-server request.

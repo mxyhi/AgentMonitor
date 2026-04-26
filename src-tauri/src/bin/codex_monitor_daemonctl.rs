@@ -22,7 +22,7 @@ use tokio::time::{sleep, timeout, Instant};
 
 use types::{AppSettings, TailscaleDaemonCommandPreview, TcpDaemonState, TcpDaemonStatus};
 
-const EXPECTED_DAEMON_NAME: &str = "codex-monitor-daemon";
+const EXPECTED_DAEMON_NAME: &str = "agent-monitor-daemon";
 const EXPECTED_DAEMON_MODE: &str = "tcp";
 const CURRENT_APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 const DEFAULT_LISTEN_ADDR: &str = "0.0.0.0:4732";
@@ -236,9 +236,9 @@ fn parse_args() -> Result<CliArgs, String> {
 fn usage() -> String {
     format!(
         "\
-USAGE:\n  codex-monitor-daemonctl <command> [options]\n\n\
+USAGE:\n  agent-monitor-daemonctl <command> [options]\n\n\
 COMMANDS:\n  start              Start daemon (auto-restarts mismatched daemon if safe)\n  stop               Stop daemon\n  status             Show daemon status\n  command-preview    Print equivalent daemon start command\n\n\
-OPTIONS:\n  --listen <addr>        Bind/listen address (default derived from settings, fallback: {DEFAULT_LISTEN_ADDR})\n  --token <token>        Remote backend token override\n  --data-dir <path>      App data dir (contains settings.json/workspaces.json)\n  --daemon-path <path>   Explicit path to codex-monitor-daemon binary\n  --insecure-no-auth     Start/probe daemon without auth token (dev only)\n  --json                 Print JSON output\n  -h, --help             Show this help\n\n\
+OPTIONS:\n  --listen <addr>        Bind/listen address (default derived from settings, fallback: {DEFAULT_LISTEN_ADDR})\n  --token <token>        Remote backend token override\n  --data-dir <path>      App data dir (contains settings.json/workspaces.json)\n  --daemon-path <path>   Explicit path to agent-monitor-daemon binary\n  --insecure-no-auth     Start/probe daemon without auth token (dev only)\n  --json                 Print JSON output\n  -h, --help             Show this help\n\n\
 NOTES:\n  - Defaults read token/host from <data-dir>/settings.json\n  - If no --data-dir is provided, default app data dir is used for this platform\n"
     )
 }
@@ -1379,7 +1379,7 @@ mod tests {
     #[test]
     fn parses_pid_from_ss_output() {
         let output = r#"State  Recv-Q Send-Q Local Address:Port Peer Address:PortProcess
-LISTEN 0      4096   0.0.0.0:4732      0.0.0.0:*    users:(("codex-monitor-da",pid=12345,fd=7))
+LISTEN 0      4096   0.0.0.0:4732      0.0.0.0:*    users:(("agent-monitor-da",pid=12345,fd=7))
 "#;
         assert_eq!(parse_ss_listener_pid(output, 4732), Some(12345));
         assert_eq!(parse_ss_listener_pid(output, 9000), None);
@@ -1389,7 +1389,7 @@ LISTEN 0      4096   0.0.0.0:4732      0.0.0.0:*    users:(("codex-monitor-da",p
     fn parses_pid_from_netstat_output() {
         let output = r#"Active Internet connections (only servers)
 Proto Recv-Q Send-Q Local Address           Foreign Address         State       PID/Program name
-tcp        0      0 0.0.0.0:4732            0.0.0.0:*               LISTEN      6789/codex-monitor-da
+tcp        0      0 0.0.0.0:4732            0.0.0.0:*               LISTEN      6789/agent-monitor-da
 "#;
         assert_eq!(parse_netstat_listener_pid(output, 4732), Some(6789));
         assert_eq!(parse_netstat_listener_pid(output, 9000), None);
