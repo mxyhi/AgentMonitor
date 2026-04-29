@@ -157,6 +157,7 @@ export default function MainApp() {
     addWorktreeAgent,
     connectWorkspace,
     markWorkspaceConnected,
+    markWorkspaceDisconnected,
     updateWorkspaceSettings,
     createWorkspaceGroup,
     renameWorkspaceGroup,
@@ -502,6 +503,7 @@ export default function MainApp() {
   } = useThreads({
     activeWorkspace,
     onWorkspaceConnected: markWorkspaceConnected,
+    onWorkspaceDisconnected: markWorkspaceDisconnected,
     onDebug: addDebugEntry,
     onRequireAiSetup: () => {
       setStartupAiSetupRequestKey((current) => current + 1);

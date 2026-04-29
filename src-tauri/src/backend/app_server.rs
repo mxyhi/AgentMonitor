@@ -377,6 +377,32 @@ fn build_app_server_disconnected_turn_events(
         .collect()
 }
 
+fn build_app_server_disconnected_workspace_events(
+    workspace_ids: Vec<String>,
+    fallback_workspace_id: &str,
+    message: &str,
+) -> Vec<AppServerEvent> {
+    let targets = if workspace_ids.is_empty() {
+        vec![fallback_workspace_id.to_string()]
+    } else {
+        workspace_ids
+    };
+
+    targets
+        .into_iter()
+        .map(|workspace_id| AppServerEvent {
+            workspace_id: workspace_id.clone(),
+            message: json!({
+                "method": "codex/disconnected",
+                "params": {
+                    "workspaceId": workspace_id,
+                    "message": message
+                }
+            }),
+        })
+        .collect()
+}
+
 #[derive(Debug, Clone)]
 struct ThreadListEntry {
     thread_id: String,
@@ -1327,6 +1353,17 @@ pub(crate) async fn spawn_workspace_session<E: EventSink>(
         for payload in disconnected_events {
             event_sink_clone.emit_app_server_event(payload);
         }
+        let disconnected_workspace_events = {
+            let workspace_ids = session_clone.workspace_ids_snapshot().await;
+            build_app_server_disconnected_workspace_events(
+                workspace_ids,
+                &fallback_workspace_id,
+                &disconnect_message,
+            )
+        };
+        for payload in disconnected_workspace_events {
+            event_sink_clone.emit_app_server_event(payload);
+        }
 
         // Ensure pending foreground requests cannot accumulate after process output ends.
         session_clone.pending.lock().await.clear();
@@ -1387,11 +1424,11 @@ pub(crate) async fn spawn_workspace_session<E: EventSink>(
 #[cfg(test)]
 mod tests {
     use super::{
-        build_app_server_disconnected_turn_events, build_app_server_launch_args,
-        build_codex_path_env, build_initialize_params, extract_related_thread_ids,
-        extract_thread_entries_from_thread_list_result, extract_thread_id, extract_turn_id,
-        normalize_root_path, resolve_codex_runtime_for_bin, resolve_workspace_for_cwd,
-        should_suppress_hidden_thread_event, source_subagent_kind,
+        build_app_server_disconnected_turn_events, build_app_server_disconnected_workspace_events,
+        build_app_server_launch_args, build_codex_path_env, build_initialize_params,
+        extract_related_thread_ids, extract_thread_entries_from_thread_list_result,
+        extract_thread_id, extract_turn_id, normalize_root_path, resolve_codex_runtime_for_bin,
+        resolve_workspace_for_cwd, should_suppress_hidden_thread_event, source_subagent_kind,
         thread_started_is_memory_consolidation, track_turn_start_request,
         update_active_turns_from_event,
     };
@@ -1504,6 +1541,48 @@ mod tests {
                 .and_then(|v| v.get("message"))
                 .and_then(|v| v.as_str()),
             Some("Codex app-server output ended before turn completed.")
+        );
+    }
+
+    #[test]
+    fn disconnected_app_server_emits_workspace_disconnect_events() {
+        let events = build_app_server_disconnected_workspace_events(
+            vec!["workspace-1".to_string(), "workspace-2".to_string()],
+            "fallback-workspace",
+            "Codex app-server output ended before turn completed.",
+        );
+
+        assert_eq!(events.len(), 2);
+        assert_eq!(events[0].workspace_id, "workspace-1");
+        assert_eq!(
+            events[0].message.get("method").and_then(|v| v.as_str()),
+            Some("codex/disconnected")
+        );
+        let params = events[0].message.get("params").expect("params");
+        assert_eq!(
+            params.get("workspaceId").and_then(|v| v.as_str()),
+            Some("workspace-1")
+        );
+        assert_eq!(
+            params.get("message").and_then(|v| v.as_str()),
+            Some("Codex app-server output ended before turn completed.")
+        );
+    }
+
+    #[test]
+    fn disconnected_app_server_uses_fallback_workspace_when_snapshot_empty() {
+        let events = build_app_server_disconnected_workspace_events(
+            Vec::new(),
+            "fallback-workspace",
+            "Codex app-server output ended before turn completed.",
+        );
+
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].workspace_id, "fallback-workspace");
+        let params = events[0].message.get("params").expect("params");
+        assert_eq!(
+            params.get("workspaceId").and_then(|v| v.as_str()),
+            Some("fallback-workspace")
         );
     }
 

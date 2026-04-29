@@ -45,6 +45,7 @@ import { localizeKnownThreadErrorMessage } from "../utils/threadErrorMessages";
 type UseThreadsOptions = {
   activeWorkspace: WorkspaceInfo | null;
   onWorkspaceConnected: (id: string) => void;
+  onWorkspaceDisconnected?: (id: string, message: string) => void;
   onDebug?: (entry: DebugEntry) => void;
   ensureWorkspaceRuntimeCodexArgs?: (
     workspaceId: string,
@@ -80,6 +81,7 @@ const CASCADE_ARCHIVE_SKIP_TTL_MS = 120_000;
 export function useThreads({
   activeWorkspace,
   onWorkspaceConnected,
+  onWorkspaceDisconnected,
   onDebug,
   ensureWorkspaceRuntimeCodexArgs,
   model,
@@ -267,6 +269,13 @@ export function useThreads({
     [onWorkspaceConnected, refreshAccountRateLimits, refreshAccountInfo],
   );
 
+  const handleWorkspaceDisconnected = useCallback(
+    (workspaceId: string, message: string) => {
+      onWorkspaceDisconnected?.(workspaceId, message);
+    },
+    [onWorkspaceDisconnected],
+  );
+
   const handleAccountUpdated = useCallback(
     (workspaceId: string) => {
       void refreshAccountRateLimits(workspaceId);
@@ -446,6 +455,7 @@ export function useThreads({
     pushThreadErrorMessage,
     onDebug,
     onWorkspaceConnected: handleWorkspaceConnected,
+    onWorkspaceDisconnected: handleWorkspaceDisconnected,
     applyCollabThreadLinks,
     hydrateSubagentThreads,
     onReviewExited: handleReviewExited,

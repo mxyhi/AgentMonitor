@@ -247,7 +247,7 @@ Artifacts will be in `src-tauri/target/release/bundle/` (platform-specific subfo
 2. workflow 会创建一个 release PR，统一改写仓内版本文件
 3. release PR 合并到 `main` 后，`Release` workflow 会自动读取仓内版本号并发版
 
-`Release` workflow 只在 `main` 的 push 上自动触发。它会读取仓内当前版本号，只有当对应 `v<version>` tag 尚不存在时才会并行发布桌面产物并生成 `latest.json`，当前自动发布目标为 macOS (`aarch64` / `x86_64`) 与 Windows (`x86_64` / `aarch64`)。
+`Release` workflow 只在 `main` 的 push 上自动触发。它会读取仓内当前版本号，只有当对应 `v<version>` tag 尚不存在时才会并行发布桌面产物并生成 `latest.json`，当前自动发布目标为 macOS (`aarch64` / `x86_64`) 与 Windows (`x86_64` / `aarch64`)。客户端检查更新固定读取 `https://oss.mxyhi.com/ai/AgentMonitor/latest.json`，`latest.json` 内的下载地址也指向同一 OSS 前缀；release 完成后必须把 GitHub release assets 同步到该 OSS 目录。
 
 ### Windows (opt-in)
 

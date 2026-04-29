@@ -37,6 +37,7 @@ type HookEvent = {
 
 type AppServerEventHandlers = {
   onWorkspaceConnected?: (workspaceId: string) => void;
+  onWorkspaceDisconnected?: (workspaceId: string, message: string) => void;
   onThreadStarted?: (workspaceId: string, thread: Record<string, unknown>) => void;
   onThreadNameUpdated?: (
     workspaceId: string,
@@ -128,6 +129,7 @@ export const METHODS_ROUTED_IN_USE_APP_SERVER_EVENTS = [
   "account/updated",
   "codex/backgroundThread",
   "codex/connected",
+  "codex/disconnected",
   "error",
   "hook/completed",
   "hook/started",
@@ -206,6 +208,12 @@ export function useAppServerEvents(handlers: AppServerEventHandlers) {
 
       if (method === "codex/connected") {
         currentHandlers.onWorkspaceConnected?.(workspace_id);
+        return;
+      }
+
+      if (method === "codex/disconnected") {
+        const message = String(params.message ?? "");
+        currentHandlers.onWorkspaceDisconnected?.(workspace_id, message);
         return;
       }
 

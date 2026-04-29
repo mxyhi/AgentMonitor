@@ -67,6 +67,30 @@ const workspaceTwo: WorkspaceInfo = {
   settings: { sidebarCollapsed: false, groupId: null },
 };
 
+describe("useWorkspaces connection markers", () => {
+  it("marks workspaces connected and disconnected from app-server lifecycle events", async () => {
+    vi.mocked(listWorkspaces).mockResolvedValue([workspaceOne]);
+
+    const { result } = renderHook(() => useWorkspaces());
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(result.current.workspaces[0].connected).toBe(true);
+
+    act(() => {
+      result.current.markWorkspaceDisconnected("ws-1");
+    });
+    expect(result.current.workspaces[0].connected).toBe(false);
+
+    act(() => {
+      result.current.markWorkspaceConnected("ws-1");
+    });
+    expect(result.current.workspaces[0].connected).toBe(true);
+  });
+});
+
 describe("useWorkspaces.renameWorktree", () => {
   it("optimistically updates and reconciles on success", async () => {
     const listWorkspacesMock = vi.mocked(listWorkspaces);

@@ -503,7 +503,7 @@ jobs:
       - name: Build latest.json
         env:
           VERSION: ${{ needs.prepare_release.outputs.version }}
-          REPOSITORY: ${{ github.repository }}
+          OSS_RELEASE_BASE_URL: https://oss.mxyhi.com/ai/AgentMonitor
         run: |
           set -euo pipefail
           LAST_TAG=$(git tag --sort=-version:refname \
@@ -526,7 +526,7 @@ jobs:
           import os
 
           version = os.environ["VERSION"]
-          repository = os.environ["REPOSITORY"]
+          oss_release_base_url = os.environ["OSS_RELEASE_BASE_URL"].rstrip("/")
           artifacts_dir = Path("release-artifacts")
 
           lines = Path("release-artifacts/release-commits.txt").read_text().splitlines()
@@ -559,7 +559,7 @@ jobs:
           Path("release-artifacts/release-notes.md").write_text(notes + "\n")
 
           def release_url(filename: str) -> str:
-              return f"https://github.com/{repository}/releases/download/v{version}/{quote(filename)}"
+              return f"{oss_release_base_url}/{quote(filename)}"
 
           payload = {
               "version": version,

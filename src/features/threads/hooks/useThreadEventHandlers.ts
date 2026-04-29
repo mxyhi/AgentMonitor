@@ -44,6 +44,7 @@ type ThreadEventHandlersOptions = {
   pushThreadErrorMessage: (threadId: string, message: string) => void;
   onDebug?: (entry: DebugEntry) => void;
   onWorkspaceConnected: (workspaceId: string) => void;
+  onWorkspaceDisconnected?: (workspaceId: string, message: string) => void;
   applyCollabThreadLinks: (
     workspaceId: string,
     threadId: string,
@@ -78,6 +79,7 @@ export function useThreadEventHandlers({
   pushThreadErrorMessage,
   onDebug,
   onWorkspaceConnected,
+  onWorkspaceDisconnected,
   applyCollabThreadLinks,
   hydrateSubagentThreads,
   onReviewExited,
@@ -219,6 +221,7 @@ export function useThreadEventHandlers({
   const handlers = useMemo(
     () => ({
       onWorkspaceConnected,
+      onWorkspaceDisconnected,
       onApprovalRequest,
       onRequestUserInput,
       onHookStarted,
@@ -255,6 +258,7 @@ export function useThreadEventHandlers({
     }),
     [
       onWorkspaceConnected,
+      onWorkspaceDisconnected,
       onApprovalRequest,
       onRequestUserInput,
       onHookStarted,

@@ -103,6 +103,8 @@ These arrive on the same frontend event stream but are not Codex v2
 - `item/tool/requestUserInput` (a Codex v2 server request, not a notification)
 - `codex/backgroundThread` (AgentMonitor synthetic bridge event)
 - `codex/connected` (AgentMonitor synthetic bridge event)
+- `codex/disconnected` (AgentMonitor synthetic bridge event emitted when the
+  app-server stdout stream ends)
 - `codex/event/skills_update_available` (handled via
   `isSkillsUpdateAvailableEvent(...)` in `useSkills.ts`)
 

@@ -360,6 +360,15 @@ export function useWorkspaceCrud({
     [setWorkspaces],
   );
 
+  const markWorkspaceDisconnected = useCallback(
+    (id: string) => {
+      setWorkspaces((prev) =>
+        prev.map((entry) => (entry.id === id ? { ...entry, connected: false } : entry)),
+      );
+    },
+    [setWorkspaces],
+  );
+
   const updateWorkspaceSettings = useCallback(
     async (workspaceId: string, patch: Partial<WorkspaceSettings>) => {
       onDebug?.({
@@ -463,6 +472,7 @@ export function useWorkspaceCrud({
     connectWorkspace,
     filterWorkspacePaths,
     markWorkspaceConnected,
+    markWorkspaceDisconnected,
     refreshWorkspaces,
     removeWorkspace,
     updateWorkspaceSettings,

@@ -49,6 +49,7 @@ describe("useAppServerEvents", () => {
     const handlers: Handlers = {
       onAppServerEvent: vi.fn(),
       onWorkspaceConnected: vi.fn(),
+      onWorkspaceDisconnected: vi.fn(),
       onHookStarted: vi.fn(),
       onHookCompleted: vi.fn(),
       onThreadStarted: vi.fn(),
@@ -80,6 +81,20 @@ describe("useAppServerEvents", () => {
       listener?.({ workspace_id: "ws-1", message: { method: "codex/connected" } });
     });
     expect(handlers.onWorkspaceConnected).toHaveBeenCalledWith("ws-1");
+
+    act(() => {
+      listener?.({
+        workspace_id: "ws-1",
+        message: {
+          method: "codex/disconnected",
+          params: { message: "Codex app-server output ended." },
+        },
+      });
+    });
+    expect(handlers.onWorkspaceDisconnected).toHaveBeenCalledWith(
+      "ws-1",
+      "Codex app-server output ended.",
+    );
 
     act(() => {
       listener?.({
