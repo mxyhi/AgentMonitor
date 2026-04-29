@@ -1422,9 +1422,12 @@ describe("SettingsView Codex section", () => {
       );
     });
 
-    const baseUrlInput = screen.getByLabelText("Base URL");
+    const baseUrlInput = screen.getByLabelText("Base URL") as HTMLInputElement;
     fireEvent.change(baseUrlInput, {
       target: { value: "http://localhost:9208/v1" },
+    });
+    await waitFor(() => {
+      expect(baseUrlInput.value).toBe("http://localhost:9208/v1");
     });
 
     const apiKeyField = screen.getByLabelText("API Key");
