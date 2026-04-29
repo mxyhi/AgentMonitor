@@ -58,8 +58,18 @@ jobs:
         run: pnpm run test
 
   test-tauri:
-    name: Rust tests (Linux)
-    runs-on: ubuntu-latest
+    name: Rust tests (${{ matrix.platform.name }})
+    runs-on: ${{ matrix.platform.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - name: macOS
+            os: macos-latest
+          - name: Linux
+            os: ubuntu-latest
+          - name: Windows
+            os: windows-latest
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -73,14 +83,13 @@ jobs:
       - name: Compute Rust cache key
         id: rust-cache-key
         run: node scripts/ci-rust-cache-key.mjs
-      - name: Cache Rust build
-        uses: actions/cache@v4
+      - name: Restore Rust build cache
+        uses: actions/cache/restore@v4
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
             src-tauri/target
-            src-tauri/binaries
           key: ${{ runner.os }}-${{ github.repository }}-cargo-test-v2-${{ steps.rust-cache-key.outputs.hash }}
           restore-keys: |
             ${{ runner.os }}-${{ github.repository }}-cargo-test-v2-
@@ -133,97 +142,6 @@ jobs:
 
           "LIBCLANG_PATH=$llvmBin" >> $env:GITHUB_ENV
           $llvmBin >> $env:GITHUB_PATH
-      - name: Install JS dependencies
-        run: pnpm install --frozen-lockfile
-      - name: Prepare bundled runtime assets
-        run: |
-          pnpm prepare:bundled-skills --strict
-          pnpm prepare:codex-runtime
-      - name: Rust tests
-        run: cargo test
-        working-directory: src-tauri
-        env:
-          TAURI_CONFIG: '{"bundle":{"externalBin":[]}}'
-
-  test-tauri-platforms:
-    name: Rust tests (${{ matrix.platform.name }})
-    if: github.event_name == 'pull_request'
-    runs-on: ${{ matrix.platform.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        platform:
-          - name: macOS
-            os: macos-latest
-          - name: Windows
-            os: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10.33.0
-      - uses: actions/setup-node@v6
-        with:
-          node-version: "24"
-          cache: "pnpm"
-      - uses: dtolnay/rust-toolchain@stable
-      - name: Compute Rust cache key
-        id: rust-cache-key
-        run: node scripts/ci-rust-cache-key.mjs
-      - name: Cache Rust build
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            src-tauri/target
-            src-tauri/binaries
-          key: ${{ runner.os }}-${{ github.repository }}-cargo-test-v2-${{ steps.rust-cache-key.outputs.hash }}
-          restore-keys: |
-            ${{ runner.os }}-${{ github.repository }}-cargo-test-v2-
-      - name: Install dependencies (macOS)
-        if: runner.os == 'macOS'
-        run: command -v cmake >/dev/null 2>&1 || brew install cmake
-      - name: Install dependencies (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          $missing = @()
-          if (-not (Get-Command cmake -ErrorAction SilentlyContinue)) {
-            $missing += "cmake"
-          }
-          if (-not (Get-Command clang -ErrorAction SilentlyContinue)) {
-            $missing += "llvm"
-          }
-
-          if ($missing.Count -eq 0) {
-            Write-Host "CMake and LLVM already available."
-            exit 0
-          }
-
-          choco install $missing -y --no-progress
-      - name: Configure LLVM (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          $llvmBin = @(
-            "C:\Program Files\LLVM\bin",
-            "C:\Program Files (x86)\LLVM\bin"
-          ) | Where-Object { Test-Path $_ } | Select-Object -First 1
-
-          if (-not $llvmBin) {
-            $clang = Get-Command clang -ErrorAction Stop
-            $llvmBin = Split-Path $clang.Source -Parent
-          }
-
-          "LIBCLANG_PATH=$llvmBin" >> $env:GITHUB_ENV
-          $llvmBin >> $env:GITHUB_PATH
-      - name: Install JS dependencies
-        run: pnpm install --frozen-lockfile
-      - name: Prepare bundled runtime assets
-        run: |
-          pnpm prepare:bundled-skills --strict
-          pnpm prepare:codex-runtime
       - name: Rust tests
         run: cargo test
         working-directory: src-tauri
@@ -238,7 +156,6 @@ jobs:
       - typecheck
       - test-js
       - test-tauri
-      - test-tauri-platforms
     if: github.event_name == 'pull_request'
     strategy:
       fail-fast: false
