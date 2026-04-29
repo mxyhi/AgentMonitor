@@ -1,7 +1,7 @@
 {
   "name": "agent-monitor",
   "private": true,
-  "version": "0.7.92",
+  "version": "0.7.93",
   "packageManager": "pnpm@10.33.0",
   "type": "module",
   "scripts": {
