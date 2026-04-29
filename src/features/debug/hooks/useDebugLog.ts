@@ -35,7 +35,11 @@ export function useDebugLog() {
       return true;
     }
     const label = entry.label.toLowerCase();
-    if (label.includes("warn") || label.includes("warning")) {
+    if (
+      label.includes("error") ||
+      label.includes("warn") ||
+      label.includes("warning")
+    ) {
       return true;
     }
     if (typeof entry.payload === "string") {

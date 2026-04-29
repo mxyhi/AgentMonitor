@@ -81,17 +81,6 @@ export function buildReviewThreadTitle(target: ReviewTarget): string | null {
   return null;
 }
 
-export function isStaleSteerTurnError(message: string): boolean {
-  const normalized = message.trim().toLowerCase();
-  if (!normalized) {
-    return false;
-  }
-  if (normalized.includes("no active turn")) {
-    return true;
-  }
-  return normalized.includes("active turn") && normalized.includes("not found");
-}
-
 export function isMissingThreadError(message: string): boolean {
   const normalized = message.trim().toLowerCase();
   if (!normalized) {

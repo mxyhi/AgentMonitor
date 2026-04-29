@@ -8,7 +8,7 @@ import type {
   RateLimitSnapshot,
   TurnPlan,
 } from "@/types";
-import { getAppServerRawMethod } from "@utils/appServerEvents";
+import { buildAppServerEventDebugEntry } from "@utils/debugEntries";
 import { useThreadApprovalEvents } from "./useThreadApprovalEvents";
 import { useThreadHookEvents } from "./useThreadHookEvents";
 import { useThreadItemEvents } from "./useThreadItemEvents";
@@ -205,15 +205,7 @@ export function useThreadEventHandlers({
 
   const onAppServerEvent = useCallback(
     (event: AppServerEvent) => {
-      const method = getAppServerRawMethod(event) ?? "";
-      const inferredSource = method === "codex/stderr" ? "stderr" : "event";
-      onDebug?.({
-        id: `${Date.now()}-server-event`,
-        timestamp: Date.now(),
-        source: inferredSource,
-        label: method || "event",
-        payload: event,
-      });
+      onDebug?.(buildAppServerEventDebugEntry(event));
     },
     [onDebug],
   );

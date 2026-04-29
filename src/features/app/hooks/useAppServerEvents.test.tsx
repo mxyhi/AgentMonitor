@@ -503,6 +503,98 @@ describe("useAppServerEvents", () => {
     expect(unlisten).toHaveBeenCalledTimes(1);
   });
 
+  it("routes generated app-server turn lifecycle fields", async () => {
+    const handlers: Handlers = {
+      onTurnStarted: vi.fn(),
+      onTurnCompleted: vi.fn(),
+      onThreadStatusChanged: vi.fn(),
+      onTurnError: vi.fn(),
+    };
+    const { root } = await mount(handlers);
+
+    act(() => {
+      listener?.({
+        workspace_id: "ws-schema",
+        message: {
+          method: "turn/started",
+          params: {
+            threadId: "thread-schema",
+            turn: { id: "turn-schema" },
+          },
+        },
+      });
+    });
+    expect(handlers.onTurnStarted).toHaveBeenCalledWith(
+      "ws-schema",
+      "thread-schema",
+      "turn-schema",
+    );
+
+    act(() => {
+      listener?.({
+        workspace_id: "ws-schema",
+        message: {
+          method: "thread/status/changed",
+          params: {
+            threadId: "thread-schema",
+            status: { type: "idle" },
+          },
+        },
+      });
+    });
+    expect(handlers.onThreadStatusChanged).toHaveBeenCalledWith(
+      "ws-schema",
+      "thread-schema",
+      { type: "idle" },
+    );
+
+    act(() => {
+      listener?.({
+        workspace_id: "ws-schema",
+        message: {
+          method: "error",
+          params: {
+            threadId: "thread-schema",
+            turnId: "turn-schema",
+            willRetry: false,
+            error: { message: "expectedTurnId must not be empty" },
+          },
+        },
+      });
+    });
+    expect(handlers.onTurnError).toHaveBeenCalledWith(
+      "ws-schema",
+      "thread-schema",
+      "turn-schema",
+      {
+        message: "expectedTurnId must not be empty",
+        willRetry: false,
+      },
+    );
+
+    act(() => {
+      listener?.({
+        workspace_id: "ws-schema",
+        message: {
+          method: "turn/completed",
+          params: {
+            threadId: "thread-schema",
+            turn: { id: "turn-schema" },
+          },
+        },
+      });
+    });
+    expect(handlers.onTurnCompleted).toHaveBeenCalledWith(
+      "ws-schema",
+      "thread-schema",
+      "turn-schema",
+    );
+
+    await act(async () => {
+      root.unmount();
+    });
+  });
+
   it("normalizes request user input questions and options", async () => {
     const handlers: Handlers = {
       onRequestUserInput: vi.fn(),

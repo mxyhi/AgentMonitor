@@ -40,7 +40,6 @@ import {
   buildStatusLines,
   buildTurnStartPayload,
   isMissingThreadError,
-  isStaleSteerTurnError,
   parseFastCommand,
   resolveSendMessageOptions,
   type SendMessageOptions,
@@ -462,10 +461,8 @@ export function useThreadMessaging({
             safeMessageActivity();
             return { status: "blocked" };
           }
-          if (isStaleSteerTurnError(rpcError)) {
-            markProcessing(threadId, false);
-            setActiveTurnId(threadId, null);
-          }
+          markProcessing(threadId, false);
+          setActiveTurnId(threadId, null);
           pushThreadErrorMessage(
             threadId,
             `Turn steer failed: ${rpcError}`,
@@ -504,7 +501,7 @@ export function useThreadMessaging({
           }
           markProcessing(threadId, false);
           setActiveTurnId(threadId, null);
-        } else if (isStaleSteerTurnError(errorMessage)) {
+        } else {
           markProcessing(threadId, false);
           setActiveTurnId(threadId, null);
         }

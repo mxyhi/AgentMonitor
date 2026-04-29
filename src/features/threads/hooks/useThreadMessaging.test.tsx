@@ -1102,7 +1102,7 @@ describe("useThreadMessaging telemetry", () => {
     );
   });
 
-  it("keeps processing state for non-stale turn/steer rpc errors", async () => {
+  it("clears processing state when turn/steer returns an rpc error", async () => {
     const pushThreadErrorMessage = vi.fn();
     const markProcessing = vi.fn();
     const setActiveTurnId = vi.fn();
@@ -1165,15 +1165,15 @@ describe("useThreadMessaging telemetry", () => {
     expect(steerTurnService).toHaveBeenCalledTimes(1);
     expect(sendUserMessageService).not.toHaveBeenCalled();
     expect(markProcessing).toHaveBeenCalledWith("thread-1", true);
-    expect(markProcessing).not.toHaveBeenCalledWith("thread-1", false);
-    expect(setActiveTurnId).not.toHaveBeenCalledWith("thread-1", null);
+    expect(markProcessing).toHaveBeenCalledWith("thread-1", false);
+    expect(setActiveTurnId).toHaveBeenCalledWith("thread-1", null);
     expect(pushThreadErrorMessage).toHaveBeenCalledWith(
       "thread-1",
       "Turn steer failed: steer request timed out",
     );
   });
 
-  it("returns steer_failed and keeps processing state when turn/steer throws", async () => {
+  it("returns steer_failed and clears processing state when turn/steer throws", async () => {
     const pushThreadErrorMessage = vi.fn();
     const markProcessing = vi.fn();
     const setActiveTurnId = vi.fn();
@@ -1235,8 +1235,8 @@ describe("useThreadMessaging telemetry", () => {
 
     expect(sendUserMessageService).not.toHaveBeenCalled();
     expect(markProcessing).toHaveBeenCalledWith("thread-1", true);
-    expect(markProcessing).not.toHaveBeenCalledWith("thread-1", false);
-    expect(setActiveTurnId).not.toHaveBeenCalledWith("thread-1", null);
+    expect(markProcessing).toHaveBeenCalledWith("thread-1", false);
+    expect(setActiveTurnId).toHaveBeenCalledWith("thread-1", null);
     expect(pushThreadErrorMessage).toHaveBeenCalledWith(
       "thread-1",
       "Turn steer failed: steer network failure",

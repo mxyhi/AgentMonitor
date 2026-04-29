@@ -290,6 +290,14 @@ Why this order:
 - `generate-ts` / `generate-json-schema` are emitted by the exact Codex build under test, so they are the safest static contract baseline.
 - Source files remain necessary for emitter wiring and runtime semantics that schemas cannot express.
 
+Current turn lifecycle contract check:
+- `TurnSteerParams` requires `threadId`, `input`, and `expectedTurnId`.
+- AgentMonitor's frontend-to-Tauri IPC uses internal `turnId`, then `codex_core::turn_steer_core` maps it to app-server `expectedTurnId`.
+- `TurnSteerResponse` returns `turnId`.
+- `TurnStartedNotification` and `TurnCompletedNotification` carry `threadId` plus `turn`; the turn id is `turn.id`.
+- `ErrorNotification` carries `error`, `threadId`, `turnId`, and `willRetry`.
+- `ThreadStatusChangedNotification` carries `threadId` and `status`.
+
 ## Runtime Lifecycle Note
 
 Static schema is necessary but not sufficient.
@@ -389,7 +397,7 @@ Use this when the method list is unchanged but behavior looks off.
   - Exposed by `useThreads.ts` for UI consumers
 - Steering behavior while a turn is processing:
   - AgentMonitor attempts `turn/steer` only when steer capability is enabled, the thread is processing, and an active turn id exists.
-  - If `turn/steer` fails, AgentMonitor does not fall back to `turn/start`; it clears stale processing/turn state when applicable, surfaces an error, and returns `steer_failed`.
+  - If `turn/steer` fails, AgentMonitor does not fall back to `turn/start`; it clears local processing/turn state, surfaces an error, and returns `steer_failed`.
   - Local queue fallback on `steer_failed` is handled in the composer queued-send flow (`useQueuedSend`), not by all direct `sendUserMessageToThread` callers.
 - Feature toggles in Settings:
   - `experimentalFeature/list` is an app-server request.
