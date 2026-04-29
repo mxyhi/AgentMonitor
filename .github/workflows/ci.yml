@@ -142,6 +142,8 @@ jobs:
 
           "LIBCLANG_PATH=$llvmBin" >> $env:GITHUB_ENV
           $llvmBin >> $env:GITHUB_PATH
+      - name: Prepare bundled skills
+        run: pnpm prepare:bundled-skills --strict
       - name: Rust tests
         run: cargo test
         working-directory: src-tauri
