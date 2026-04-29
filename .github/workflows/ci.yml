@@ -72,13 +72,6 @@ jobs:
             os: windows-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10.33.0
-      - uses: actions/setup-node@v6
-        with:
-          node-version: "24"
-          cache: "pnpm"
       - uses: dtolnay/rust-toolchain@stable
       - name: Compute Rust cache key
         id: rust-cache-key
@@ -143,7 +136,7 @@ jobs:
           "LIBCLANG_PATH=$llvmBin" >> $env:GITHUB_ENV
           $llvmBin >> $env:GITHUB_PATH
       - name: Prepare bundled skills
-        run: pnpm prepare:bundled-skills --strict
+        run: node scripts/prepare-bundled-skills.mjs --strict
       - name: Rust tests
         run: cargo test
         working-directory: src-tauri
