@@ -73,9 +73,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-      - name: Compute Rust cache key
-        id: rust-cache-key
-        run: node scripts/ci-rust-cache-key.mjs
       - name: Restore Rust build cache
         uses: actions/cache/restore@v4
         with:
@@ -83,7 +80,7 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             src-tauri/target
-          key: ${{ runner.os }}-${{ github.repository }}-cargo-test-v2-${{ steps.rust-cache-key.outputs.hash }}
+          key: ${{ runner.os }}-${{ github.repository }}-cargo-test-v2-${{ hashFiles('src-tauri/Cargo.toml', 'src-tauri/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-${{ github.repository }}-cargo-test-v2-
       - name: Install dependencies (macOS)
@@ -135,8 +132,24 @@ jobs:
 
           "LIBCLANG_PATH=$llvmBin" >> $env:GITHUB_ENV
           $llvmBin >> $env:GITHUB_PATH
-      - name: Prepare bundled skills
-        run: node scripts/prepare-bundled-skills.mjs --strict
+      - name: Prepare bundled skills fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p src-tauri/generated-bundled-skills/.system/openai-docs
+          mkdir -p src-tauri/generated-bundled-skills/ok-skills/caveman
+          printf '%s\n' \
+            '---' \
+            'name: openai-docs' \
+            'description: CI fixture' \
+            '---' \
+            > src-tauri/generated-bundled-skills/.system/openai-docs/SKILL.md
+          printf '%s\n' \
+            '---' \
+            'name: caveman' \
+            'description: CI fixture' \
+            '---' \
+            > src-tauri/generated-bundled-skills/ok-skills/caveman/SKILL.md
       - name: Rust tests
         run: cargo test
         working-directory: src-tauri
