@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: ["main"]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   lint:
     runs-on: ubuntu-latest
@@ -76,6 +80,9 @@ jobs:
           node-version: "24"
           cache: "pnpm"
       - uses: dtolnay/rust-toolchain@stable
+      - name: Compute Rust cache key
+        id: rust-cache-key
+        run: node scripts/ci-rust-cache-key.mjs
       - name: Cache Rust build
         uses: actions/cache@v4
         with:
@@ -83,9 +90,10 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             src-tauri/target
-          key: ${{ runner.os }}-${{ github.repository }}-cargo-test-${{ hashFiles('src-tauri/Cargo.lock') }}
+            src-tauri/binaries
+          key: ${{ runner.os }}-${{ github.repository }}-cargo-test-v2-${{ steps.rust-cache-key.outputs.hash }}
           restore-keys: |
-            ${{ runner.os }}-${{ github.repository }}-cargo-test-
+            ${{ runner.os }}-${{ github.repository }}-cargo-test-v2-
       - name: Install dependencies (macOS)
         if: runner.os == 'macOS'
         run: command -v cmake >/dev/null 2>&1 || brew install cmake
@@ -103,12 +111,38 @@ jobs:
             pkg-config
       - name: Install dependencies (Windows)
         if: runner.os == 'Windows'
-        run: choco install cmake llvm -y --no-progress
+        shell: pwsh
+        run: |
+          $missing = @()
+          if (-not (Get-Command cmake -ErrorAction SilentlyContinue)) {
+            $missing += "cmake"
+          }
+          if (-not (Get-Command clang -ErrorAction SilentlyContinue)) {
+            $missing += "llvm"
+          }
+
+          if ($missing.Count -eq 0) {
+            Write-Host "CMake and LLVM already available."
+            exit 0
+          }
+
+          choco install $missing -y --no-progress
       - name: Configure LLVM (Windows)
         if: runner.os == 'Windows'
+        shell: pwsh
         run: |
-          echo "LIBCLANG_PATH=C:\\Program Files\\LLVM\\bin" >> $env:GITHUB_ENV
-          echo "C:\\Program Files\\LLVM\\bin" >> $env:GITHUB_PATH
+          $llvmBin = @(
+            "C:\Program Files\LLVM\bin",
+            "C:\Program Files (x86)\LLVM\bin"
+          ) | Where-Object { Test-Path $_ } | Select-Object -First 1
+
+          if (-not $llvmBin) {
+            $clang = Get-Command clang -ErrorAction Stop
+            $llvmBin = Split-Path $clang.Source -Parent
+          }
+
+          "LIBCLANG_PATH=$llvmBin" >> $env:GITHUB_ENV
+          $llvmBin >> $env:GITHUB_PATH
       - name: Install JS dependencies
         run: pnpm install --frozen-lockfile
       - name: Prepare bundled runtime assets
@@ -153,6 +187,9 @@ jobs:
           node-version: "24"
           cache: "pnpm"
       - uses: dtolnay/rust-toolchain@stable
+      - name: Compute Rust cache key
+        id: rust-cache-key
+        run: node scripts/ci-rust-cache-key.mjs
       - name: Cache Rust build
         uses: actions/cache@v4
         with:
@@ -160,9 +197,10 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             src-tauri/target
-          key: ${{ runner.os }}-${{ github.repository }}-cargo-build-${{ hashFiles('src-tauri/Cargo.lock') }}
+            src-tauri/binaries
+          key: ${{ runner.os }}-${{ github.repository }}-cargo-build-v2-${{ steps.rust-cache-key.outputs.hash }}
           restore-keys: |
-            ${{ runner.os }}-${{ github.repository }}-cargo-build-
+            ${{ runner.os }}-${{ github.repository }}-cargo-build-v2-
       - name: Install dependencies (macOS)
         if: runner.os == 'macOS'
         run: command -v cmake >/dev/null 2>&1 || brew install cmake
@@ -180,12 +218,38 @@ jobs:
             pkg-config
       - name: Install dependencies (Windows)
         if: runner.os == 'Windows'
-        run: choco install cmake llvm -y --no-progress
+        shell: pwsh
+        run: |
+          $missing = @()
+          if (-not (Get-Command cmake -ErrorAction SilentlyContinue)) {
+            $missing += "cmake"
+          }
+          if (-not (Get-Command clang -ErrorAction SilentlyContinue)) {
+            $missing += "llvm"
+          }
+
+          if ($missing.Count -eq 0) {
+            Write-Host "CMake and LLVM already available."
+            exit 0
+          }
+
+          choco install $missing -y --no-progress
       - name: Configure LLVM (Windows)
         if: runner.os == 'Windows'
+        shell: pwsh
         run: |
-          echo "LIBCLANG_PATH=C:\\Program Files\\LLVM\\bin" >> $env:GITHUB_ENV
-          echo "C:\\Program Files\\LLVM\\bin" >> $env:GITHUB_PATH
+          $llvmBin = @(
+            "C:\Program Files\LLVM\bin",
+            "C:\Program Files (x86)\LLVM\bin"
+          ) | Where-Object { Test-Path $_ } | Select-Object -First 1
+
+          if (-not $llvmBin) {
+            $clang = Get-Command clang -ErrorAction Stop
+            $llvmBin = Split-Path $clang.Source -Parent
+          }
+
+          "LIBCLANG_PATH=$llvmBin" >> $env:GITHUB_ENV
+          $llvmBin >> $env:GITHUB_PATH
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       - name: Prepare bundled runtime

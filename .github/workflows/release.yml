@@ -181,6 +181,15 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Prepare generated assets
+        run: |
+          set -euo pipefail
+          pnpm prepare:bundled-skills --strict
+          pnpm prepare:codex-runtime
+
+      - name: Doctor
+        run: pnpm doctor:strict
+
       - name: Import signing certificate
         if: steps.mac_signing.outputs.enabled == 'true'
         run: |
@@ -220,10 +229,6 @@ jobs:
           set -euo pipefail
           export TAURI_SIGNING_PRIVATE_KEY
           TAURI_SIGNING_PRIVATE_KEY="$(cat "$HOME/.tauri/codexmonitor.key")"
-          pnpm sync:material-icons
-          pnpm prepare:bundled-skills --strict
-          pnpm prepare:codex-runtime
-          pnpm doctor:strict
           pnpm exec tauri build --target "$CARGO_BUILD_TARGET" --bundles app
 
       - name: Bundle OpenSSL and re-sign
@@ -397,6 +402,16 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Prepare generated assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          pnpm prepare:bundled-skills --strict
+          pnpm prepare:codex-runtime
+
+      - name: Doctor
+        run: pnpm doctor:win
+
       - name: Write Tauri signing key
         shell: bash
         run: |
@@ -418,10 +433,6 @@ jobs:
           set -euo pipefail
           export TAURI_SIGNING_PRIVATE_KEY
           TAURI_SIGNING_PRIVATE_KEY="$(cat "$HOME/.tauri/codexmonitor.key")"
-          pnpm sync:material-icons
-          pnpm prepare:bundled-skills --strict
-          pnpm prepare:codex-runtime
-          pnpm doctor:win
           pnpm exec tauri build \
             --target "$CARGO_BUILD_TARGET" \
             --bundles "${{ matrix.bundles }}" \
